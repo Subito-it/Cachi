@@ -117,8 +117,11 @@ class Parser {
                     
                     let targetDeviceRecord = actionRecord.runDestination.targetDeviceRecord
                     let testIdentifier = $0.identifier.md5Value
+
+                    let routeIdentifier = [targetName ?? "", group.name, $0.name, targetDeviceRecord.modelName, targetDeviceRecord.operatingSystemVersion].joined(separator: "-").md5Value
                     
                     return ResultBundle.Test(identifier: testIdentifier,
+                                             routeIdentifier: routeIdentifier,
                                              url: "\(TestRoute().path)?\(testIdentifier)",
                                              targetName: targetName ?? "",
                                              groupName: group.name,

@@ -13,6 +13,7 @@ struct ResultBundle: Codable {
         }
         
         let identifier: String
+        let routeIdentifier: String
         let url: String
         let targetName: String
         let groupName: String

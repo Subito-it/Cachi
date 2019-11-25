@@ -106,13 +106,9 @@ class State {
     func testStats(md5Identifier: String) -> ResultBundle.Test.Stats {
         var successfulTests = ArraySlice<ResultBundle.Test>()
         var failedTests = ArraySlice<ResultBundle.Test>()
-        
-        let hashFunction: (ResultBundle.Test) -> String = { test in
-            return [test.targetName, test.groupName, test.name, test.deviceModel, test.deviceOs].joined(separator: "-").md5Value
-        }
-        
+                
         for resultBundle in resultBundles {
-            let matchingTests = resultBundle.tests.filter { hashFunction($0) == md5Identifier }
+            let matchingTests = resultBundle.tests.filter { $0.routeIdentifier == md5Identifier }
             
             successfulTests += matchingTests.filter { $0.status == .success }
             failedTests += matchingTests.filter { $0.status == .failure }

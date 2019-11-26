@@ -42,8 +42,14 @@ struct TestRouteHTML: Routable {
             return promise.succeed(res)
         }
         
+         
         let actions = State.shared.testActionSummaries(summaryIdentifier: test.summaryIdentifier!) ?? []
-        let rowsData = self.rowsData(from: actions)
+        let rowsData: [RowData]
+        if let firstTimestamp = actions.first(where: { $0.start != nil })?.start?.timeIntervalSince1970 {
+            rowsData = self.rowsData(from: actions, currentTimestamp: firstTimestamp)
+        } else {
+            rowsData = []
+        }
                 
         let document = html {
             head {
@@ -169,16 +175,17 @@ struct TestRouteHTML: Routable {
         }
     }
     
-    private func rowsData(from actionSummaries: [ActionTestActivitySummary], indentation: Int = 1, lastScreenshotIdentifier: String = "", lastScreenshotContentType: String = "") -> [RowData] {
+    private func rowsData(from actionSummaries: [ActionTestActivitySummary], currentTimestamp: Double, indentation: Int = 1, lastScreenshotIdentifier: String = "", lastScreenshotContentType: String = "") -> [RowData] {
         var data = [RowData]()
-        
+                
         var screenshotIdentifier = lastScreenshotIdentifier
         var screenshotContentType = lastScreenshotContentType
         for summary in actionSummaries {
-            guard let title = summary.title else {
+            guard var title = summary.title else {
                 continue
             }
             
+            var subRowData = [RowData]()
             for attachment in summary.attachments {
                 let attachmentContentType: String
                 let attachmentTitle: String
@@ -209,11 +216,16 @@ struct TestRouteHTML: Routable {
                     screenshotContentType = attachmentContentType
                 }
                 
-                data += [RowData(indentation: indentation, title: attachmentTitle , attachmentImage: attachmentImage, attachmentIdentifier: attachmentIdentifier, attachmentContentType: attachmentContentType, hasChildren: false, isError: false, isKeyScreenshot: isScreenshot, isScreenshot: isScreenshot)]
+                subRowData += [RowData(indentation: indentation + 1, title: attachmentTitle , attachmentImage: attachmentImage, attachmentIdentifier: attachmentIdentifier, attachmentContentType: attachmentContentType, hasChildren: false, isError: false, isKeyScreenshot: isScreenshot, isScreenshot: isScreenshot)]
             }
-            
+                        
             let isError = summary.activityType == "com.apple.dt.xctest.activity-type.testAssertionFailure"
-            let subRowData = rowsData(from: summary.subactivities, indentation: indentation + 1, lastScreenshotIdentifier: screenshotIdentifier, lastScreenshotContentType: screenshotContentType)
+            
+            let actionTimestamp = summary.start?.timeIntervalSince1970 ?? currentTimestamp
+            subRowData = subRowData + rowsData(from: summary.subactivities, currentTimestamp: currentTimestamp, indentation: indentation + 1, lastScreenshotIdentifier: screenshotIdentifier, lastScreenshotContentType: screenshotContentType)
+
+            title += currentTimestamp - actionTimestamp == 0 ? " (Start)" : " (\(String(format: "%.2f", actionTimestamp - currentTimestamp))s)"
+            
             data += [RowData(indentation: indentation, title: title, attachmentImage: nil, attachmentIdentifier: screenshotIdentifier, attachmentContentType: screenshotContentType, hasChildren: subRowData.count > 0, isError: isError, isKeyScreenshot: false, isScreenshot: screenshotIdentifier.count > 0)] + subRowData
         }
         

@@ -31,6 +31,32 @@ class State {
         }
     }
     
+    func partialResultBundles(baseUrl: URL, depth: Int) -> [PartialResultBundle] {
+        let benchId = benchmarkStart()
+        let bundleUrls = findResultBundles(at: baseUrl, depth: depth)
+        os_log("Found %ld test bundles searching '%@' with depth %ld in %fms", log: .default, type: .info, bundleUrls.count, baseUrl.absoluteString, depth, benchmarkStop(benchId))
+        
+        var results = [(result: PartialResultBundle, creationDate: Date)]()
+               
+        for bundleUrl in bundleUrls {
+            let benchId = benchmarkStart()
+            let creationDate = ((try? FileManager.default.attributesOfItem(atPath: bundleUrl.path))?[.creationDate] as? Date) ?? Date()
+            
+            if let cachedResultBundle = cachedResultBundle(for: bundleUrl) {
+                os_log("Restored partial result bundle '%@' from cache in %fms", log: .default, type: .info, bundleUrl.absoluteString, benchmarkStop(benchId))
+                results.append((result: PartialResultBundle(identifier: cachedResultBundle.identifier, resultBundleUrl: cachedResultBundle.resultBundleUrl), creationDate: creationDate))
+            } else {
+                let parser = Parser()
+                if let partialResultBundle = parser.parsePartialResultBundle(at: bundleUrl) {
+                    results.append((result: partialResultBundle, creationDate: creationDate))
+                }
+                os_log("Parsed partial result bundle '%@' in %fms", log: .default, type: .info, bundleUrl.absoluteString, benchmarkStop(benchId))
+            }
+        }
+
+        return results.sorted(by: { $0.creationDate > $1.creationDate }).map { $0.result }
+    }
+    
     func parse(baseUrl: URL, depth: Int) {
         syncQueue.sync(flags: .barrier) { _state = .parsing(progress: 0) }
         

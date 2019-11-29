@@ -1,5 +1,10 @@
 import Foundation
 
+struct PartialResultBundle: Codable {
+    let identifier: String
+    let resultBundleUrl: URL
+}
+
 struct ResultBundle: Codable {
     struct Test: Codable, Hashable {
         struct Stats: Codable {

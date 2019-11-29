@@ -22,6 +22,7 @@ struct RequestRouter: HTTPServerDelegate {
             TestStatRoute(),
             TestRoute(),
             ResultsRoute(),
+            ResultsIdentifiersRoute(baseUrl: baseUrl, depth: parseDepth),
             ResultRoute(),
             HelpRoute(futureRoutes: { routes.map { AnyRoutable($0) } }),
             ResultsRouteHTML(),

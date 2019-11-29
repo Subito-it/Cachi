@@ -3,6 +3,25 @@ import CachiKit
 import os
 
 class Parser {
+    func parsePartialResultBundle(at url: URL) -> PartialResultBundle? {
+        let benchId = benchmarkStart()
+        defer { os_log("Parsing partial data in test bundle '%@' in %fms", log: .default, type: .info, url.absoluteString, benchmarkStop(benchId)) }
+                
+        let cachi = CachiKit(url: url)
+        guard let invocationRecord = try? cachi.actionsInvocationRecord() else {
+            os_log("Failed parsing actionsInvocationRecord", log: .default, type: .info)
+            return nil
+        }
+        guard let metadataIdentifier = invocationRecord.metadataRef?.id,
+              let metaData = try? cachi.actionsInvocationMetadata(identifier: metadataIdentifier) else {
+            os_log("Failed parsing actionsInvocationMetadata", log: .default, type: .info)
+            return nil
+        }
+        
+        let bundleIdentifier = metaData.uniqueIdentifier
+        return PartialResultBundle(identifier: bundleIdentifier, resultBundleUrl: url)
+    }
+    
     func parseResultBundle(at url: URL) -> ResultBundle? {
         let benchId = benchmarkStart()
         defer { os_log("Parsed test bundle '%@' in %fms", log: .default, type: .info, url.absoluteString, benchmarkStop(benchId)) }

@@ -20,6 +20,14 @@ struct ResultInfo: Codable {
 struct ResultsRoute: Routable {
     let path: String = "/v1/results"
     let description: String = "List of results"
+    
+    private let baseUrl: URL
+    private let depth: Int
+    
+    init(baseUrl: URL, depth: Int) {
+        self.baseUrl = baseUrl
+        self.depth = depth
+    }
         
     func respond(to req: HTTPRequest, with promise: EventLoopPromise<HTTPResponse>) {
         os_log("Results request received", log: .default, type: .info)
@@ -30,7 +38,7 @@ struct ResultsRoute: Routable {
         for result in results {
             let info = ResultInfo(identifier: result.identifier,
                                   url: "\(ResultRoute().path)?\(result.identifier)",
-                                  htmlUrl: "\(ResultRouteHTML().path)?id=\(result.identifier)",
+                                  htmlUrl: "\(ResultRouteHTML(baseUrl: baseUrl, depth: depth).path)?id=\(result.identifier)",
                                   date: result.date,
                                   success_count: result.testsPassed.count,
                                   failure_count: result.testsUniquelyFailed.count,

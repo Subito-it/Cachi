@@ -14,6 +14,14 @@ private enum ShowFilter: String, CaseIterable {
 struct ResultRouteHTML: Routable {    
     let path: String = "/html/result"
     let description: String = "Detail of result in html (pass identifier)"
+    
+    private let baseUrl: URL
+    private let depth: Int
+    
+    init(baseUrl: URL, depth: Int) {
+        self.baseUrl = baseUrl
+        self.depth = depth
+    }
         
     func respond(to req: HTTPRequest, with promise: EventLoopPromise<HTTPResponse>) {
         os_log("HTML result request received", log: .default, type: .info)

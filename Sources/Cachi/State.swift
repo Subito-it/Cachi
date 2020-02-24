@@ -97,7 +97,7 @@ class State {
                             _state = .parsing(progress: Double(index) / Double(bundleUrls.count))
                             writeCachedResultBundle(resultBundle)
                         }
-                    }                    
+                    }
                 }
             }
             os_log("Parsed %ld test bundles in %fms", log: .default, type: .info, bundleUrls.count, benchmarkStop(benchId))
@@ -132,8 +132,10 @@ class State {
     func testStats(md5Identifier: String) -> ResultBundle.Test.Stats {
         var successfulTests = ArraySlice<ResultBundle.Test>()
         var failedTests = ArraySlice<ResultBundle.Test>()
+        
+        let sortedResultBundles = resultBundles.sorted { $0.date > $1.date }
                 
-        for resultBundle in resultBundles {
+        for resultBundle in sortedResultBundles {
             let matchingTests = resultBundle.tests.filter { $0.routeIdentifier == md5Identifier }
             
             successfulTests += matchingTests.filter { $0.status == .success }
@@ -175,7 +177,30 @@ class State {
             failureAverage = failureTotal! / failureCount
         }
         
-        return ResultBundle.Test.Stats(average_s: executionAverage, success_average_s: successAverage, failure_average_s: failureAverage)
+        let allTests = successfulTests + failedTests
+        
+        let groupNames = Set(allTests.map { $0.groupName })
+        let testNames = Set(allTests.map { $0.name })
+        let deviceModels = Set(allTests.map { $0.deviceModel })
+        let deviceOses = Set(allTests.map { $0.deviceOs })
+                
+        guard groupNames.count == 1, testNames.count == 1, deviceModels.count == 1, deviceModels.count == 1 else {
+            return ResultBundle.Test.Stats(group_name: "",
+                                           test_name: "",
+                                           device_model: "",
+                                           device_os: "",
+                                           average_s: -1,
+                                           success_average_s: -1,
+                                           failure_average_s: -1)
+        }
+        
+        return ResultBundle.Test.Stats(group_name: groupNames.first!,
+                                       test_name: testNames.first!,
+                                       device_model: deviceModels.first!,
+                                       device_os: deviceOses.first!,
+                                       average_s: executionAverage,
+                                       success_average_s: successAverage,
+                                       failure_average_s: failureAverage)
     }
     
     func dumpAttachments(in test: ResultBundle.Test, cachedActions: [ActionTestActivitySummary]?) {

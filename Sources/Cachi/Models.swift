@@ -8,6 +8,10 @@ struct PartialResultBundle: Codable {
 struct ResultBundle: Codable {
     struct Test: Codable, Hashable {
         struct Stats: Codable {
+            let group_name: String
+            let test_name: String
+            let device_model: String
+            let device_os: String
             let average_s: Double
             let success_average_s: Double?
             let failure_average_s: Double?

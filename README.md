@@ -24,6 +24,10 @@ You can optionally pass `--search_depth` to specify how deep Cachi should traver
 $ cachi --port number [--search_depth level] path
 ```
 
+## Endpoint documentation
+
+http://local.host:port/v1/help will return a list of available endpoint with a short overview.
+
 
 # Contributions
 

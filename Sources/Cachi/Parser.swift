@@ -139,9 +139,13 @@ class Parser {
 
                     let routeIdentifier = [targetName ?? "", group.name, $0.name, targetDeviceRecord.modelName, targetDeviceRecord.operatingSystemVersion].joined(separator: "-").md5Value
                     
+                    guard let summaryIdentifier = $0.summaryRef?.id else {
+                        return nil
+                    }
+                    
                     return ResultBundle.Test(identifier: testIdentifier,
                                              routeIdentifier: routeIdentifier,
-                                             url: "\(TestRoute().path)?\(testIdentifier)",
+                                             url: "\(TestRoute().path)?\(summaryIdentifier)",
                                              targetName: targetName ?? "",
                                              groupName: group.name,
                                              groupIdentifier: group.identifier,
@@ -153,7 +157,7 @@ class Parser {
                                              deviceModel: targetDeviceRecord.modelName,
                                              deviceOs: targetDeviceRecord.operatingSystemVersion,
                                              deviceIdentifier: targetDeviceRecord.identifier,
-                                             summaryIdentifier: $0.summaryRef?.id)
+                                             summaryIdentifier: summaryIdentifier)
                 }
             } else if let subGroups =  group.subtests as? [ActionTestSummaryGroup] {
                 result += extractTests(actionTestSummariesGroup: subGroups, actionRecord: actionRecord, targetName: targetName)

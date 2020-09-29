@@ -193,7 +193,7 @@ struct TestRouteHTML: Routable {
                 let attachmentIdentifier = attachment.payloadRef?.id ?? ""
                 
                 switch attachment.uniformTypeIdentifier {
-                case "public.plain-text":
+                case "public.plain-text", "public.utf8-plain-text":
                     attachmentContentType = "text/plain"
                     attachmentTitle = "User plain text data"
                     attachmentImage = ("/image?imageAttachment", 14)

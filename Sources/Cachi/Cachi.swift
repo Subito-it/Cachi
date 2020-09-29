@@ -1,7 +1,7 @@
 import Foundation
 
 enum Cachi {
-    static let version = "0.2.0"
+    static let version = "12.0.0"
     static let cacheFolderName = ".Cachi"
     static let temporaryFolderUrl: URL = {
         let url = URL(fileURLWithPath: "/tmp").appendingPathComponent("Cachi")

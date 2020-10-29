@@ -15,6 +15,8 @@ struct ResultBundle: Codable {
             let average_s: Double
             let success_average_s: Double?
             let failure_average_s: Double?
+            let success_count: Int
+            let failure_count: Int
         }
 
         enum Status: String, Codable {

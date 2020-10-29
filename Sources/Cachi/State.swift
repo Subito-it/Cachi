@@ -191,7 +191,9 @@ class State {
                                            device_os: "",
                                            average_s: -1,
                                            success_average_s: -1,
-                                           failure_average_s: -1)
+                                           failure_average_s: -1,
+                                           success_count: 0,
+                                           failure_count: 0)
         }
         
         return ResultBundle.Test.Stats(group_name: groupNames.first!,
@@ -200,7 +202,9 @@ class State {
                                        device_os: deviceOses.first!,
                                        average_s: executionAverage,
                                        success_average_s: successAverage,
-                                       failure_average_s: failureAverage)
+                                       failure_average_s: failureAverage,
+                                       success_count: Int(successfulCount),
+                                       failure_count: Int(failureCount))
     }
     
     func dumpAttachments(in test: ResultBundle.Test, cachedActions: [ActionTestActivitySummary]?) {

@@ -128,6 +128,17 @@ class State {
         
         return testSummary?.activitySummaries
     }
+    
+    func testSessionLogs(diagnosticsIdentifier: String) -> ResultBundle.Test.SessionLogs? {
+        guard let resultBundle = resultBundles.first(where: { $0.tests.contains(where: { $0.diagnosticsIdentifier == diagnosticsIdentifier })}) else {
+            return nil
+        }
+        
+        let cachi = CachiKit(url: resultBundle.resultBundleUrl)
+        let sessionLogs = try? cachi.actionInvocationSessionLogs(identifier: diagnosticsIdentifier, sessionLogs: .all)
+        
+        return .init(appStandardOutput: sessionLogs?[.appStdOutErr], runerAppStandardOutput: sessionLogs?[.runnerAppStdOutErr], sessionLogs: sessionLogs?[.session])
+    }
 
     func testStats(md5Identifier: String) -> ResultBundle.Test.Stats {
         var successfulTests = ArraySlice<ResultBundle.Test>()

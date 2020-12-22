@@ -7,6 +7,12 @@ struct PartialResultBundle: Codable {
 
 struct ResultBundle: Codable {
     struct Test: Codable, Hashable {
+        struct SessionLogs: Codable {
+            let appStandardOutput: String?
+            let runerAppStandardOutput: String?
+            let sessionLogs: String?
+        }
+
         struct Stats: Codable {
             let group_name: String
             let test_name: String
@@ -37,6 +43,7 @@ struct ResultBundle: Codable {
         let deviceModel: String
         let deviceOs: String
         let deviceIdentifier: String
+        let diagnosticsIdentifier: String?
         let summaryIdentifier: String?
     }
     

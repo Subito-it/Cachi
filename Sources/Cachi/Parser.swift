@@ -157,6 +157,7 @@ class Parser {
                                              deviceModel: targetDeviceRecord.modelName,
                                              deviceOs: targetDeviceRecord.operatingSystemVersion,
                                              deviceIdentifier: targetDeviceRecord.identifier,
+                                             diagnosticsIdentifier: actionRecord.actionResult.diagnosticsRef?.id,
                                              summaryIdentifier: summaryIdentifier)
                 }
             } else if let subGroups =  group.subtests as? [ActionTestSummaryGroup] {

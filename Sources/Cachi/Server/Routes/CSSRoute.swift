@@ -44,6 +44,17 @@ struct CSSRoute: Routable {
             border: 0px;
             border-collapse: collapse;
         }
+
+        .log {
+            padding-top: 8px;
+            font-family: Courier;
+        }
+
+        .col50 {
+            width: 50%;
+            vertical-align: top;
+            font-family: Courier;
+        }
         
         th {
             font-weight: 600;
@@ -217,7 +228,8 @@ struct CSSRoute: Routable {
         }
         
         .button {
-            border: none;
+            border: 1px solid rgb(230,230,230);
+            border-radius: 3px;
             color: rgb(90, 90, 90);
             padding: 3px 8px 3px 8px;
             text-align: center;

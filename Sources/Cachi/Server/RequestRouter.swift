@@ -20,6 +20,7 @@ struct RequestRouter: HTTPServerDelegate {
             VersionRoute(),
             HomeRoute(),
             TestStatRoute(),
+            TestSessionLogsRouteHTML(),
             TestRoute(),
             ResultsRoute(baseUrl: baseUrl, depth: parseDepth),
             ResultsIdentifiersRoute(baseUrl: baseUrl, depth: parseDepth),

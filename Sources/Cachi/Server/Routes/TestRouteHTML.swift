@@ -107,6 +107,10 @@ struct TestRouteHTML: Routable {
                 div { testDetail }.class("color-subtext indent1").floatRight()
                 div { testDevice }.class("color-subtext indent1")
             }.class("row light-bordered-container indent1")
+            div {
+                link(url: "/html/session_logs?id=\(test.summaryIdentifier ?? "")&type=stdouts\(backParameters)") { "Standard outputs" }.class("button")
+                link(url: "/html/session_logs?id=\(test.summaryIdentifier ?? "")&type=session\(backParameters)") { "Session logs" }.class("button")
+            }.class("row indent2")
         }
     }
     
@@ -228,7 +232,7 @@ struct TestRouteHTML: Routable {
             
             data += [RowData(indentation: indentation, title: title, attachmentImage: nil, attachmentIdentifier: screenshotIdentifier, attachmentContentType: screenshotContentType, hasChildren: subRowData.count > 0, isError: isError, isKeyScreenshot: false, isScreenshot: screenshotIdentifier.count > 0)] + subRowData
         }
-        
+                
         return data
     }
 }

@@ -136,6 +136,29 @@ struct CSSRoute: Routable {
             .color-svg-subtext {
                 filter: brightness(0%) invert(0.45);
             }
+
+            .button {
+                border: 1px solid rgb(230,230,230);
+                border-radius: 3px;
+                color: rgb(90, 90, 90);
+                padding: 3px 8px 3px 8px;
+                text-align: center;
+                text-decoration: none;
+                display: inline-block;
+                margin-right: 4px;
+            }
+            
+            .button-selected {
+                background-color: rgb(0,122,255);
+                border-radius: 3px;
+                border: none;
+                color: white;
+                padding: 3px 8px 3px 8px;
+                text-align: center;
+                text-decoration: none;
+                display: inline-block;
+                margin-right: 4px;
+            }
         }
         
         @media (prefers-color-scheme: dark) {
@@ -187,6 +210,29 @@ struct CSSRoute: Routable {
             .color-svg-subtext {
                 filter: brightness(0%) invert(0.65);
             }
+
+            .button {
+                border: 1px solid rgb(80,80,80);
+                border-radius: 3px;
+                color: rgb(165,165,165);
+                padding: 3px 8px 3px 8px;
+                text-align: center;
+                text-decoration: none;
+                display: inline-block;
+                margin-right: 4px;
+            }
+            
+            .button-selected {
+                background-color: rgb(0,122,255);
+                border-radius: 3px;
+                border: none;
+                color: white;
+                padding: 3px 8px 3px 8px;
+                text-align: center;
+                text-decoration: none;
+                display: inline-block;
+                margin-right: 4px;
+            }
         }
                 
         .header {
@@ -225,29 +271,6 @@ struct CSSRoute: Routable {
         .button-padded {
             padding-top: 3px;
             padding-bottom: 3px;
-        }
-        
-        .button {
-            border: 1px solid rgb(230,230,230);
-            border-radius: 3px;
-            color: rgb(90, 90, 90);
-            padding: 3px 8px 3px 8px;
-            text-align: center;
-            text-decoration: none;
-            display: inline-block;
-            margin-right: 4px;
-        }
-        
-        .button-selected {
-            background-color: rgb(0,122,255);
-            border-radius: 3px;
-            border: none;
-            color: white;
-            padding: 3px 8px 3px 8px;
-            text-align: center;
-            text-decoration: none;
-            display: inline-block;
-            margin-right: 4px;
         }
 """
     }

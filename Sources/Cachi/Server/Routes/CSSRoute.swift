@@ -54,6 +54,7 @@ struct CSSRoute: Routable {
             width: 50%;
             vertical-align: top;
             font-family: Courier;
+            word-break: break-all;
         }
         
         th {

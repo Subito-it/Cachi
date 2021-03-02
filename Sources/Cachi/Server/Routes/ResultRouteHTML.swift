@@ -154,7 +154,7 @@ struct ResultRouteHTML: Routable {
             tableHeadData { "&nbsp;" }.scope(.column).class("row dark-bordered-container")
             
             forEach(groupNames) { group in
-                let tests = tests.filter { $0.groupName == group }.sorted(by: { $0.name < $1.name })
+                let tests = tests.filter { $0.groupName == group }.sorted(by: { "\($0.name)-\($0.startDate.timeIntervalSince1970)" < "\($1.name)-\($1.startDate.timeIntervalSince1970)" })
                 let testsCount = tests.count
                 let testsFailedCount = tests.filter({ $0.status == .failure }).count
                 let testsPassedCount = testsCount - testsFailedCount

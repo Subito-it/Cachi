@@ -88,6 +88,22 @@ struct TestRouteHTML: Routable {
         if let value = backShowFilter.value {
             backParameters = "&\(backShowFilter.name)=\(value)"
         }
+        
+        var previousTest: ResultBundle.Test?
+        var nextTest: ResultBundle.Test?
+        
+        if test.status == .failure {
+            let sortedTests = result.testsFailed.sorted(by: { "\($0.groupName)-\($0.name)-\($0.startDate.timeIntervalSince1970)" < "\($1.groupName)-\($1.name)-\($1.startDate.timeIntervalSince1970)" })
+            
+            if let index = sortedTests.firstIndex(of: test) {
+                if index > 0 {
+                    previousTest = sortedTests[index - 1]
+                }
+                if index < sortedTests.count - 1 {
+                    nextTest = sortedTests[index + 1]
+                }
+            }
+        }
 
         return div {
             div {
@@ -108,8 +124,18 @@ struct TestRouteHTML: Routable {
                 div { testDevice }.class("color-subtext indent1")
             }.class("row light-bordered-container indent1")
             div {
-                link(url: "/html/session_logs?id=\(test.summaryIdentifier ?? "")&type=stdouts\(backParameters)") { "Standard outputs" }.class("button")
-                link(url: "/html/session_logs?id=\(test.summaryIdentifier ?? "")&type=session\(backParameters)") { "Session logs" }.class("button")
+                div {
+                    if let previousTest = previousTest {
+                        link(url: "/html/test?id=\(previousTest.summaryIdentifier ?? "")&type=stdouts\(backParameters)") { "←" }.class("button")
+                    }
+                    if let nextTest = nextTest {
+                        link(url: "/html/test?id=\(nextTest.summaryIdentifier ?? "")&type=stdouts\(backParameters)") { "→" }.class("button")
+                    }
+                }.floatRight()
+                div {
+                    link(url: "/html/session_logs?id=\(test.summaryIdentifier ?? "")&type=stdouts\(backParameters)") { "Standard outputs" }.class("button")
+                    link(url: "/html/session_logs?id=\(test.summaryIdentifier ?? "")&type=session\(backParameters)") { "Session logs" }.class("button")
+                }
             }.class("row indent2")
         }
     }

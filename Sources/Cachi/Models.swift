@@ -1,6 +1,6 @@
 import Foundation
 
-struct PartialResultBundle: Codable {
+struct PendingResultBundle: Codable {
     let identifier: String
     let resultBundleUrl: URL
 }

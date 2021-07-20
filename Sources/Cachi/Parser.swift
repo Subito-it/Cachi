@@ -3,7 +3,7 @@ import CachiKit
 import os
 
 class Parser {
-    func parsePartialResultBundle(at url: URL) -> PartialResultBundle? {
+    func parsePendingResultBundle(at url: URL) -> PendingResultBundle? {
         let benchId = benchmarkStart()
         defer { os_log("Parsing partial data in test bundle '%@' in %fms", log: .default, type: .info, url.absoluteString, benchmarkStop(benchId)) }
                 
@@ -19,7 +19,7 @@ class Parser {
         }
         
         let bundleIdentifier = metaData.uniqueIdentifier
-        return PartialResultBundle(identifier: bundleIdentifier, resultBundleUrl: url)
+        return PendingResultBundle(identifier: bundleIdentifier, resultBundleUrl: url)
     }
     
     func parseResultBundle(at url: URL) -> ResultBundle? {

@@ -31,12 +31,12 @@ class State {
         }
     }
     
-    func partialResultBundles(baseUrl: URL, depth: Int) -> [PartialResultBundle] {
+    func pendingResultBundles(baseUrl: URL, depth: Int) -> [PendingResultBundle] {
         let benchId = benchmarkStart()
         let bundleUrls = findResultBundles(at: baseUrl, depth: depth)
         os_log("Found %ld test bundles searching '%@' with depth %ld in %fms", log: .default, type: .info, bundleUrls.count, baseUrl.absoluteString, depth, benchmarkStop(benchId))
         
-        var results = [(result: PartialResultBundle, creationDate: Date)]()
+        var results = [(result: PendingResultBundle, creationDate: Date)]()
                
         for bundleUrl in bundleUrls {
             let benchId = benchmarkStart()
@@ -44,11 +44,11 @@ class State {
             
             if let cachedResultBundle = cachedResultBundle(for: bundleUrl) {
                 os_log("Restored partial result bundle '%@' from cache in %fms", log: .default, type: .info, bundleUrl.absoluteString, benchmarkStop(benchId))
-                results.append((result: PartialResultBundle(identifier: cachedResultBundle.identifier, resultBundleUrl: cachedResultBundle.resultBundleUrl), creationDate: creationDate))
+                results.append((result: PendingResultBundle(identifier: cachedResultBundle.identifier, resultBundleUrl: cachedResultBundle.resultBundleUrl), creationDate: creationDate))
             } else {
                 let parser = Parser()
-                if let partialResultBundle = parser.parsePartialResultBundle(at: bundleUrl) {
-                    results.append((result: partialResultBundle, creationDate: creationDate))
+                if let pendingResultBundle = parser.parsePendingResultBundle(at: bundleUrl) {
+                    results.append((result: pendingResultBundle, creationDate: creationDate))
                 }
                 os_log("Parsed partial result bundle '%@' in %fms", log: .default, type: .info, bundleUrl.absoluteString, benchmarkStop(benchId))
             }

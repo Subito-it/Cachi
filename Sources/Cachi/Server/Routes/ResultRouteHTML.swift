@@ -37,8 +37,8 @@ struct ResultRouteHTML: Routable {
         defer { os_log("Result bundle with id '%@' fetched in %fms", log: .default, type: .info, resultIdentifier, benchmarkStop(benchId)) }
                 
         guard let result = State.shared.result(identifier: resultIdentifier) else {
-            let partialResultBundles = State.shared.partialResultBundles(baseUrl: baseUrl, depth: depth)
-            if partialResultBundles.contains(where: { $0.identifier == resultIdentifier }) {
+            let pendingResultBundles = State.shared.pendingResultBundles(baseUrl: baseUrl, depth: depth)
+            if pendingResultBundles.contains(where: { $0.identifier == resultIdentifier }) {
                 let res = HTTPResponse(status: .notFound, body: HTTPBody(staticString: "Result is being parsed, please wait..."))
                 return promise.succeed(res)
             } else {

@@ -45,6 +45,7 @@ struct ResultBundle: Codable {
         let deviceIdentifier: String
         let diagnosticsIdentifier: String?
         let summaryIdentifier: String?
+        let externalCoverage: ExternalCoverage?
     }
     
     struct UserInfo: Codable {
@@ -76,5 +77,33 @@ extension ResultBundle.Test {
             deviceOs == test.deviceOs &&
             groupName == test.groupName &&
             name == test.name
+    }
+}
+
+extension ResultBundle {
+    // This model is used to extract coverage data from manually generated using llvm-cov
+    // An example of the expected format can be found here: https://github.com/Subito-it/Mendoza/blob/cbf6b8298dc2c80e4b634a3368db56afba93be72/Sources/Mendoza/Operations/CodeCoverageCollectionOperation.swift#L77
+    struct ExternalCoverage: Codable, Hashable {
+        struct Totals: Codable, Hashable {
+            let lines: Coverage
+            let functions: Coverage
+            let instantiations: Coverage
+        }
+        
+        struct Coverage: Codable, Hashable {
+            let count: Int
+            let covered: Int
+            let percentage: Double
+        }
+        
+        struct Regions: Codable, Hashable {
+            let count: Int
+            let covered: Int
+            let percentage: Double
+        }
+        
+        let totals: Totals
+        let regions: Regions
+        let files: [String]
     }
 }

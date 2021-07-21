@@ -4,30 +4,32 @@ import HTTPKit
 struct RequestRouter: HTTPServerDelegate {
     private let baseUrl: URL
     private let parseDepth: Int
+    private let mergeResults: Bool
     
     let routes: [Routable]
     let unhandledRoute = UnhandledRoute()
     
-    init(baseUrl: URL, parseDepth: Int) {
+    init(baseUrl: URL, parseDepth: Int, mergeResults: Bool) {
         self.baseUrl = baseUrl
         self.parseDepth = parseDepth
+        self.mergeResults = mergeResults
         
         var routes = [Routable]()
         routes = [
-            ResetRoute(baseUrl: baseUrl, depth: parseDepth),
-            ParseRoute(baseUrl: baseUrl, depth: parseDepth),
+            ResetRoute(baseUrl: baseUrl, depth: parseDepth, mergeResults: mergeResults),
+            ParseRoute(baseUrl: baseUrl, depth: parseDepth, mergeResults: mergeResults),
             KillRoute(),
             VersionRoute(),
             HomeRoute(),
             TestStatRoute(),
             TestSessionLogsRouteHTML(),
             TestRoute(),
-            ResultsRoute(baseUrl: baseUrl, depth: parseDepth),
-            ResultsIdentifiersRoute(baseUrl: baseUrl, depth: parseDepth),
+            ResultsRoute(baseUrl: baseUrl, depth: parseDepth, mergeResults: mergeResults),
+            ResultsIdentifiersRoute(baseUrl: baseUrl, depth: parseDepth, mergeResults: mergeResults),
             ResultRoute(),
             HelpRoute(futureRoutes: { routes.map { AnyRoutable($0) } }),
             ResultsRouteHTML(),
-            ResultRouteHTML(baseUrl: baseUrl, depth: parseDepth),
+            ResultRouteHTML(baseUrl: baseUrl, depth: parseDepth, mergeResults: mergeResults),
             TestRouteHTML(),
             AttachmentRoute(),
             ImageRoute(),

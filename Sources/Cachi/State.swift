@@ -31,9 +31,9 @@ class State {
         }
     }
     
-    func pendingResultBundles(baseUrl: URL, depth: Int) -> [PendingResultBundle] {
+    func pendingResultBundles(baseUrl: URL, depth: Int, mergeResults: Bool) -> [PendingResultBundle] {
         let benchId = benchmarkStart()
-        let bundleUrls = findResultBundles(at: baseUrl, depth: depth)
+        let bundleUrls = findResultBundles(at: baseUrl, depth: depth, mergeResults: mergeResults)
         os_log("Found %ld test bundles searching '%@' with depth %ld in %fms", log: .default, type: .info, bundleUrls.count, baseUrl.absoluteString, depth, benchmarkStop(benchId))
         
         var results = [(result: PendingResultBundle, creationDate: Date)]()
@@ -57,7 +57,7 @@ class State {
         return results.sorted(by: { $0.creationDate > $1.creationDate }).map { $0.result }
     }
     
-    func parse(baseUrl: URL, depth: Int) {
+    func parse(baseUrl: URL, depth: Int, mergeResults: Bool) {
         syncQueue.sync(flags: .barrier) { _state = .parsing(progress: 0) }
         
         let benchId = benchmarkStart()

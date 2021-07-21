@@ -66,7 +66,6 @@ class State {
         var bundleUrls = findResultBundles(at: baseUrl, depth: depth, mergeResults: mergeResults)
         os_log("Found %ld test bundles searching '%@' with depth %ld in %fms", log: .default, type: .info, bundleUrls.count, baseUrl.absoluteString, depth, benchmarkStop(benchId))
         
-  
         var resultBundles = [ResultBundle]()
         for (index, urls) in bundleUrls.enumerated().reversed() {
             let bundlePath = (urls.count > 1 ? urls.first?.deletingLastPathComponent() : urls.first)?.absoluteString ?? ""

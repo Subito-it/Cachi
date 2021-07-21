@@ -5,28 +5,15 @@ import os
 class Parser {
     func parsePendingResultBundle(urls: [URL]) -> PendingResultBundle? {
         let benchId = benchmarkStart()
-        
         let bundlePath = (urls.count > 1 ? urls.first?.deletingLastPathComponent() : urls.first)?.absoluteString ?? ""
         defer { os_log("Parsing partial data in test bundle '%@' in %fms", log: .default, type: .info, bundlePath, benchmarkStop(benchId)) }
-        
-        guard let url = urls.first else {
-            os_log("No urls passed", log: .default, type: .info)
-            return nil
-        }
-                
-        let cachi = CachiKit(url: url)
-        guard let invocationRecord = try? cachi.actionsInvocationRecord() else {
-            os_log("Failed parsing actionsInvocationRecord", log: .default, type: .info)
-            return nil
-        }
-        guard let metadataIdentifier = invocationRecord.metadataRef?.id,
-              let metaData = try? cachi.actionsInvocationMetadata(identifier: metadataIdentifier) else {
-            os_log("Failed parsing actionsInvocationMetadata", log: .default, type: .info)
+
+        guard let bundleIdentifier = bundleIdentifier(urls: urls) else {
+            os_log("Failed extracting bundle identigier at '%@'", log: .default, type: .info, bundlePath)
             return nil
         }
         
-        let bundleIdentifier = metaData.uniqueIdentifier
-        return PendingResultBundle(identifier: bundleIdentifier, resultUrls: urls) // TODO
+        return PendingResultBundle(identifier: bundleIdentifier, resultUrls: urls)
     }
     
     func parseResultBundles(urls: [URL]) -> ResultBundle? {
@@ -34,6 +21,11 @@ class Parser {
         
         let bundlePath = (urls.count > 1 ? urls.first?.deletingLastPathComponent() : urls.first)?.absoluteString ?? ""
         defer { os_log("Parsed test bundle '%@' in %fms", log: .default, type: .info, bundlePath, benchmarkStop(benchId)) }
+        
+        guard let bundleIdentifier = bundleIdentifier(urls: urls) else {
+            os_log("Failed extracting bundle identigier at '%@'", log: .default, type: .info, bundlePath)
+            return nil
+        }
 
         var tests = [ResultBundle.Test]()
 
@@ -51,7 +43,7 @@ class Parser {
                     os_log("Failed parsing actionsInvocationRecord", log: .default, type: .info)
                     return
                 }
-                
+                                
                 var localTests = [ResultBundle.Test]()
                 var localRunDestinations = Set<String>()
                 for action in invocationRecord.actions {
@@ -75,6 +67,7 @@ class Parser {
                 
                 let localTestCrashCount = optimisticCrashCount(in: invocationRecord)
                 let localUserInfoPlist = userInfoPlist(resultBundleUrl: url)
+
                 syncQueue.sync {
                     tests += localTests
                     testsCrashCount += localTestCrashCount
@@ -102,7 +95,7 @@ class Parser {
         let testsFailedRetring = testsGrouped.filter { $0.contains(where: { $0.status == .success })}.flatMap { $0 }.filter { $0.status == .failure }
         let testsUniquelyFailed = testsGrouped.filter { $0.allSatisfy({ $0.status == .failure })}.compactMap { $0.first }
                 
-        return ResultBundle(identifier: UUID().uuidString,
+        return ResultBundle(identifier: bundleIdentifier,
                             xcresultUrls: Set(urls),
                             destinations: runDestinations.joined(separator: ", "),
                             date: date,
@@ -116,6 +109,26 @@ class Parser {
                             testsRepeated: testsRepeated,
                             testsCrashCount: testsCrashCount,
                             userInfo: userInfo)
+    }
+    
+    private func bundleIdentifier(urls: [URL]) -> String? {
+        guard let url = urls.sorted(by: { $0.lastPathComponent > $1.lastPathComponent }).first else {
+            os_log("No urls passed", log: .default, type: .info)
+            return nil
+        }
+                
+        let cachi = CachiKit(url: url)
+        guard let invocationRecord = try? cachi.actionsInvocationRecord() else {
+            os_log("Failed parsing actionsInvocationRecord", log: .default, type: .info)
+            return nil
+        }
+        guard let metadataIdentifier = invocationRecord.metadataRef?.id,
+              let metaData = try? cachi.actionsInvocationMetadata(identifier: metadataIdentifier) else {
+            os_log("Failed parsing actionsInvocationMetadata", log: .default, type: .info)
+            return nil
+        }
+        
+        return metaData.uniqueIdentifier
     }
     
     private func crashCount(_ cachi: CachiKit, in tests: [ResultBundle.Test], at url: URL) -> Int {

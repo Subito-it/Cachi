@@ -2,7 +2,7 @@ import Foundation
 
 struct PendingResultBundle: Codable {
     let identifier: String
-    let resultBundleUrl: URL
+    let resultUrls: [URL]
 }
 
 struct ResultBundle: Codable {
@@ -29,6 +29,7 @@ struct ResultBundle: Codable {
             case success, failure
         }
         
+        let xcresultUrl: URL
         let identifier: String
         let routeIdentifier: String
         let url: String
@@ -55,8 +56,8 @@ struct ResultBundle: Codable {
     }
     
     let identifier: String
+    let xcresultUrls: Set<URL>
     let destinations: String
-    let resultBundleUrl: URL
     let date: Date
     let totalExecutionTime: TimeInterval
     let tests: [Test]

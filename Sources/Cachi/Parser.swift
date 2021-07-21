@@ -3,9 +3,16 @@ import CachiKit
 import os
 
 class Parser {
-    func parsePendingResultBundle(at url: URL) -> PendingResultBundle? {
+    func parsePendingResultBundle(urls: [URL]) -> PendingResultBundle? {
         let benchId = benchmarkStart()
-        defer { os_log("Parsing partial data in test bundle '%@' in %fms", log: .default, type: .info, url.absoluteString, benchmarkStop(benchId)) }
+        
+        let bundlePath = (urls.count > 1 ? urls.first?.deletingLastPathComponent() : urls.first)?.absoluteString ?? ""
+        defer { os_log("Parsing partial data in test bundle '%@' in %fms", log: .default, type: .info, bundlePath, benchmarkStop(benchId)) }
+        
+        guard let url = urls.first else {
+            os_log("No urls passed", log: .default, type: .info)
+            return nil
+        }
                 
         let cachi = CachiKit(url: url)
         guard let invocationRecord = try? cachi.actionsInvocationRecord() else {
@@ -19,60 +26,73 @@ class Parser {
         }
         
         let bundleIdentifier = metaData.uniqueIdentifier
-        return PendingResultBundle(identifier: bundleIdentifier, resultBundleUrl: url)
+        return PendingResultBundle(identifier: bundleIdentifier, resultUrls: urls) // TODO
     }
     
-    func parseResultBundle(at url: URL) -> ResultBundle? {
+    func parseResultBundles(urls: [URL]) -> ResultBundle? {
         let benchId = benchmarkStart()
-        defer { os_log("Parsed test bundle '%@' in %fms", log: .default, type: .info, url.absoluteString, benchmarkStop(benchId)) }
+        
+        let bundlePath = (urls.count > 1 ? urls.first?.deletingLastPathComponent() : urls.first)?.absoluteString ?? ""
+        defer { os_log("Parsed test bundle '%@' in %fms", log: .default, type: .info, bundlePath, benchmarkStop(benchId)) }
 
         var tests = [ResultBundle.Test]()
-                
-        let cachi = CachiKit(url: url)
-        guard let invocationRecord = try? cachi.actionsInvocationRecord() else {
-            os_log("Failed parsing actionsInvocationRecord", log: .default, type: .info)
-            return nil
-        }
-        guard let metadataIdentifier = invocationRecord.metadataRef?.id,
-              let metaData = try? cachi.actionsInvocationMetadata(identifier: metadataIdentifier) else {
-            os_log("Failed parsing actionsInvocationMetadata", log: .default, type: .info)
-            return nil
-        }
-        
-        let bundleIdentifier = metaData.uniqueIdentifier
-        
+
+        var userInfo: ResultBundle.UserInfo?
         var runDestinations = Set<String>()
+        var testsCrashCount = 0
         
-        for action in invocationRecord.actions {
-            guard let testRef = action.actionResult.testsRef else {
-                continue
-            }
+        let queue = OperationQueue()
+        let syncQueue = DispatchQueue(label: "com.subito.cachi.parsing")
         
-            guard let testPlanSummaries = (try? cachi.actionTestPlanRunSummaries(identifier: testRef.id))?.summaries else {
-                continue
-            }
-        
-            guard testPlanSummaries.count == 1 else {
-                os_log("Unexpected multiple test plan summaries '%@'", log: .default, type: .info, url.absoluteString)
-                continue
-            }
-            tests += extractTests(actionTestableSummaries: testPlanSummaries.first?.testableSummaries, actionRecord: action)
-            
-            let targetDevice = action.runDestination.targetDeviceRecord
-            runDestinations.insert("\(targetDevice.modelName) (\(targetDevice.operatingSystemVersion))" )
-        }
+        for url in urls {
+            queue.addOperation { [unowned self] in
+                let cachi = CachiKit(url: url)
+                guard let invocationRecord = try? cachi.actionsInvocationRecord() else {
+                    os_log("Failed parsing actionsInvocationRecord", log: .default, type: .info)
+                    return
+                }
                 
+                var localTests = [ResultBundle.Test]()
+                var localRunDestinations = Set<String>()
+                for action in invocationRecord.actions {
+                    guard let testRef = action.actionResult.testsRef else {
+                        continue
+                    }
+                
+                    guard let testPlanSummaries = (try? cachi.actionTestPlanRunSummaries(identifier: testRef.id))?.summaries else {
+                        continue
+                    }
+                
+                    guard testPlanSummaries.count == 1 else {
+                        os_log("Unexpected multiple test plan summaries '%@'", log: .default, type: .info, url.absoluteString)
+                        continue
+                    }
+                    
+                    localTests += self.extractTests(resultBundleUrl: url, actionTestableSummaries: testPlanSummaries.first?.testableSummaries, actionRecord: action)
+                    let targetDevice = action.runDestination.targetDeviceRecord
+                    localRunDestinations.insert("\(targetDevice.modelName) (\(targetDevice.operatingSystemVersion))" )
+                }
+                
+                let localTestCrashCount = optimisticCrashCount(in: invocationRecord)
+                let localUserInfoPlist = userInfoPlist(resultBundleUrl: url)
+                syncQueue.sync {
+                    tests += localTests
+                    testsCrashCount += localTestCrashCount
+                    userInfo = userInfo ?? localUserInfoPlist
+                    localRunDestinations.forEach { runDestinations.insert($0) }
+                }
+            }
+        }
+        
+        queue.waitUntilAllOperationsAreFinished()
+        
         guard tests.count > 0 else {
-            os_log("No tests found in test bundle '%@'", log: .default, type: .info, url.absoluteString)
+            os_log("No tests found in test bundle '%@'", log: .default, type: .info, bundlePath)
             return nil
         }
 
         let date = tests.map { $0.startDate }.sorted().first!
         let totalExecutionTime = tests.reduce(0, { $0 + $1.duration })
-        
-        let testsCrashCount = optimisticCrashCount(in: invocationRecord)
-
-        let userInfo = userInfoPlist(resultBundleUrl: url)
         
         let testsPassed = tests.filter { $0.status == .success }
         let testsFailed = tests.filter { $0.status == .failure }
@@ -81,10 +101,10 @@ class Parser {
         let testsPassedRetring = testsRepeated.compactMap { $0.first(where: { $0.status == .success }) }
         let testsFailedRetring = testsGrouped.filter { $0.contains(where: { $0.status == .success })}.flatMap { $0 }.filter { $0.status == .failure }
         let testsUniquelyFailed = testsGrouped.filter { $0.allSatisfy({ $0.status == .failure })}.compactMap { $0.first }
-        
-        return ResultBundle(identifier: bundleIdentifier,
+                
+        return ResultBundle(identifier: UUID().uuidString,
+                            xcresultUrls: Set(urls),
                             destinations: runDestinations.joined(separator: ", "),
-                            resultBundleUrl: url,
                             date: date,
                             totalExecutionTime: totalExecutionTime,
                             tests: tests,
@@ -123,7 +143,7 @@ class Parser {
         return messages.filter({ $0.contains(" crashed in ") }).count
     }
     
-    private func extractTests(actionTestSummariesGroup: [ActionTestSummaryGroup], actionRecord: ActionRecord, targetName: String?) -> [ResultBundle.Test] {
+    private func extractTests(resultBundleUrl: URL, actionTestSummariesGroup: [ActionTestSummaryGroup], actionRecord: ActionRecord, targetName: String?) -> [ResultBundle.Test] {
         var result = [ResultBundle.Test]()
     
         for group in actionTestSummariesGroup {
@@ -143,7 +163,8 @@ class Parser {
                         return nil
                     }
                     
-                    return ResultBundle.Test(identifier: testIdentifier,
+                    return ResultBundle.Test(xcresultUrl: resultBundleUrl,
+                                             identifier: testIdentifier,
                                              routeIdentifier: routeIdentifier,
                                              url: "\(TestRoute().path)?\(summaryIdentifier)",
                                              targetName: targetName ?? "",
@@ -158,10 +179,11 @@ class Parser {
                                              deviceOs: targetDeviceRecord.operatingSystemVersion,
                                              deviceIdentifier: targetDeviceRecord.identifier,
                                              diagnosticsIdentifier: actionRecord.actionResult.diagnosticsRef?.id,
-                                             summaryIdentifier: summaryIdentifier)
+                                             summaryIdentifier: summaryIdentifier,
+                                             externalCoverage: nil)
                 }
             } else if let subGroups =  group.subtests as? [ActionTestSummaryGroup] {
-                result += extractTests(actionTestSummariesGroup: subGroups, actionRecord: actionRecord, targetName: targetName)
+                result += extractTests(resultBundleUrl: resultBundleUrl, actionTestSummariesGroup: subGroups, actionRecord: actionRecord, targetName: targetName)
             } else {
                 os_log("Unsupported groups %@", log: .default, type: .info, String(describing: type(of: group.subtests)))
             }
@@ -170,10 +192,10 @@ class Parser {
         return result
     }
     
-    private func extractTests(actionTestableSummaries: [ActionTestableSummary]?, actionRecord: ActionRecord) -> [ResultBundle.Test] {
+    private func extractTests(resultBundleUrl: URL, actionTestableSummaries: [ActionTestableSummary]?, actionRecord: ActionRecord) -> [ResultBundle.Test] {
         guard let actionTestableSummaries = actionTestableSummaries else { return [] }
     
-        return actionTestableSummaries.flatMap { extractTests(actionTestSummariesGroup: $0.tests, actionRecord: actionRecord, targetName: $0.targetName) }
+        return actionTestableSummaries.flatMap { extractTests(resultBundleUrl: resultBundleUrl, actionTestSummariesGroup: $0.tests, actionRecord: actionRecord, targetName: $0.targetName) }
     }
     
     private func userInfoPlist(resultBundleUrl: URL) -> ResultBundle.UserInfo? {

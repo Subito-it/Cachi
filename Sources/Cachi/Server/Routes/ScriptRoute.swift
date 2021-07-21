@@ -58,8 +58,8 @@ struct ScriptRoute: Routable {
                 }
             }
         
-            function onMouseEnter(source_element, result_identifier, attachment_identifier, content_type) {
-                var destination_src = `\(AttachmentRoute().path)?result_id=${result_identifier}&id=${attachment_identifier}&content_type=${content_type}`;
+            function onMouseEnter(source_element, result_identifier, test_identifier, attachment_identifier, content_type) {
+                var destination_src = `\(AttachmentRoute().path)?result_id=${result_identifier}&test_id=${test_identifier}&id=${attachment_identifier}&content_type=${content_type}`;
                 if (!document.getElementById('screenshot-image').src.includes(destination_src)) {
                     document.getElementById('screenshot-image').src = '';
                     setTimeout(function () {

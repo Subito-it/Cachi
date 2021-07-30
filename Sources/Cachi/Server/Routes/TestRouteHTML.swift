@@ -60,7 +60,7 @@ struct TestRouteHTML: Routable {
             }
             body {
                 div {
-                    div { floatingHeaderHTML(result: resultBundle, test: test, backShowFilter: backShowFilter) }
+                    div { floatingHeaderHTML(result: resultBundle, test: test, backShowFilter: backShowFilter) }.class("sticky-top").id("top-bar")
                     div { resultsTableHTML(result: resultBundle, test: test, rowsData: rowsData) }
                 }.class("main-container background")
             }
@@ -142,8 +142,10 @@ struct TestRouteHTML: Routable {
     
     private func resultsTableHTML(result: ResultBundle, test: ResultBundle.Test, rowsData: [RowData]) -> HTML {
         return table {
-            tableHeadData { "Steps" }.alignment(.left).scope(.column).class("row dark-bordered-container indent1")
-            tableHeadData { "Screenshot" }.alignment(.center).scope(.column).class("row dark-bordered-container")
+            tableRow {
+                tableHeadData { "Steps" }.alignment(.left).scope(.column).class("row dark-bordered-container indent1")
+                tableHeadData { "Screenshot" }.alignment(.center).scope(.column).class("row dark-bordered-container")
+            }.id("table-header")
 
             tableRow {
                 tableData {
@@ -198,6 +200,7 @@ struct TestRouteHTML: Routable {
                             return
                                 div {
                                     image(url: "\(AttachmentRoute().path)?result_id=\(result.identifier)&test_id=\(testSummaryIdentifier)&id=\(rowData.attachmentIdentifier)&content_type=\(rowData.attachmentContentType)").id("screenshot-image")
+                                }
                         } else {
                             return image(url: "\(ImageRoute().path)?imageEmpty")
                         }

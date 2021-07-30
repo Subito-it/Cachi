@@ -59,7 +59,7 @@ struct ResultRouteHTML: Routable {
             }
             body {
                 div {
-                    div { floatingHeaderHTML(result: result, showFilter: showFilter) }
+                    div { floatingHeaderHTML(result: result, showFilter: showFilter) }.class("sticky-top").id("top-bar")
                     div { resultsTableHTML(result: result, showFilter: showFilter) }
                 }.class("main-container")
             }
@@ -151,9 +151,11 @@ struct ResultRouteHTML: Routable {
         let groupNames = Set(tests.map({ $0.groupName })).sorted()
                 
         return table {
-            tableHeadData { "Test" }.alignment(.left).scope(.column).class("row dark-bordered-container indent1")
-            tableHeadData { "Duration" }.alignment(.center).scope(.column).class("row dark-bordered-container")
-            tableHeadData { "&nbsp;" }.scope(.column).class("row dark-bordered-container")
+            tableRow {
+                tableHeadData { "Test" }.alignment(.left).scope(.column).class("row dark-bordered-container indent1")
+                tableHeadData { "Duration" }.alignment(.center).scope(.column).class("row dark-bordered-container")
+                tableHeadData { "&nbsp;" }.scope(.column).class("row dark-bordered-container")
+            }.id("table-header")
             
             forEach(groupNames) { group in
                 let tests = tests.filter { $0.groupName == group }.sorted(by: { "\($0.name)-\($0.startDate.timeIntervalSince1970)" < "\($1.name)-\($1.startDate.timeIntervalSince1970)" })

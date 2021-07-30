@@ -31,14 +31,18 @@ struct ScriptRoute: Routable {
     
     private func scriptScreenshot() -> String {
         return """
-            var screenshotTopAnchorY = 0;
-            var screenshotPositionSticky = true;
+            var topBarElementRect = null;
+            var tableHeaderElementRect = null;
+
             var screenshotImageElement = null;
             var screenshotImageTopOffset = 10;
         
             window.onload = function() {
-                screenshotTopAnchorY = document.getElementById('screenshot-column').getBoundingClientRect().top + window.scrollY;
+                topBarElementRect = document.getElementById('top-bar').getBoundingClientRect();
+                tableHeaderElementRect = document.getElementById('table-header').getBoundingClientRect();
+
                 screenshotImageElement = document.getElementById('screenshot-image')
+
                 window.onscroll();
             }
         
@@ -46,14 +50,12 @@ struct ScriptRoute: Routable {
                 if (screenshotImageElement == null) { return; }
         
                 if (window.pageYOffset != undefined) {
-                    if (pageYOffset <= screenshotTopAnchorY && screenshotPositionSticky) {
+                    if (pageYOffset <= screenshotImageTopOffset + tableHeaderElementRect.height) {
                         screenshotImageElement.style.position = "absolute";
-                        screenshotImageElement.style.top = `${screenshotTopAnchorY + screenshotImageTopOffset}px`;
-                        screenshotPositionSticky = false;
+                        screenshotImageElement.style.top = `${screenshotImageTopOffset + topBarElementRect.height + tableHeaderElementRect.height + screenshotImageTopOffset}px`;
                     } else {
                         screenshotImageElement.style.position = "fixed";
-                        screenshotImageElement.style.top = `${screenshotImageTopOffset}px`;
-                        screenshotPositionSticky = true;
+                        screenshotImageElement.style.top = `${screenshotImageTopOffset + topBarElementRect.height}px`;
                     }
                 }
             }

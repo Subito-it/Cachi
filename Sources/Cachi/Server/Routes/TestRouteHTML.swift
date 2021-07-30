@@ -61,8 +61,8 @@ struct TestRouteHTML: Routable {
             body {
                 div {
                     div { floatingHeaderHTML(result: resultBundle, test: test, backShowFilter: backShowFilter) }
-                }.class("main-container")
                     div { resultsTableHTML(result: resultBundle, test: test, rowsData: rowsData) }
+                }.class("main-container background")
             }
         }
         
@@ -136,7 +136,7 @@ struct TestRouteHTML: Routable {
                     link(url: "/html/session_logs?id=\(test.summaryIdentifier ?? "")&type=stdouts\(backParameters)") { "Standard outputs" }.class("button")
                     link(url: "/html/session_logs?id=\(test.summaryIdentifier ?? "")&type=session\(backParameters)") { "Session logs" }.class("button")
                 }
-            }.class("row indent2")
+            }.class("row indent2 background")
         }
     }
     

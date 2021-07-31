@@ -242,6 +242,10 @@ struct TestRouteHTML: Routable {
                     attachmentContentType = "image/png"
                     attachmentTitle = attachment.name == "kXCTAttachmentLegacyScreenImageData" ? "Automatic Screenshot" : "User image attachment"
                     attachmentImage = ("/image?imageView", 18)
+                case "public.data":
+                    attachmentContentType = "text/plain"
+                    attachmentTitle = "Other text data"
+                    attachmentImage = ("/image?imageAttachment", 14)
                 default:
                     assertionFailure("Unhandled attachment uniformTypeIdentifier: \(attachment.uniformTypeIdentifier)")
                     continue

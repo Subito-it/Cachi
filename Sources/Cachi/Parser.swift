@@ -66,12 +66,12 @@ class Parser {
                 }
                 
                 let localTestCrashCount = optimisticCrashCount(in: invocationRecord)
-                let localUserInfoPlist = userInfoPlist(resultBundleUrl: url)
+                let localUserInfo = resultBundleUserInfoPlist(in: url)
 
                 syncQueue.sync {
                     tests += localTests
                     testsCrashCount += localTestCrashCount
-                    userInfo = userInfo ?? localUserInfoPlist
+                    userInfo = userInfo ?? localUserInfo
                     localRunDestinations.forEach { runDestinations.insert($0) }
                 }
             }
@@ -211,7 +211,7 @@ class Parser {
         return actionTestableSummaries.flatMap { extractTests(resultBundleUrl: resultBundleUrl, actionTestSummariesGroup: $0.tests, actionRecord: actionRecord, targetName: $0.targetName) }
     }
     
-    private func userInfoPlist(resultBundleUrl: URL) -> ResultBundle.UserInfo? {
+    private func resultBundleUserInfoPlist(in resultBundleUrl: URL) -> ResultBundle.UserInfo? {
         guard let data = try? Data(contentsOf: resultBundleUrl.appendingPathComponent("Info.plist")) else { return nil }
         
         return try? PropertyListDecoder().decode(ResultBundle.UserInfo.self, from: data)

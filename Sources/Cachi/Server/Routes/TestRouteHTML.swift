@@ -162,7 +162,7 @@ struct TestRouteHTML: Routable {
                                                     .class("icon color-svg-subtext")
                                             )
                                         } else {
-                                            return link(url: "/attachment?result_id=\(result.identifier)&id=\(rowData.attachmentIdentifier)&content_type=\(rowData.attachmentContentType)") {
+                                            return link(url: "/attachment?result_id=\(result.identifier)&id=\(rowData.attachmentIdentifier)&test_id=\(test.summaryIdentifier ?? "")&content_type=\(rowData.attachmentContentType)") {
                                                 div { rowData.title }.class("color-subtext").inlineBlock()
                                                 image(url: attachmentImage.url)
                                                     .iconStyleAttributes(width: attachmentImage.width)

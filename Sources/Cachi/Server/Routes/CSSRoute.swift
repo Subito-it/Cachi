@@ -93,6 +93,10 @@ struct CSSRoute: Routable {
         }
         
         @media (prefers-color-scheme: light) {
+            body {
+                background-color: rgb(255,255,255);
+            }
+
             .background {
                 color: rgb(0,0,0);
                 background-color: rgb(255,255,255);
@@ -167,6 +171,10 @@ struct CSSRoute: Routable {
         }
         
         @media (prefers-color-scheme: dark) {
+            body {
+                background-color: rgb(39,39,39);
+            }
+
             .background {
                 color: rgb(255,255,255);
                 background-color: rgb(39,39,39);

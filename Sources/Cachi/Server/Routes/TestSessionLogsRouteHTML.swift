@@ -67,7 +67,7 @@ struct TestSessionLogsRouteHTML: Routable {
                     default:
                         div { }
                     }
-                }.class("main-container")
+                }.class("main-container background")
             }
         }
         

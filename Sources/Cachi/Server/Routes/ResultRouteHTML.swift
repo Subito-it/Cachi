@@ -61,7 +61,7 @@ struct ResultRouteHTML: Routable {
                 div {
                     div { floatingHeaderHTML(result: result, showFilter: showFilter) }.class("sticky-top").id("top-bar")
                     div { resultsTableHTML(result: result, showFilter: showFilter) }
-                }.class("main-container")
+                }.class("main-container background")
             }
         }
         

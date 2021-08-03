@@ -22,7 +22,7 @@ struct ResultsRouteHTML: Routable {
                 div {
                     div { floatingHeaderHTML(results: results) }.class("sticky-top").id("top-bar")
                     div { resultsTableHTML(results: results) }
-                }.class("main-container")
+                }.class("main-container background")
             }
         }
         

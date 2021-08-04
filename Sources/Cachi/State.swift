@@ -305,6 +305,7 @@ class State {
             if isDirectory {
                 if name.hasSuffix(".xcresult") {
                     testBundleUrls.append(item as URL)
+                    enumerator.skipDescendants()
                 } else if enumerator.level >= depth {
                     enumerator.skipDescendants()
                 }

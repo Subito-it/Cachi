@@ -35,11 +35,12 @@ class Parser {
         var runDestinations = Set<String>()
         var testsCrashCount = 0
         
-        let queue = OperationQueue()
+        let urlQueue = OperationQueue()
+        let testQueue = OperationQueue()
         let syncQueue = DispatchQueue(label: "com.subito.cachi.parsing")
         
         for url in urls {
-            queue.addOperation { [unowned self] in
+            urlQueue.addOperation { [unowned self] in
                 let cachi = CachiKit(url: url)
                 guard let invocationRecord = actionInvocationRecordCache.object(forKey: url as NSURL) ?? (try? cachi.actionsInvocationRecord()) else {
                     os_log("Failed parsing actionsInvocationRecord", log: .default, type: .info)
@@ -47,41 +48,45 @@ class Parser {
                 }
                 actionInvocationRecordCache.setObject(invocationRecord, forKey: url as NSURL)
                                 
-                var localTests = [ResultBundle.Test]()
-                var localRunDestinations = Set<String>()
                 for action in invocationRecord.actions {
-                    guard let testRef = action.actionResult.testsRef else {
-                        continue
-                    }
-                
-                    guard let testPlanSummaries = (try? cachi.actionTestPlanRunSummaries(identifier: testRef.id))?.summaries else {
-                        continue
-                    }
-                
-                    guard testPlanSummaries.count == 1 else {
-                        os_log("Unexpected multiple test plan summaries '%@'", log: .default, type: .info, url.absoluteString)
-                        continue
-                    }
+                    testQueue.addOperation { [unowned self] in
+                        guard let testRef = action.actionResult.testsRef else {
+                            return
+                        }
                     
-                    localTests += self.extractTests(resultBundleUrl: url, actionTestableSummaries: testPlanSummaries.first?.testableSummaries, actionRecord: action)
-                    let targetDevice = action.runDestination.targetDeviceRecord
-                    localRunDestinations.insert("\(targetDevice.modelName) (\(targetDevice.operatingSystemVersion))" )
+                        guard let testPlanSummaries = (try? cachi.actionTestPlanRunSummaries(identifier: testRef.id))?.summaries else {
+                            return
+                        }
+                    
+                        guard testPlanSummaries.count == 1 else {
+                            os_log("Unexpected multiple test plan summaries '%@'", log: .default, type: .info, url.absoluteString)
+                            return
+                        }
+                        
+                        let extractedTests = self.extractTests(resultBundleUrl: url, actionTestableSummaries: testPlanSummaries.first?.testableSummaries, actionRecord: action)
+                        let targetDevice = action.runDestination.targetDeviceRecord
+                        let testDestination = "\(targetDevice.modelName) (\(targetDevice.operatingSystemVersion))"
+                        
+                        syncQueue.sync {
+                            tests += extractedTests
+                            runDestinations.insert(testDestination)
+                        }
+                    }
                 }
-                
-                let localTestCrashCount = optimisticCrashCount(in: invocationRecord)
-                let localUserInfo = resultBundleUserInfoPlist(in: url)
+                                
+                let invocationRecordCrashCount = optimisticCrashCount(in: invocationRecord)
+                let resultBundleUserInfo = resultBundleUserInfoPlist(in: url)
 
                 syncQueue.sync {
-                    tests += localTests
-                    testsCrashCount += localTestCrashCount
-                    userInfo = userInfo ?? localUserInfo
-                    localRunDestinations.forEach { runDestinations.insert($0) }
+                    testsCrashCount += invocationRecordCrashCount
+                    userInfo = userInfo ?? resultBundleUserInfo
                 }
             }
         }
         
-        queue.waitUntilAllOperationsAreFinished()
-        
+        urlQueue.waitUntilAllOperationsAreFinished()
+        testQueue.waitUntilAllOperationsAreFinished()
+
         guard tests.count > 0 else {
             os_log("No tests found in test bundle '%@'", log: .default, type: .info, bundlePath)
             return nil

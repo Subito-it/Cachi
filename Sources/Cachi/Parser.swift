@@ -3,6 +3,8 @@ import CachiKit
 import os
 
 class Parser {
+    private let actionInvocationRecordCache = NSCache<NSURL, ActionsInvocationRecord>()
+    
     func parsePendingResultBundle(urls: [URL]) -> PendingResultBundle? {
         let benchId = benchmarkStart()
         let bundlePath = (urls.count > 1 ? urls.first?.deletingLastPathComponent() : urls.first)?.absoluteString ?? ""
@@ -39,10 +41,11 @@ class Parser {
         for url in urls {
             queue.addOperation { [unowned self] in
                 let cachi = CachiKit(url: url)
-                guard let invocationRecord = try? cachi.actionsInvocationRecord() else {
+                guard let invocationRecord = actionInvocationRecordCache.object(forKey: url as NSURL) ?? (try? cachi.actionsInvocationRecord()) else {
                     os_log("Failed parsing actionsInvocationRecord", log: .default, type: .info)
                     return
                 }
+                actionInvocationRecordCache.setObject(invocationRecord, forKey: url as NSURL)
                                 
                 var localTests = [ResultBundle.Test]()
                 var localRunDestinations = Set<String>()
@@ -118,10 +121,12 @@ class Parser {
         }
                 
         let cachi = CachiKit(url: url)
-        guard let invocationRecord = try? cachi.actionsInvocationRecord() else {
+        guard let invocationRecord = actionInvocationRecordCache.object(forKey: url as NSURL) ?? (try? cachi.actionsInvocationRecord()) else {
             os_log("Failed parsing actionsInvocationRecord", log: .default, type: .info)
             return nil
         }
+        actionInvocationRecordCache.setObject(invocationRecord, forKey: url as NSURL)
+        
         guard let metadataIdentifier = invocationRecord.metadataRef?.id,
               let metaData = try? cachi.actionsInvocationMetadata(identifier: metadataIdentifier) else {
             os_log("Failed parsing actionsInvocationMetadata", log: .default, type: .info)

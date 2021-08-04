@@ -17,10 +17,12 @@ struct ResultRouteHTML: Routable {
     
     private let baseUrl: URL
     private let depth: Int
+    private let mergeResults: Bool
     
-    init(baseUrl: URL, depth: Int) {
+    init(baseUrl: URL, depth: Int, mergeResults: Bool) {
         self.baseUrl = baseUrl
         self.depth = depth
+        self.mergeResults = mergeResults
     }
         
     func respond(to req: HTTPRequest, with promise: EventLoopPromise<HTTPResponse>) {
@@ -37,8 +39,8 @@ struct ResultRouteHTML: Routable {
         defer { os_log("Result bundle with id '%@' fetched in %fms", log: .default, type: .info, resultIdentifier, benchmarkStop(benchId)) }
                 
         guard let result = State.shared.result(identifier: resultIdentifier) else {
-            let partialResultBundles = State.shared.partialResultBundles(baseUrl: baseUrl, depth: depth)
-            if partialResultBundles.contains(where: { $0.identifier == resultIdentifier }) {
+            let pendingResultBundles = State.shared.pendingResultBundles(baseUrl: baseUrl, depth: depth, mergeResults: mergeResults)
+            if pendingResultBundles.contains(where: { $0.identifier == resultIdentifier }) {
                 let res = HTTPResponse(status: .notFound, body: HTTPBody(staticString: "Result is being parsed, please wait..."))
                 return promise.succeed(res)
             } else {
@@ -57,9 +59,9 @@ struct ResultRouteHTML: Routable {
             }
             body {
                 div {
-                    div { floatingHeaderHTML(result: result, showFilter: showFilter) }
+                    div { floatingHeaderHTML(result: result, showFilter: showFilter) }.class("sticky-top").id("top-bar")
                     div { resultsTableHTML(result: result, showFilter: showFilter) }
-                }.class("main-container")
+                }.class("main-container background")
             }
         }
         
@@ -149,9 +151,11 @@ struct ResultRouteHTML: Routable {
         let groupNames = Set(tests.map({ $0.groupName })).sorted()
                 
         return table {
-            tableHeadData { "Test" }.alignment(.left).scope(.column).class("row dark-bordered-container indent1")
-            tableHeadData { "Duration" }.alignment(.center).scope(.column).class("row dark-bordered-container")
-            tableHeadData { "&nbsp;" }.scope(.column).class("row dark-bordered-container")
+            tableRow {
+                tableHeadData { "Test" }.alignment(.left).scope(.column).class("row dark-bordered-container indent1")
+                tableHeadData { "Duration" }.alignment(.center).scope(.column).class("row dark-bordered-container")
+                tableHeadData { "&nbsp;" }.scope(.column).class("row dark-bordered-container")
+            }.id("table-header")
             
             forEach(groupNames) { group in
                 let tests = tests.filter { $0.groupName == group }.sorted(by: { "\($0.name)-\($0.startDate.timeIntervalSince1970)" < "\($1.name)-\($1.startDate.timeIntervalSince1970)" })

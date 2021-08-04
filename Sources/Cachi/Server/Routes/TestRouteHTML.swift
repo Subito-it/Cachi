@@ -60,9 +60,9 @@ struct TestRouteHTML: Routable {
             }
             body {
                 div {
-                    div { floatingHeaderHTML(result: resultBundle, test: test, backShowFilter: backShowFilter) }
-                    div { resultsTableHTML(result: resultBundle, rowsData: rowsData) }
-                }.class("main-container")
+                    div { floatingHeaderHTML(result: resultBundle, test: test, backShowFilter: backShowFilter) }.class("sticky-top").id("top-bar")
+                    div { resultsTableHTML(result: resultBundle, test: test, rowsData: rowsData) }
+                }.class("main-container background")
             }
         }
         
@@ -136,14 +136,16 @@ struct TestRouteHTML: Routable {
                     link(url: "/html/session_logs?id=\(test.summaryIdentifier ?? "")&type=stdouts\(backParameters)") { "Standard outputs" }.class("button")
                     link(url: "/html/session_logs?id=\(test.summaryIdentifier ?? "")&type=session\(backParameters)") { "Session logs" }.class("button")
                 }
-            }.class("row indent2")
+            }.class("row indent2 background")
         }
     }
     
-    private func resultsTableHTML(result: ResultBundle, rowsData: [RowData]) -> HTML {
+    private func resultsTableHTML(result: ResultBundle, test: ResultBundle.Test, rowsData: [RowData]) -> HTML {
         return table {
-            tableHeadData { "Steps" }.alignment(.left).scope(.column).class("row dark-bordered-container indent1")
-            tableHeadData { "Screenshot" }.alignment(.center).scope(.column).class("row dark-bordered-container")
+            tableRow {
+                tableHeadData { "Steps" }.alignment(.left).scope(.column).class("row dark-bordered-container indent1")
+                tableHeadData { "Screenshot" }.alignment(.center).scope(.column).class("row dark-bordered-container")
+            }.id("table-header")
 
             tableRow {
                 tableData {
@@ -160,7 +162,7 @@ struct TestRouteHTML: Routable {
                                                     .class("icon color-svg-subtext")
                                             )
                                         } else {
-                                            return link(url: "/attachment?result_id=\(result.identifier)&id=\(rowData.attachmentIdentifier)&content_type=\(rowData.attachmentContentType)") {
+                                            return link(url: "/attachment?result_id=\(result.identifier)&id=\(rowData.attachmentIdentifier)&test_id=\(test.summaryIdentifier ?? "")&content_type=\(rowData.attachmentContentType)") {
                                                 div { rowData.title }.class("color-subtext").inlineBlock()
                                                 image(url: attachmentImage.url)
                                                     .iconStyleAttributes(width: attachmentImage.width)
@@ -175,15 +177,17 @@ struct TestRouteHTML: Routable {
                             }.class("light-bordered-container indent1")
                              .attr("attachment_identifier", rowData.attachmentIdentifier)
                             
+                            let testSummaryIdentifier = test.summaryIdentifier ?? ""
+                            
                             if rowData.isKeyScreenshot {
                                 return row
                                     .class("screenshot-key")
-                                    .attr("onmouseenter", #"onMouseEnter(this, '\#(result.identifier)', '\#(rowData.attachmentIdentifier)', '\#(rowData.attachmentContentType)', '\#(rowData.attachmentContentType)')"#)
-                                    .attr("onclick", #"onMouseEnter(this, '\#(result.identifier)', '\#(rowData.attachmentIdentifier)', '\#(rowData.attachmentContentType)')"#)
+                                    .attr("onmouseenter", #"onMouseEnter(this, '\#(result.identifier)', '\#(testSummaryIdentifier)', '\#(rowData.attachmentIdentifier)', '\#(rowData.attachmentContentType)', '\#(rowData.attachmentContentType)')"#)
+                                    .attr("onclick", #"onMouseEnter(this, '\#(result.identifier)', '\#(testSummaryIdentifier)', '\#(rowData.attachmentIdentifier)', '\#(rowData.attachmentContentType)')"#)
                             } else if rowData.isScreenshot {
                                 return row
-                                    .attr("onmouseenter", #"onMouseEnter(this, '\#(result.identifier)', '\#(rowData.attachmentIdentifier)', '\#(rowData.attachmentContentType)', '\#(rowData.attachmentContentType)')"#)
-                                    .attr("onclick", #"onMouseEnter(this, '\#(result.identifier)', '\#(rowData.attachmentIdentifier)', '\#(rowData.attachmentContentType)')"#)
+                                    .attr("onmouseenter", #"onMouseEnter(this, '\#(result.identifier)', '\#(testSummaryIdentifier)', '\#(rowData.attachmentIdentifier)', '\#(rowData.attachmentContentType)', '\#(rowData.attachmentContentType)')"#)
+                                    .attr("onclick", #"onMouseEnter(this, '\#(result.identifier)', '\#(testSummaryIdentifier)', '\#(rowData.attachmentIdentifier)', '\#(rowData.attachmentContentType)')"#)
                             } else {
                                 return row
                             }
@@ -191,9 +195,12 @@ struct TestRouteHTML: Routable {
                     }
                 }
                 tableData {
-                    if let rowData = rowsData.first {
+                    if let rowData = rowsData.first, let testSummaryIdentifier = test.summaryIdentifier {
                         if rowData.isScreenshot {
-                            return image(url: "\(AttachmentRoute().path)?result_id=\(result.identifier)&id=\(rowData.attachmentIdentifier)&content_type=\(rowData.attachmentContentType)").id("screenshot-image")
+                            return
+                                div {
+                                    image(url: "\(AttachmentRoute().path)?result_id=\(result.identifier)&test_id=\(testSummaryIdentifier)&id=\(rowData.attachmentIdentifier)&content_type=\(rowData.attachmentContentType)").id("screenshot-image")
+                                }
                         } else {
                             return image(url: "\(ImageRoute().path)?imageEmpty")
                         }
@@ -235,6 +242,10 @@ struct TestRouteHTML: Routable {
                     attachmentContentType = "image/png"
                     attachmentTitle = attachment.name == "kXCTAttachmentLegacyScreenImageData" ? "Automatic Screenshot" : "User image attachment"
                     attachmentImage = ("/image?imageView", 18)
+                case "public.data":
+                    attachmentContentType = "text/plain"
+                    attachmentTitle = "Other text data"
+                    attachmentImage = ("/image?imageAttachment", 14)
                 default:
                     assertionFailure("Unhandled attachment uniformTypeIdentifier: \(attachment.uniformTypeIdentifier)")
                     continue

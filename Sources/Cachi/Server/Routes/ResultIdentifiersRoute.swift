@@ -8,19 +8,21 @@ struct ResultsIdentifiersRoute: Routable {
     
     private let baseUrl: URL
     private let depth: Int
+    private let mergeResults: Bool
     
-    init(baseUrl: URL, depth: Int) {
+    init(baseUrl: URL, depth: Int, mergeResults: Bool) {
         self.baseUrl = baseUrl
         self.depth = depth
+        self.mergeResults = mergeResults
     }
     
     func respond(to req: HTTPRequest, with promise: EventLoopPromise<HTTPResponse>) {
         os_log("Results identifiers request received", log: .default, type: .info)
         
-        let partialResultBundles = State.shared.partialResultBundles(baseUrl: baseUrl, depth: depth)
+        let pendingResultBundles = State.shared.pendingResultBundles(baseUrl: baseUrl, depth: depth, mergeResults: mergeResults)
         
         let res: HTTPResponse
-        if let bodyData = try? JSONEncoder().encode(partialResultBundles) {
+        if let bodyData = try? JSONEncoder().encode(pendingResultBundles) {
             res = HTTPResponse(body: HTTPBody(data: bodyData))
         } else {
             res = HTTPResponse(status: .internalServerError, body: HTTPBody(staticString: "Ouch..."))

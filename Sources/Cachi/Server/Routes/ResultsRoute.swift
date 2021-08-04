@@ -23,10 +23,12 @@ struct ResultsRoute: Routable {
     
     private let baseUrl: URL
     private let depth: Int
+    private let mergeResults: Bool
     
-    init(baseUrl: URL, depth: Int) {
+    init(baseUrl: URL, depth: Int, mergeResults: Bool) {
         self.baseUrl = baseUrl
         self.depth = depth
+        self.mergeResults = mergeResults
     }
         
     func respond(to req: HTTPRequest, with promise: EventLoopPromise<HTTPResponse>) {
@@ -38,7 +40,7 @@ struct ResultsRoute: Routable {
         for result in results {
             let info = ResultInfo(identifier: result.identifier,
                                   url: "\(ResultRoute().path)?\(result.identifier)",
-                                  htmlUrl: "\(ResultRouteHTML(baseUrl: baseUrl, depth: depth).path)?id=\(result.identifier)",
+                                  htmlUrl: "\(ResultRouteHTML(baseUrl: baseUrl, depth: depth, mergeResults: mergeResults).path)?id=\(result.identifier)",
                                   date: result.date,
                                   success_count: result.testsPassed.count,
                                   failure_count: result.testsUniquelyFailed.count,

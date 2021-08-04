@@ -13,6 +13,7 @@ struct AttachmentRoute: Routable {
         guard let components = URLComponents(url: req.url, resolvingAgainstBaseURL: false),
               let queryItems = components.queryItems,
               let resultIdentifier = queryItems.first(where: { $0.name == "result_id" })?.value,
+              let testSummaryIdentifier = queryItems.first(where: { $0.name == "test_id" })?.value,
               let attachmentIdentifier = queryItems.first(where: { $0.name == "id" })?.value,
               let contentType = queryItems.first(where: { $0.name == "content_type" })?.value,
               resultIdentifier.count > 0, attachmentIdentifier.count > 0 else {
@@ -23,12 +24,12 @@ struct AttachmentRoute: Routable {
         let benchId = benchmarkStart()
         defer { os_log("Attachment with id '%@' in result bundle '%@' fetched in %fms", log: .default, type: .info, attachmentIdentifier, resultIdentifier, benchmarkStop(benchId)) }
         
-        guard let result = State.shared.result(identifier: resultIdentifier) else {
+        guard let test = State.shared.test(summaryIdentifier: testSummaryIdentifier) else {
             let res = HTTPResponse(status: .notFound, body: HTTPBody(staticString: "Not found..."))
             return promise.succeed(res)
         }
 
-        let cachi = CachiKit(url: result.resultBundleUrl)
+        let cachi = CachiKit(url: test.xcresultUrl)
         
         let destinationUrl = Cachi.temporaryFolderUrl.appendingPathComponent("result-\(resultIdentifier)").appendingPathComponent(attachmentIdentifier.md5Value)
         let destinationPath = destinationUrl.path

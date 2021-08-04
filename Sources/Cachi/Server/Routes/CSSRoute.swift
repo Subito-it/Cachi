@@ -60,6 +60,10 @@ struct CSSRoute: Routable {
         th {
             font-weight: 600;
         }
+
+        #top-bar {
+            z-index: 999;
+        }
         
         #screenshot-column {
             width: 35%;
@@ -90,10 +94,14 @@ struct CSSRoute: Routable {
         
         @media (prefers-color-scheme: light) {
             body {
+                background-color: rgb(255,255,255);
+            }
+
+            .background {
                 color: rgb(0,0,0);
                 background-color: rgb(255,255,255);
             }
-        
+
             .warning-container {
                 color: rgb(255,255,255);
                 background-color: rgb(255,127,0);
@@ -164,6 +172,10 @@ struct CSSRoute: Routable {
         
         @media (prefers-color-scheme: dark) {
             body {
+                background-color: rgb(39,39,39);
+            }
+
+            .background {
                 color: rgb(255,255,255);
                 background-color: rgb(39,39,39);
             }
@@ -272,6 +284,12 @@ struct CSSRoute: Routable {
         .button-padded {
             padding-top: 3px;
             padding-bottom: 3px;
+        }
+
+        .sticky-top {
+            position: -webkit-sticky; /* Safari */
+            position: sticky;
+            top: 0;
         }
 """
     }

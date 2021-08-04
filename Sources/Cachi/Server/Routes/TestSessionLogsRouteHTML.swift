@@ -58,7 +58,7 @@ struct TestSessionLogsRouteHTML: Routable {
             }
             body {
                 div {
-                    div { floatingHeaderHTML(result: resultBundle, test: test, backShowFilter: backShowFilter) }
+                    div { floatingHeaderHTML(result: resultBundle, test: test, backShowFilter: backShowFilter) }.class("sticky-top").id("top-bar")
                     switch sessionType {
                     case "stdouts":
                         div { standardOutputsLogsTableHTML(sessionLogs: sessionLogs) }
@@ -67,7 +67,7 @@ struct TestSessionLogsRouteHTML: Routable {
                     default:
                         div { }
                     }
-                }.class("main-container")
+                }.class("main-container background")
             }
         }
         
@@ -120,8 +120,10 @@ struct TestSessionLogsRouteHTML: Routable {
         let appLogs = sessionLogs.appStandardOutput ?? "No data"
 
         return table {
-            tableHeadData { "Runner App" }.alignment(.left).scope(.column).class("row dark-bordered-container indent1")
-            tableHeadData { "App" }.alignment(.left).scope(.column).class("row dark-bordered-container")
+            tableRow {
+                tableHeadData { "Runner App" }.alignment(.left).scope(.column).class("row dark-bordered-container indent1")
+                tableHeadData { "App" }.alignment(.left).scope(.column).class("row dark-bordered-container")
+            }.id("table-header")
 
             tableRow {
                 tableData {

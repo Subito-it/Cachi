@@ -18,15 +18,25 @@ Or you can build manually using swift build.
 
 Cachi can be launched by passing the port for the web interface and the location where it should search for the .xcresult bundles.
 
-You can optionally pass `--search_depth` to specify how deep Cachi should traverse the location path. Default is 2, larger values may impact parsing speed. 
+You can optionally pass:
+- `--search_depth` to specify how deep Cachi should traverse the location path. Default is 2, larger values may impact parsing speed. 
+- `--merge` to merge multiple xcresults in the same folder as if they belong to the same test run. This can be used in advanced scenarios like for example test sharding on on multiple machines.
 
 ```bash
-$ cachi --port number [--search_depth level] path
+$ cachi --port number [--search_depth level] [--merge] path
 ```
 
 ## Endpoint documentation
 
 http://local.host:port/v1/help will return a list of available endpoint with a short overview.
+
+# Test result customization
+
+The following keys can be added to the Info.plist in the .xcresult bundle which will be used when showing results:
+
+- `branchName`
+- `commitHash`
+- `commitMessage`
 
 
 # Contributions

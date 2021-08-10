@@ -111,7 +111,7 @@ extension ResultBundle {
 
 extension ResultBundle {
     var codeCoverageSplittedHtmlBaseUrl: URL? {
-        xcresultUrls.first?.deletingLastPathComponent().appendingPathComponent("coverage")
+        xcresultUrls.first?.deletingLastPathComponent().appendingPathComponent(Cachi.cacheFolderName).appendingPathComponent("coverage")
     }
 
     var codeCoverageBaseUrl: URL? {

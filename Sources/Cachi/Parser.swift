@@ -132,6 +132,49 @@ class Parser {
         try splitter.split(destinationUrl: coverageSplittedUrl, basePath: "")
     }
     
+    func generagePerFolderLineCoverage(resultBundle: ResultBundle, destinationUrl: URL?) throws {
+        guard let destinationUrl = destinationUrl else { return }
+        
+        let benchId = benchmarkStart()
+        defer { os_log("Per folder coverage generation for '%@' in %fms", log: .default, type: .info, destinationUrl.absoluteString, benchmarkStop(benchId)) }
+        
+        let coverage = try extractPerFolderLineCoverage(resultBundle: resultBundle)
+        
+        let data = try JSONEncoder().encode(coverage)
+        try data.write(to: destinationUrl)
+    }
+    
+    private func extractPerFolderLineCoverage(resultBundle: ResultBundle) throws -> [PathCoverage] {
+        guard let coverageUrl = resultBundle.codeCoverageJsonSummaryUrl else { return [] }
+        
+        let coverage = try JSONDecoder().decode(Coverage.self, from: try Data(contentsOf: coverageUrl))
+        let files = coverage.data.first?.files ?? []
+        
+        var folderCoverageAggregation = [String: Set<Coverage.Item.File>]()
+        for file in files {
+            let pathComponents = file.filename.components(separatedBy: "/").dropLast()
+            
+            var cumulatedPath = ""
+            for pathComponent in pathComponents {
+                cumulatedPath += pathComponent + "/"
+                var set = folderCoverageAggregation[cumulatedPath, default: Set<Coverage.Item.File>()]
+                set.insert(file)
+                folderCoverageAggregation[cumulatedPath] = set
+            }
+        }
+        
+        var folderCoverage = [PathCoverage]()
+        for (path, coverages) in folderCoverageAggregation {
+            let totalLines = coverages.reduce(0, { $0 + $1.summary.lines.count })
+            let coveredLines = coverages.reduce(0, { $0 + $1.summary.lines.covered })
+            let percent = Double(coveredLines) / Double(totalLines)
+            
+            folderCoverage.append(PathCoverage(path: path, percent: percent * 100))
+        }
+
+        return folderCoverage.sorted(by: { $0.path < $1.path }).filter { $0.path != "/" }
+    }
+    
     private func bundleIdentifier(urls: [URL]) -> String? {
         guard let url = urls.sorted(by: { $0.lastPathComponent > $1.lastPathComponent }).first else {
             os_log("No urls passed", log: .default, type: .info)

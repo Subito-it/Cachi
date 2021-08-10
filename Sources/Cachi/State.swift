@@ -103,6 +103,7 @@ class State {
                     DispatchQueue.global(qos: .utility).async {
                         // This can be done asynchronously as it doesn't contain data that is immediately needed
                         try? parser.splitHtmlCoverageFile(resultBundle: resultBundle)
+                        try? parser.generagePerFolderLineCoverage(resultBundle: resultBundle, destinationUrl: resultBundle.codeCoveragePerFolderJsonUrl)
                     }
                 }
             }

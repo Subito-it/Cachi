@@ -80,9 +80,64 @@ extension ResultBundle.Test {
     }
 }
 
+// This needs to be a class to optimize per folder coverage extraction
+class Coverage: Codable {
+    class Item: Codable {
+        class File: Codable, Hashable {
+            class Summary: Codable, Hashable {
+                class Detail: Codable, Hashable {
+                    let count: Int
+                    let covered: Int
+                    let percent: Double
+                    
+                    static func == (lhs: Coverage.Item.File.Summary.Detail, rhs: Coverage.Item.File.Summary.Detail) -> Bool {
+                        lhs.count == rhs.count && lhs.covered == rhs.covered && lhs.percent == rhs.percent
+                    }
+
+                    func hash(into hasher: inout Hasher) {
+                        hasher.combine(count)
+                        hasher.combine(covered)
+                        hasher.combine(percent)
+                    }
+                }
+                
+                let functions: Detail
+                let instantiations: Detail
+                let lines: Detail
+                
+                static func == (lhs: Coverage.Item.File.Summary, rhs: Coverage.Item.File.Summary) -> Bool {
+                    lhs.functions == rhs.functions && lhs.instantiations == rhs.instantiations && lhs.lines == rhs.lines
+                }
+
+                func hash(into hasher: inout Hasher) {
+                    hasher.combine(functions)
+                    hasher.combine(instantiations)
+                    hasher.combine(lines)
+                }
+            }
+            
+            let filename: String
+            let summary: Summary
+            
+            static func == (lhs: Coverage.Item.File, rhs: Coverage.Item.File) -> Bool {
+                lhs.filename == rhs.filename && lhs.summary == rhs.summary
+            }
+            
+            func hash(into hasher: inout Hasher) {
+                hasher.combine(filename)
+                hasher.combine(summary)
+            }
         }
         
+        let files: [File]
     }
+    
+    let data: [Item]
+}
+
+struct PathCoverage: Codable {
+    let path: String
+    let percent: Double
 }
 
 extension ResultBundle {
@@ -107,6 +162,6 @@ extension ResultBundle {
     }
     
     var codeCoveragePerFolderJsonUrl: URL? {
-        codeCoverageBaseUrl?.appendingPathComponent("coverage-folder.json")
+        codeCoverageBaseUrl?.appendingPathComponent("coverage-folders.json")
     }
 }

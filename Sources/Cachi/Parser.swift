@@ -215,8 +215,7 @@ class Parser {
                                              deviceOs: targetDeviceRecord.operatingSystemVersion,
                                              deviceIdentifier: targetDeviceRecord.identifier,
                                              diagnosticsIdentifier: actionRecord.actionResult.diagnosticsRef?.id,
-                                             summaryIdentifier: summaryIdentifier,
-                                             externalCoverage: nil)
+                                             summaryIdentifier: summaryIdentifier)
                 }
             } else if let subGroups =  group.subtests as? [ActionTestSummaryGroup] {
                 result += extractTests(resultBundleUrl: resultBundleUrl, actionTestSummariesGroup: subGroups, actionRecord: actionRecord, targetName: targetName)

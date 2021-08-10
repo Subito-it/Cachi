@@ -17,6 +17,13 @@ struct ScriptRoute: Routable {
         switch scriptType {
         case "screenshot":
             scriptContent = scriptScreenshot()
+        case "coverage-files":
+            let resultBundles = State.shared.resultBundles
+            
+            if let resultIdentifier = queryItems.first(where: { $0.name == "id" })?.value,
+               let resultBundle = resultBundles.first(where: { $0.identifier == resultIdentifier }) {
+                scriptContent = scriptFilesCoverage(resultBundle: resultBundle)
+            }
         default:
             break
         }
@@ -81,5 +88,78 @@ struct ScriptRoute: Routable {
                 );
             }
         """
+    }
+
+    private func scriptFilesCoverage(resultBundle: ResultBundle) -> String {
+        guard let summaryUrl = resultBundle.codeCoverageJsonSummaryUrl,
+              let coverageRawDictionary = try? String(contentsOf: summaryUrl) else {
+            return "{}"
+        }
+        
+        let fileCoverage = """
+            const dict = \(coverageRawDictionary)
+
+            const queryString = window.location.search;
+            const urlParams = new URLSearchParams(queryString);
+
+            let parentParams = [];
+            urlParams.forEach((value,name) => parentParams.push(`${name}=${value}`));
+            parentParams = parentParams.filter(t => !t.startsWith('id=') && !t.startsWith('q='));
+
+            const inputHandler = function(e) {
+                var filteredFiles = [];
+
+                const query = e == null ? '' : e.target.value.toLowerCase();
+                
+                for (var file of dict['d'][0]['f']) {
+                    if (query == null || file.n.toLowerCase().includes(query)) {
+                        filteredFiles.push(file);
+                    }
+                }
+
+                filteredFiles = filteredFiles.sort(function(a,b) {
+                    return b.n - a.n
+                });
+
+                const filterInput = document.getElementById('filter-input');
+                const inputQuery = filterInput.value ?? '';
+
+                var val = '';
+                for (var i = 0; i < filteredFiles.length; i++) {
+                    const file = filteredFiles[i]
+                    const rowClass = i % 2 == 0 ? 'even-row' : 'odd-row'
+                    val += `<tr class='${rowClass}'><td class='filename-col'><a href='/html/coverage-file?id=\(resultBundle.identifier)&path=${file.n}&q=${inputQuery}&${parentParams.join('&')}'>${file.n}</a></td><td class='progress-col'><progress value='${file.s.l.p}' max='100'></progress></td><td class='coverage-col color-subtext'>${Number(file.s.l.p).toFixed(1)}%</td><td class='absorbing-column'></td></tr>`;
+                }
+
+                const coverageTable = document.getElementById('coverage-table');
+                coverageTable.innerHTML = val;
+            }
+
+            window.onload = function() {
+                const filterInput = document.getElementById('filter-input');
+                const inputQuery = urlParams.get('q');
+                filterInput.value = inputQuery;
+                
+                filterInput.addEventListener('input', inputHandler);
+                inputHandler();
+            };
+        """
+        
+        let minifiedFileCoverage = fileCoverage
+            .replacingOccurrences(of: #""files":"#, with: #""f":"#)
+            .replacingOccurrences(of: #""filename":"#, with: #""n":"#)
+            .replacingOccurrences(of: #""functions":"#, with: #""fn":"#)
+            .replacingOccurrences(of: #""count":"#, with: #""cn":"#)
+            .replacingOccurrences(of: #""covered":"#, with: #""c":"#)
+            .replacingOccurrences(of: #""notcovered":"#, with: #""nc":"#)
+            .replacingOccurrences(of: #""regions":"#, with: #""r":"#)
+            .replacingOccurrences(of: #""percent":"#, with: #""p":"#)
+            .replacingOccurrences(of: #""instantiations":"#, with: #""i":"#)
+            .replacingOccurrences(of: #""lines":"#, with: #""l":"#)
+            .replacingOccurrences(of: #""summary":"#, with: #""s":"#)
+            .replacingOccurrences(of: #""data":"#, with: #""d":"#)
+        
+        
+        return minifiedFileCoverage
     }
 }

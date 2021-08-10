@@ -7,8 +7,10 @@ private enum ShowFilter: String, CaseIterable {
     case all, passed, failed, retried
     
     func params() -> String {
-        return "&show=\(self.rawValue)"
+        return "&\(Self.queryName)=\(self.rawValue)"
     }
+    
+    static let queryName = "show"
 }
 
 struct ResultRouteHTML: Routable {    
@@ -49,7 +51,7 @@ struct ResultRouteHTML: Routable {
             }
         }
         
-        let showFilter = ShowFilter(rawValue: queryItems.first(where: { $0.name == "show" })?.value ?? "") ?? .all
+        let showFilter = ShowFilter(rawValue: queryItems.first(where: { $0.name == ShowFilter.queryName })?.value ?? "") ?? .all
         
         let document = html {
             head {
@@ -128,6 +130,10 @@ struct ResultRouteHTML: Routable {
                     if result.testsRepeated.count > 0 {
                         blocks.append(link(url: "\(self.path)?id=\(result.identifier)\(ShowFilter.retried.params())") { ShowFilter.retried.rawValue.capitalized }.class(showFilter == ShowFilter.retried ? "button-selected" : "button"))
                     }
+                    if result.codeCoverageSplittedHtmlBaseUrl != nil {
+                        blocks.append("&nbsp;&nbsp;&nbsp;&nbsp;")
+                        blocks.append(link(url: "coverage?id=\(result.identifier)\(showFilter.params())") { "Coverage" }.class("button"))
+                    }
 
                     return HTMLBuilder.buildBlocks(blocks)
                 }
@@ -203,7 +209,7 @@ struct ResultRouteHTML: Routable {
             }
         }
     }
-    
+        
     private func linkToResultDetail(test: ResultBundle.Test, showFilter: ShowFilter, @HTMLBuilder child: () -> HTML) -> HTML {
         return link(url: "/html/test?id=\(test.summaryIdentifier!)\(showFilter.params())") {
             child()

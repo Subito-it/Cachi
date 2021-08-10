@@ -34,7 +34,8 @@ struct RequestRouter: HTTPServerDelegate {
             AttachmentRoute(),
             ImageRoute(),
             CSSRoute(),
-            ScriptRoute()
+            ScriptRoute(),
+            CoverageRouteHTML()
         ]
         
         self.routes = routes

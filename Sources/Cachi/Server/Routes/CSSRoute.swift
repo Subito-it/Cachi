@@ -79,12 +79,78 @@ struct CSSRoute: Routable {
             display:block;
         }
 
+        #coverage-table {
+            table-layout: auto;
+            border-collapse: collapse;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        #coverage-table .filename-col {
+            padding-left: 20px;
+        }
+
+        #coverage-table .progress-col {
+            padding-right: 10px;
+        }
+
+        #coverage-table .coverage-col {
+            font-size: 90%;
+        }
+
+        #coverage-table td {
+            padding-top: 5px;
+            padding-bottom: 5px;
+            padding-right: 20px;
+        }
+
+        #coverage-table td a, a:hover, a:focus, a:active {
+            text-decoration: none;
+            color: inherit;
+        }
+
+        #coverage-table .absorbing-column {
+            width: 100%;
+        }
+
+        #filter-search {
+            display: inline-flex;
+            align-items: center;
+            border: 1px solid;
+            border-radius: 3px;
+            width: 450px;
+        }
+
+        #filter-placeholder {
+            border-top-left-radius: 3px;
+            border-bottom-left-radius: 3px;
+            height: 100%;
+            padding-left: 10px;
+            padding-right: 10px;
+            padding-top: 3px;
+            padding-bottom: 3px;
+            line-height: 20px;
+        }
+
+        #filter-input {
+            padding-left: 5px;
+            height: 100%;
+            font-size: 100%;
+            border: 0px;
+            line-height: 20px;
+            background: transparent;
+        }
+
         a:link {
             text-decoration: none;
         }
 
         a:visited {
             text-decoration: none;
+        }
+
+        input:focus {
+            outline: none;
         }
         
         .main-container {
@@ -146,6 +212,10 @@ struct CSSRoute: Routable {
                 filter: brightness(0%) invert(0.45);
             }
 
+            input {
+                color: rgb(90, 90, 90);
+            }
+
             .button {
                 border: 1px solid rgb(230,230,230);
                 border-radius: 3px;
@@ -167,6 +237,19 @@ struct CSSRoute: Routable {
                 text-decoration: none;
                 display: inline-block;
                 margin-right: 4px;
+            }
+
+            #filter-search {
+                border-color: rgb(230,230,230);
+            }
+
+            #filter-placeholder {
+                background: rgb(230,230,230);
+                color: rgb(90, 90, 90);
+            }
+
+            #coverage-table .odd-row {
+                background: rgb(245,245,245);
             }
         }
         
@@ -224,6 +307,10 @@ struct CSSRoute: Routable {
                 filter: brightness(0%) invert(0.65);
             }
 
+            input {
+                color: rgb(165,165,165);
+            }
+
             .button {
                 border: 1px solid rgb(80,80,80);
                 border-radius: 3px;
@@ -245,6 +332,19 @@ struct CSSRoute: Routable {
                 text-decoration: none;
                 display: inline-block;
                 margin-right: 4px;
+            }
+
+            #filter-search {
+                border-color: rgb(80,80,80);
+            }
+
+            #filter-placeholder {
+                background: rgb(80,80,80);
+                color: rgb(165,165,165);
+            }
+
+            #coverage-table .odd-row {
+                background: rgb(15,15,15);
             }
         }
                 

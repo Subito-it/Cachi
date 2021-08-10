@@ -9,15 +9,16 @@ struct ScriptRoute: Routable {
     func respond(to req: HTTPRequest, with promise: EventLoopPromise<HTTPResponse>) {
         os_log("Script request received", log: .default, type: .info)
         
-        guard let scriptIdentifier = req.url.query else {
-            let res = HTTPResponse(status: .notFound, body: HTTPBody(staticString: "Not found..."))
-            return promise.succeed(res)
-        }
-
-        let scriptContent: String?
-        switch scriptIdentifier {
-        case "screenshot": scriptContent = scriptScreenshot()
-        default: scriptContent = nil
+        let components = URLComponents(url: req.url, resolvingAgainstBaseURL: false)
+        let queryItems = components?.queryItems ?? []
+        let scriptType = queryItems.first(where: { $0.name == "type" })?.value ?? ""
+        
+        var scriptContent: String?
+        switch scriptType {
+        case "screenshot":
+            scriptContent = scriptScreenshot()
+        default:
+            break
         }
 
         guard scriptContent != nil else {

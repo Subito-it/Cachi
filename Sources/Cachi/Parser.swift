@@ -119,6 +119,19 @@ class Parser {
                             userInfo: userInfo)
     }
     
+    func splitHtmlCoverageFile(resultBundle: ResultBundle) throws {
+        guard let coverageUrl = resultBundle.codeCoverageHtmlUrl,
+              let coverageSplittedUrl = resultBundle.codeCoverageSplittedHtmlBaseUrl else { return }
+
+        let benchId = benchmarkStart()
+        defer { os_log("Splitted coverage files for '%@' in %fms", log: .default, type: .info, coverageUrl.absoluteString, benchmarkStop(benchId)) }
+        
+        try FileManager.default.createDirectory(at: coverageSplittedUrl, withIntermediateDirectories: false, attributes: nil)
+        
+        let splitter = CodeCoverageHtmlSplitter(url: coverageUrl)
+        try splitter.split(destinationUrl: coverageSplittedUrl, basePath: "")
+    }
+    
     private func bundleIdentifier(urls: [URL]) -> String? {
         guard let url = urls.sorted(by: { $0.lastPathComponent > $1.lastPathComponent }).first else {
             os_log("No urls passed", log: .default, type: .info)

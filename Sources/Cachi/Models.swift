@@ -108,3 +108,31 @@ extension ResultBundle {
         let files: [String]
     }
 }
+
+extension ResultBundle {
+    var codeCoverageSplittedHtmlBaseUrl: URL? {
+        xcresultUrls.first?.deletingLastPathComponent().appendingPathComponent("coverage")
+    }
+
+    var codeCoverageBaseUrl: URL? {
+        xcresultUrls.first?.deletingLastPathComponent()
+    }
+
+    var codeCoverageJsonUrl: URL? {
+        codeCoverageBaseUrl?.appendingPathComponent("coverage.json").nilIfNotExists
+    }
+
+    var codeCoverageJsonSummaryUrl: URL? {
+        codeCoverageBaseUrl?.appendingPathComponent("coverage-summary.json").nilIfNotExists
+    }
+    
+    var codeCoverageHtmlUrl: URL? {
+        codeCoverageBaseUrl?.appendingPathComponent("coverage.html").nilIfNotExists
+    }
+}
+
+private extension URL {
+    var nilIfNotExists: URL? {
+        return FileManager.default.fileExists(atPath: path) ? self : nil
+    }
+}

@@ -100,6 +100,10 @@ class State {
                         _state = .parsing(progress: Double(index) / Double(bundleUrls.count))
                         writeCachedResultBundle(resultBundle)
                     }
+                    DispatchQueue.global(qos: .utility).async {
+                        // This can be done asynchronously as it doesn't contain data that is immediately needed
+                        try? parser.splitHtmlCoverageFile(resultBundle: resultBundle)
+                    }
                 }
             }
         }

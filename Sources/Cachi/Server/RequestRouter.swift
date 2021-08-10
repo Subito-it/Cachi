@@ -35,7 +35,8 @@ struct RequestRouter: HTTPServerDelegate {
             ImageRoute(),
             CSSRoute(),
             ScriptRoute(),
-            CoverageRouteHTML()
+            CoverageRouteHTML(),
+            CoverageFileRouteHTML()
         ]
         
         self.routes = routes

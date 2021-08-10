@@ -119,20 +119,18 @@ extension ResultBundle {
     }
 
     var codeCoverageJsonUrl: URL? {
-        codeCoverageBaseUrl?.appendingPathComponent("coverage.json").nilIfNotExists
+        codeCoverageBaseUrl?.appendingPathComponent("coverage.json")
     }
-
+    
     var codeCoverageJsonSummaryUrl: URL? {
-        codeCoverageBaseUrl?.appendingPathComponent("coverage-summary.json").nilIfNotExists
+        codeCoverageBaseUrl?.appendingPathComponent("coverage-summary.json")
     }
     
     var codeCoverageHtmlUrl: URL? {
-        codeCoverageBaseUrl?.appendingPathComponent("coverage.html").nilIfNotExists
+        codeCoverageBaseUrl?.appendingPathComponent("coverage.html")
     }
-}
-
-private extension URL {
-    var nilIfNotExists: URL? {
-        return FileManager.default.fileExists(atPath: path) ? self : nil
+    
+    var codeCoveragePerFolderJsonUrl: URL? {
+        codeCoverageBaseUrl?.appendingPathComponent("coverage-folder.json")
     }
 }

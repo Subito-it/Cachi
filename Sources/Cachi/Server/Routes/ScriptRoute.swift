@@ -91,33 +91,37 @@ struct ScriptRoute: Routable {
     }
 
     private func scriptFilesCoverage(resultBundle: ResultBundle) -> String {
-        guard let summaryUrl = resultBundle.codeCoverageJsonSummaryUrl,
-              let coverageRawDictionary = try? String(contentsOf: summaryUrl) else {
+        guard let url = resultBundle.codeCoverageJsonSummaryUrl,
+              let coverageRaw = try? String(contentsOf: url) else {
             return "{}"
         }
         
-        let fileCoverage = """
-            const dict = \(coverageRawDictionary)
+        let coverage = """
+            const data = \(coverageRaw)
 
             const queryString = window.location.search;
             const urlParams = new URLSearchParams(queryString);
 
             let parentParams = [];
             urlParams.forEach((value,name) => parentParams.push(`${name}=${value}`));
-            parentParams = parentParams.filter(t => !t.startsWith('id=') && !t.startsWith('q='));
+            parentParams = parentParams.filter(t => !t.startsWith('id=') && !t.startsWith('q=') && !t.startsWith('qq=') && !t.startsWith('path='));
 
             const inputHandler = function(e) {
-                var filteredFiles = [];
+                var filteredItems = [];
 
                 const query = e == null ? '' : e.target.value.toLowerCase();
+
+                const folder = urlParams.get('folder');
                 
-                for (var file of dict['d'][0]['f']) {
-                    if (query == null || file.n.toLowerCase().includes(query)) {
-                        filteredFiles.push(file);
+                for (var file of data['d'][0]['f']) {
+                    const matchesQuery = query == null || file.n.toLowerCase().includes(query);
+                    const matchesFolder = folder == null || file.n.startsWith(folder);
+                    if (matchesQuery && matchesFolder) {
+                        filteredItems.push(file);
                     }
                 }
 
-                filteredFiles = filteredFiles.sort(function(a,b) {
+                filteredItems = filteredItems.sort(function(a,b) {
                     return b.n - a.n
                 });
 
@@ -125,8 +129,8 @@ struct ScriptRoute: Routable {
                 const inputQuery = filterInput.value ?? '';
 
                 var val = '';
-                for (var i = 0; i < filteredFiles.length; i++) {
-                    const file = filteredFiles[i]
+                for (var i = 0; i < filteredItems.length; i++) {
+                    const item = filteredItems[i]
                     const rowClass = i % 2 == 0 ? 'even-row' : 'odd-row'
                     val += `<tr class='${rowClass}'><td class='filename-col'><a href='/html/coverage-file?id=\(resultBundle.identifier)&path=${file.n}&q=${inputQuery}&${parentParams.join('&')}'>${file.n}</a></td><td class='progress-col'><progress value='${file.s.l.p}' max='100'></progress></td><td class='coverage-col color-subtext'>${Number(file.s.l.p).toFixed(1)}%</td><td class='absorbing-column'></td></tr>`;
                 }

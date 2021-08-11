@@ -27,6 +27,7 @@ struct CoverageFileRouteHTML: Routable {
         
         var queryParameters = ""
         for queryItem in queryItems {
+            guard queryItem.name != "path" else { continue }
             queryParameters += "&\(queryItem.name)=\(queryItem.value ?? "")"
         }
 

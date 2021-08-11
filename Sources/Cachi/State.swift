@@ -100,7 +100,7 @@ class State {
                         _state = .parsing(progress: Double(index) / Double(bundleUrls.count))
                         writeCachedResultBundle(resultBundle)
                     }
-                    DispatchQueue.global(qos: .utility).async {
+                    DispatchQueue.global(qos: .userInitiated).async {
                         // This can be done asynchronously as it doesn't contain data that is immediately needed
                         try? parser.splitHtmlCoverageFile(resultBundle: resultBundle)
                         try? parser.generagePerFolderLineCoverage(resultBundle: resultBundle, destinationUrl: resultBundle.codeCoveragePerFolderJsonUrl)

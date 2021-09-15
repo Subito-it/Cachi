@@ -15,12 +15,12 @@
         "repositoryURL": "https://github.com/Subito-it/CachiKit",
         "state": {
           "branch": "master",
-          "revision": "471f1320f77e38c51953dd51e5a31f54bd087b51",
+          "revision": "2140eb7c0a3cac26d972a3f82b5892651ad4f265",
           "version": null
         }
       },
       {
-        "package": "http",
+        "package": "http-kit",
         "repositoryURL": "https://github.com/tcamin/http.git",
         "state": {
           "branch": "master",
@@ -42,7 +42,7 @@
         "repositoryURL": "https://github.com/tcamin/ShellOut.git",
         "state": {
           "branch": "master",
-          "revision": "38f5f8ed662c10427de0b70de4168459cac9431c",
+          "revision": "17a96271bdeb491856453c20730d1dfe3b1545a4",
           "version": null
         }
       },
@@ -51,7 +51,7 @@
         "repositoryURL": "https://github.com/apple/swift-log.git",
         "state": {
           "branch": "main",
-          "revision": "d8af258aecd93cd8604e74ade3c0fe438bac13f8",
+          "revision": "a7e6d7fef58b8909ec9463a492e257ab00d89a4b",
           "version": null
         }
       },
@@ -60,8 +60,8 @@
         "repositoryURL": "https://github.com/apple/swift-nio.git",
         "state": {
           "branch": null,
-          "revision": "d79e33308b0ac83326b0ead0ea6446e604b8162d",
-          "version": "2.30.0"
+          "revision": "f2705f9655ede35399b12040e892cf653126de98",
+          "version": "2.32.2"
         }
       },
       {
@@ -78,8 +78,8 @@
         "repositoryURL": "https://github.com/apple/swift-nio-http2.git",
         "state": {
           "branch": null,
-          "revision": "13b6a7a83864005334818d7ea2a3053869a96c04",
-          "version": "1.18.0"
+          "revision": "42bdcae4ac4913507a5ee7af963c559deb60d1fc",
+          "version": "1.18.2"
         }
       },
       {
@@ -87,8 +87,8 @@
         "repositoryURL": "https://github.com/apple/swift-nio-ssl.git",
         "state": {
           "branch": null,
-          "revision": "9db7cee4b62c39160a6bd513a47a1ecdcceac18a",
-          "version": "2.14.0"
+          "revision": "2e74773972bd6254c41ceeda827f229bccbf1c0f",
+          "version": "2.15.0"
         }
       },
       {

@@ -151,6 +151,9 @@ struct TestStatRouteHTML: Routable {
         if let value = backShowFilter.value {
             backParameters = "&\(backShowFilter.name)=\(value)"
         }
+        
+        let allTests = results.flatMap { $0.tests }
+        let testFailureMessages = allTests.failureMessages()
 
         return table {
             tableRow {
@@ -173,10 +176,10 @@ struct TestStatRouteHTML: Routable {
                                     }.class("row indent2 background")
                                 }
 
-                                if let errorMessage = errorMessage(for: test) {
-                                    div { errorMessage }.class("row indent3 background color-error")
+                                if let failureMessage = testFailureMessages[test.identifier] {
+                                    div { failureMessage }.class("row indent3 background color-error")
                                 } else if test.status == .failure {
-                                    div { "No error found" }.class("row indent3 background color-error")
+                                    div { "No failure message found" }.class("row indent3 background color-error")
                                 }
                             }
                             tableData {
@@ -187,32 +190,5 @@ struct TestStatRouteHTML: Routable {
                 }
             }
         }
-    }
-    
-    private func errorMessage(for test: ResultBundle.Test) -> String? {
-        guard let summaries = State.shared.testActionSummaries(test: test) else {
-            return nil
-        }
-        
-        var activities = [ActionTestActivitySummary]()
-        for summary in summaries {
-            activities.append(contentsOf: summary.flattenActivitySummaries())
-        }
-                
-        let errorActivities = activities.filter { $0.activityType == "com.apple.dt.xctest.activity-type.testAssertionFailure" }
-        
-        return errorActivities.last?.title
-    }
-}
-
-private extension ActionTestActivitySummary {
-    func flattenActivitySummaries() -> [ActionTestActivitySummary] {
-        var result = [ActionTestActivitySummary]()
-        
-        result.append(self)
-        let subactivities = subactivities.flatMap { $0.flattenActivitySummaries() }
-        result.append(contentsOf: subactivities)
-        
-        return result
-    }
+    }    
 }

@@ -18,6 +18,13 @@ extension ResultBundle.Test {
     }
 }
 
+extension ResultBundle.Test {
+    var targetIdentifier: String {
+        return targetName + groupName + name + deviceOs + deviceModel
+    }
+}
+
+
 extension Collection where Element == ResultBundle.Test {
     func failureMessages() -> [String: String] {
         let syncQueue = DispatchQueue(label: "com.subito.cachi.failureMessages")

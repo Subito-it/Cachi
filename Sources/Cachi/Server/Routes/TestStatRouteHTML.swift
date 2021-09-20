@@ -42,7 +42,7 @@ struct TestStatRouteHTML: Routable {
         for resultBundle in resultBundles {
             if matchingResults.count > 50 { break }
             
-            let tests = resultBundle.tests.filter({ $0.targetName == test.targetName && $0.groupName == test.groupName && $0.name == test.name && $0.deviceOs == test.deviceOs && $0.deviceModel == test.deviceModel })
+            let tests = resultBundle.tests.filter { $0.targetIdentifier == test.targetIdentifier }
             if tests.count > 0 {
                 matchingResults.append((resultBundle: resultBundle, tests: tests))
             }

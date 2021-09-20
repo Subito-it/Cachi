@@ -138,6 +138,9 @@ struct TestRouteHTML: Routable {
                     }
                 }.floatRight()
                 div {
+                    if !fromTestStats {
+                        link(url: "/html/teststats?id=\(test.summaryIdentifier ?? "")\(backParameters)") { "Test stats" }.class("button")
+                    }
                     link(url: "/html/session_logs?id=\(test.summaryIdentifier ?? "")&type=stdouts\(backParameters)") { "Standard outputs" }.class("button")
                     link(url: "/html/session_logs?id=\(test.summaryIdentifier ?? "")&type=session\(backParameters)") { "Session logs" }.class("button")
                 }

@@ -13,6 +13,20 @@ private enum ShowFilter: String, CaseIterable {
     static let queryName = "show"
 }
 
+private enum FailureMessageFilter: String, CaseIterable {
+    case enable, disable
+    
+    func toggle() -> Self {
+        return self == .enable ? .disable : .enable
+    }
+    
+    func params() -> String {
+        return "&\(Self.queryName)=\(self.rawValue)"
+    }
+    
+    static let queryName = "failure_messages"
+}
+
 struct ResultRouteHTML: Routable {    
     let path: String = "/html/result"
     let description: String = "Detail of result in html (pass identifier)"
@@ -52,6 +66,7 @@ struct ResultRouteHTML: Routable {
         }
         
         let showFilter = ShowFilter(rawValue: queryItems.first(where: { $0.name == ShowFilter.queryName })?.value ?? "") ?? .all
+        let failureMessageFilter = FailureMessageFilter(rawValue: queryItems.first(where: { $0.name == FailureMessageFilter.queryName })?.value ?? "") ?? .disable
         
         let document = html {
             head {
@@ -61,8 +76,8 @@ struct ResultRouteHTML: Routable {
             }
             body {
                 div {
-                    div { floatingHeaderHTML(result: result, showFilter: showFilter) }.class("sticky-top").id("top-bar")
-                    div { resultsTableHTML(result: result, showFilter: showFilter) }
+                    div { floatingHeaderHTML(result: result, showFilter: showFilter, failureMessageFilter: failureMessageFilter) }.class("sticky-top").id("top-bar")
+                    div { resultsTableHTML(result: result, showFilter: showFilter, failureMessageFilter: failureMessageFilter) }
                 }.class("main-container background")
             }
         }
@@ -70,7 +85,7 @@ struct ResultRouteHTML: Routable {
         return promise.succeed(document.httpResponse())
     }
     
-    private func floatingHeaderHTML(result: ResultBundle, showFilter: ShowFilter) -> HTML {
+    private func floatingHeaderHTML(result: ResultBundle, showFilter: ShowFilter, failureMessageFilter: FailureMessageFilter) -> HTML {
         let resultTitle = result.htmlTitle()
         let resultSubtitle = result.htmlSubtitle()
         let resultDate = DateFormatter.fullDateFormatter.string(from: result.date)
@@ -120,19 +135,24 @@ struct ResultRouteHTML: Routable {
                 div {
                     var blocks = [HTML]()
 
-                    blocks.append(link(url: "\(self.path)?id=\(result.identifier)\(ShowFilter.all.params())") { ShowFilter.all.rawValue.capitalized }.class(showFilter == ShowFilter.all ? "button-selected" : "button"))
+                    blocks.append(link(url: "\(self.path)?id=\(result.identifier)\(ShowFilter.all.params())\(failureMessageFilter.params())") { ShowFilter.all.rawValue.capitalized }.class(showFilter == .all ? "button-selected" : "button"))
                     if result.testsPassed.count > 0 {
-                        blocks.append(link(url: "\(self.path)?id=\(result.identifier)\(ShowFilter.passed.params())") { ShowFilter.passed.rawValue.capitalized }.class(showFilter == ShowFilter.passed ? "button-selected" : "button"))
+                        blocks.append(link(url: "\(self.path)?id=\(result.identifier)\(ShowFilter.passed.params())\(failureMessageFilter.params())") { ShowFilter.passed.rawValue.capitalized }.class(showFilter == .passed ? "button-selected" : "button"))
                     }
                     if result.testsUniquelyFailed.count > 0 {
-                        blocks.append(link(url: "\(self.path)?id=\(result.identifier)\(ShowFilter.failed.params())") { ShowFilter.failed.rawValue.capitalized }.class(showFilter == ShowFilter.failed ? "button-selected" : "button"))
+                        blocks.append(link(url: "\(self.path)?id=\(result.identifier)\(ShowFilter.failed.params())\(failureMessageFilter.params())") { ShowFilter.failed.rawValue.capitalized }.class(showFilter == .failed ? "button-selected" : "button"))
                     }
                     if result.testsRepeated.count > 0 {
-                        blocks.append(link(url: "\(self.path)?id=\(result.identifier)\(ShowFilter.retried.params())") { ShowFilter.retried.rawValue.capitalized }.class(showFilter == ShowFilter.retried ? "button-selected" : "button"))
+                        blocks.append(link(url: "\(self.path)?id=\(result.identifier)\(ShowFilter.retried.params())\(failureMessageFilter.params())") { ShowFilter.retried.rawValue.capitalized }.class(showFilter == .retried ? "button-selected" : "button"))
                     }
+                    if result.testsFailed.count > 0 {
+                        blocks.append("&nbsp;&nbsp;&nbsp;&nbsp;")
+                        blocks.append(link(url: "\(self.path)?id=\(result.identifier)\(showFilter.params())\(failureMessageFilter.toggle().params())") { "Show failures" }.class(failureMessageFilter == .enable ? "button-selected" : "button"))
+                    }
+
                     if result.codeCoverageSplittedHtmlBaseUrl != nil {
                         blocks.append("&nbsp;&nbsp;&nbsp;&nbsp;")
-                        blocks.append(link(url: "coverage?id=\(result.identifier)\(showFilter.params())") { "Coverage" }.class("button"))
+                        blocks.append(link(url: "coverage?id=\(result.identifier)\(showFilter.params())\(failureMessageFilter.params())") { "Coverage" }.class("button"))
                     }
 
                     return HTMLBuilder.buildBlocks(blocks)
@@ -141,7 +161,7 @@ struct ResultRouteHTML: Routable {
         }
     }
     
-    private func resultsTableHTML(result: ResultBundle, showFilter: ShowFilter) -> HTML {
+    private func resultsTableHTML(result: ResultBundle, showFilter: ShowFilter, failureMessageFilter: FailureMessageFilter) -> HTML {
         let tests: [ResultBundle.Test]
         switch showFilter {
         case .failed:
@@ -155,6 +175,8 @@ struct ResultRouteHTML: Routable {
         }
             
         let groupNames = Set(tests.map({ $0.groupName })).sorted()
+        
+        let testFailureMessages = failureMessageFilter == .enable ? tests.failureMessages() : [:]
                 
         return table {
             tableRow {
@@ -195,6 +217,9 @@ struct ResultRouteHTML: Routable {
                                         .iconStyleAttributes(width: 14)
                                         .class("icon")
                                     test.name
+                                    if test.status == .failure, failureMessageFilter == .enable, let failureMessage = testFailureMessages[test.identifier] {
+                                        div { failureMessage }.class("row indent3 background color-error")
+                                    }
                                 }.class(result.htmlTextColor(for: test))
                             }.class("row indent3")
                             tableData {
@@ -214,7 +239,7 @@ struct ResultRouteHTML: Routable {
         return link(url: "/html/test?id=\(test.summaryIdentifier!)\(showFilter.params())") {
             child()
         }
-    }
+    }    
 }
 
 private extension ResultBundle {

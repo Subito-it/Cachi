@@ -40,8 +40,7 @@ struct TestRouteHTML: Routable {
             let test = resultBundle.tests.first(where: { $0.summaryIdentifier == testSummaryIdentifier }) else {
             let res = HTTPResponse(status: .notFound, body: HTTPBody(staticString: "Not found..."))
             return promise.succeed(res)
-        }
-        
+        }        
          
         let actions = State.shared.testActionSummaries(summaryIdentifier: test.summaryIdentifier!) ?? []
         let rowsData: [RowData]
@@ -50,6 +49,8 @@ struct TestRouteHTML: Routable {
         } else {
             rowsData = []
         }
+        
+        let source = queryItems.first(where: { $0.name == "source" })?.value
                 
         let document = html {
             head {
@@ -60,7 +61,7 @@ struct TestRouteHTML: Routable {
             }
             body {
                 div {
-                    div { floatingHeaderHTML(result: resultBundle, test: test, backShowFilter: backShowFilter) }.class("sticky-top").id("top-bar")
+                    div { floatingHeaderHTML(result: resultBundle, test: test, backShowFilter: backShowFilter, source: source) }.class("sticky-top").id("top-bar")
                     div { resultsTableHTML(result: resultBundle, test: test, rowsData: rowsData) }
                 }.class("main-container background")
             }
@@ -69,7 +70,7 @@ struct TestRouteHTML: Routable {
         return promise.succeed(document.httpResponse())
     }
     
-    private func floatingHeaderHTML(result: ResultBundle, test: ResultBundle.Test, backShowFilter: URLQueryItem) -> HTML {
+    private func floatingHeaderHTML(result: ResultBundle, test: ResultBundle.Test, backShowFilter: URLQueryItem, source: String?) -> HTML {
         let testTitle = test.name
         let testSubtitle = test.groupName
         
@@ -104,14 +105,18 @@ struct TestRouteHTML: Routable {
                 }
             }
         }
+        
+        let fromTestStats = source == "test_stats"
 
         return div {
             div {
                 div {
-                    link(url: "/html/result?id=\(result.identifier)\(backParameters)") {
-                        image(url: "/image?imageArrorLeft")
-                            .iconStyleAttributes(width: 8)
-                            .class("icon color-svg-text")
+                    if !fromTestStats {
+                        link(url: "/html/result?id=\(result.identifier)\(backParameters)") {
+                            image(url: "/image?imageArrorLeft")
+                                .iconStyleAttributes(width: 8)
+                                .class("icon color-svg-text")
+                        }
                     }
                     image(url: result.htmlStatusImageUrl(for: test))
                         .attr("title", result.htmlStatusTitle(for: test))

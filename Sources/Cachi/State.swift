@@ -125,7 +125,13 @@ class State {
         guard let test = test(summaryIdentifier: summaryIdentifier) else {
             return nil
         }
-                
+        
+        return testActionSummaries(test: test)
+    }
+    
+    func testActionSummaries(test: ResultBundle.Test?) -> [ActionTestActivitySummary]? {
+        guard let test = test else { return nil }
+        
         let cachi = CachiKit(url: test.xcresultUrl)
         let testSummary = try? cachi.actionTestSummary(identifier: test.summaryIdentifier!)
         
@@ -159,7 +165,7 @@ class State {
                 break
             }
         }
-        
+                
         successfulTests = successfulTests.prefix(3)
         failedTests = failedTests.prefix(3)
                 

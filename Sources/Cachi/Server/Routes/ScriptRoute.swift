@@ -31,6 +31,8 @@ struct ScriptRoute: Routable {
                let resultBundle = resultBundles.first(where: { $0.identifier == resultIdentifier }) {
                 scriptContent = scriptFoldersCoverage(resultBundle: resultBundle)
             }
+        case "result-stat":
+            scriptContent = scriptResulsStat()
         default:
             break
         }
@@ -267,5 +269,26 @@ struct ScriptRoute: Routable {
             .replacingOccurrences(of: #""percent":"#, with: #""p":"#)
         
         return minifiedCoverage
+    }
+    
+    private func scriptResulsStat() -> String {
+        return """
+            function updateLocation() {
+                const currentLocation = window.location;
+                const params = new URLSearchParams(currentLocation.search)
+                const typeParam = params.get('test')
+
+                const updatedParams = `target=${document.getElementById('target').value}&device=${document.getElementById('device').value}&type=typeParam`;
+              
+                window.location = '/html/results_stat?' + updatedParams;
+            }
+            
+            document.getElementById('target').onchange = function() {
+                updateLocation();
+            };
+            document.getElementById('device').onchange = function() {
+                updateLocation();
+            };
+"""
     }
 }

@@ -32,12 +32,20 @@ struct ResultsRouteHTML: Routable {
     private func floatingHeaderHTML(results: [ResultBundle]) -> HTML {
         switch State.shared.state {
         case let .parsing(progress):
-            return HTMLBuilder.buildBlock(
-                div { "Parsing \(Int(progress * 100))% done" }.alignment(.center).class("warning-container bold"),
+            return div {
+                div { "Parsing \(Int(progress * 100))% done" }.alignment(.center).class("warning-container bold")
                 div { "Results" }.class("header row light-bordered-container indent1")
-            )
+                if results.count > 0 {
+                    div { link(url: "/html/results_stat") { "Stats" }.class("button") }.class("row indent2 background")
+                }
+            }
         default:
-            return div { "Results" }.class("header row light-bordered-container indent1")
+            return div {
+                div { "Results" }.class("header row light-bordered-container indent1")
+                if results.count > 0 {
+                    div { link(url: "/html/results_stat") { "Stats" }.class("button") }.class("row indent2 background")
+                }
+            }
         }
     }
     

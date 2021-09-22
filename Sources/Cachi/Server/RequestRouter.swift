@@ -31,6 +31,7 @@ struct RequestRouter: HTTPServerDelegate {
             HelpRoute(futureRoutes: { routes.map { AnyRoutable($0) } }),
             ResultsRouteHTML(),
             ResultsStatRoute(),
+            ResultsStatRouteHTML(),
             ResultRouteHTML(baseUrl: baseUrl, depth: parseDepth, mergeResults: mergeResults),
             TestRouteHTML(),
             AttachmentRoute(),

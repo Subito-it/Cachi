@@ -62,6 +62,9 @@ struct CSSRoute: Routable {
             text-align: left;
         }
 
+        .small-col {
+            width: 100px;
+            white-space: nowrap;
         }
 
         #top-bar {

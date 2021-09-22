@@ -3,6 +3,32 @@ import CachiKit
 import os
 
 class State {
+    struct Device: Hashable, CustomStringConvertible {
+        let model: String
+        let os: String
+        
+        var description: String {
+            "\(model) - \(os)"
+        }
+        
+        init(model: String, os: String) {
+            self.model = model
+            self.os = os
+        }
+        
+        init?(rawDescription: String?) {
+            let components = rawDescription?.components(separatedBy: " - ") ?? []
+            guard components.count == 2,
+                  let model = components.first,
+                  let os = components.last else {
+                return nil
+            }
+            
+            self.model = model
+            self.os = os
+        }
+    }
+    
     static let shared = State()
     
     private var _resultBundles: [ResultBundle]
@@ -29,6 +55,25 @@ class State {
             _resultBundles = []
             _state = .ready
         }
+    }
+    
+    func allTargets() -> [String] {
+        let tests = resultBundles.flatMap { $0.tests }
+        let targets = tests.map { $0.targetName }
+        
+        return Array(Set(targets)).sorted()
+    }
+    
+    func allDevices(in target: String) -> [Device] {
+        let targetTests = allTests(in: target)
+        let targetDevices = targetTests.map { Device(model: $0.deviceModel, os: $0.deviceOs) }
+        
+        return Array(Set(targetDevices)).sorted(by: { $0.description < $1.description })
+    }
+    
+    func allTests(in target: String) -> [ResultBundle.Test] {
+        let tests = resultBundles.flatMap { $0.tests }
+        return tests.filter { $0.targetName == target }
     }
     
     func pendingResultBundles(baseUrl: URL, depth: Int, mergeResults: Bool) -> [PendingResultBundle] {
@@ -147,6 +192,87 @@ class State {
         let sessionLogs = try? cachi.actionInvocationSessionLogs(identifier: diagnosticsIdentifier, sessionLogs: .all)
         
         return .init(appStandardOutput: sessionLogs?[.appStdOutErr], runerAppStandardOutput: sessionLogs?[.runnerAppStdOutErr], sessionLogs: sessionLogs?[.session])
+    }
+    
+    class RawTestStats: NSObject {
+        var title: String
+        var firstSummaryIdentifier: String
+        var executionSequence = [Bool]()
+        var successCount = 0
+        var failureCount = 0
+        var successDuration: Double = 0
+        var failureDuration: Double = 0
+        var minSuccessDuration: Double = .greatestFiniteMagnitude
+        var maxSuccessDuration: Double = 0
+
+        init(title: String, firstSummaryIdentifier: String) {
+            self.title = title
+            self.firstSummaryIdentifier = firstSummaryIdentifier
+        }
+    }
+    
+    func resultsTestStats(target: String, device: Device, type: ResultBundle.TestStatsType) -> [ResultBundle.TestStats] {
+        let targetTests = allTests(in: target).sorted(by: { $0.startDate > $1.startDate }).filter { $0.groupName != "System Failures" }
+        let deviceTests = targetTests.filter { $0.deviceModel == device.model && $0.deviceOs == device.os }
+        
+        let stats = NSMutableDictionary()
+        
+        for test in deviceTests {
+            guard let testSummaryIdentifier = test.summaryIdentifier else { continue }
+            
+            if stats[test.targetIdentifier] == nil {
+                stats[test.targetIdentifier] = RawTestStats(title: "\(test.groupName)/\(test.name)", firstSummaryIdentifier: testSummaryIdentifier)
+            }
+            let testStat = stats[test.targetIdentifier] as! RawTestStats
+            if test.status == .success {
+                testStat.executionSequence.append(true)
+                testStat.successCount += 1
+                testStat.successDuration += test.duration
+                testStat.minSuccessDuration = min(testStat.minSuccessDuration, test.duration)
+                testStat.maxSuccessDuration = max(testStat.maxSuccessDuration, test.duration)
+            } else {
+                testStat.executionSequence.append(false)
+                testStat.failureCount += 1
+                testStat.failureDuration += test.duration
+            }
+        }
+                        
+        var result = [ResultBundle.TestStats]()
+        for stat in stats.allValues as! [RawTestStats] {
+            let elementWeight = 1.0 / Double(stat.executionSequence.count)
+            var totalWeight = 0.0
+            var failureRatio = 0.0
+            for (index, success) in stat.executionSequence.enumerated() {
+                let weight = elementWeight * (1.0 - Double(index) / 10.0)
+                totalWeight += weight
+                
+                if !success {
+                    failureRatio += weight
+                }
+            }
+
+            let successRatio = 1.0 - failureRatio / totalWeight
+                                    
+            let averageDuration = Double(stat.successDuration + stat.failureDuration) / Double(stat.successCount + stat.failureCount)
+            let resultStat = ResultBundle.TestStats(first_summary_identifier: stat.firstSummaryIdentifier,
+                                                    title: stat.title,
+                                                    average_s: averageDuration,
+                                                    min_s: stat.minSuccessDuration == .greatestFiniteMagnitude ? 0 : stat.minSuccessDuration,
+                                                    max_s: stat.maxSuccessDuration,
+                                                    success_ratio: successRatio,
+                                                    success_count: stat.successCount,
+                                                    failure_count: stat.failureCount)
+            result.append(resultStat)
+        }
+        
+        switch type {
+        case .flaky:
+            return result.sorted(by: { $0.success_ratio < $1.success_ratio }).filter { $0.success_ratio < 0.9 }
+        case .slowest:
+            return result.sorted(by: { $0.average_s > $1.average_s })
+        case .fastest:
+            return result.sorted(by: { $0.average_s < $1.average_s })
+        }
     }
 
     func testStats(md5Identifier: String) -> ResultBundle.Test.Stats {

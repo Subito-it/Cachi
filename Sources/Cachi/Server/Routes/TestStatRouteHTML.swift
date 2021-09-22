@@ -66,6 +66,8 @@ struct TestStatRouteHTML: Routable {
         let successRatio = 100 * Double(successfulTests.count) / Double(matchingResults.count)
         let testDetail = "Success ratio \(String(format: "%.1f", successRatio))% (\(successfulTests.count) passed, \(failedTests.count) failed)"
                         
+        let source = queryItems.first(where: { $0.name == "source" })?.value
+                        
         let document = html {
             head {
                 title("Cachi - Test stats")
@@ -74,7 +76,7 @@ struct TestStatRouteHTML: Routable {
             }
             body {
                 div {
-                    div { floatingHeaderHTML(test: test, backShowFilter: backShowFilter, testDetail: testDetail) }.class("sticky-top").id("top-bar")
+                    div { floatingHeaderHTML(test: test, backShowFilter: backShowFilter, testDetail: testDetail, source: source) }.class("sticky-top").id("top-bar")
                     div { resultsTableHTML(results: matchingResults, backShowFilter: backShowFilter) }
                     
                     div { "&nbsp;" }
@@ -114,7 +116,7 @@ struct TestStatRouteHTML: Routable {
         return promise.succeed(document.httpResponse())
     }
     
-    private func floatingHeaderHTML(test: ResultBundle.Test, backShowFilter: URLQueryItem, testDetail: String) -> HTML {
+    private func floatingHeaderHTML(test: ResultBundle.Test, backShowFilter: URLQueryItem, testDetail: String, source: String?) -> HTML {
         let testTitle = test.name
         let testSubtitle = test.groupName
                 
@@ -128,10 +130,12 @@ struct TestStatRouteHTML: Routable {
         return div {
             div {
                 div {
+                    if source == "test_route" {
                     link(url: "/html/test?id=\(test.summaryIdentifier!)\(backParameters)") {
                         image(url: "/image?imageArrorLeft")
                             .iconStyleAttributes(width: 8)
                             .class("icon color-svg-text")
+                    }
                     }
                     image(url: "/image?imageTestGray")
                         .attr("title", "Test stats")

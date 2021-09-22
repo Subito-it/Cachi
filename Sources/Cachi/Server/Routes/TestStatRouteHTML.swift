@@ -65,7 +65,7 @@ struct TestStatRouteHTML: Routable {
         
         let successRatio = 100 * Double(successfulTests.count) / Double(matchingResults.count)
         let testDetail = "Success ratio \(String(format: "%.1f", successRatio))% (\(successfulTests.count) passed, \(failedTests.count) failed)"
-                        
+        
         let source = queryItems.first(where: { $0.name == "source" })?.value
                         
         let document = html {
@@ -131,11 +131,11 @@ struct TestStatRouteHTML: Routable {
             div {
                 div {
                     if source == "test_route" {
-                    link(url: "/html/test?id=\(test.summaryIdentifier!)\(backParameters)") {
-                        image(url: "/image?imageArrorLeft")
-                            .iconStyleAttributes(width: 8)
-                            .class("icon color-svg-text")
-                    }
+                        link(url: "/html/test?id=\(test.summaryIdentifier!)\(backParameters)") {
+                            image(url: "/image?imageArrorLeft")
+                                .iconStyleAttributes(width: 8)
+                                .class("icon color-svg-text")
+                        }
                     }
                     image(url: "/image?imageTestGray")
                         .attr("title", "Test stats")
@@ -180,12 +180,13 @@ struct TestStatRouteHTML: Routable {
                                     }.class("row indent2 background")
                                 }
 
-                                if let failureMessage = testFailureMessages[test.identifier] {
-                                    div { failureMessage }.class("row indent3 background color-error")
-                                } else if test.status == .failure {
-                                    div { "No failure message found" }.class("row indent3 background color-error")
+                                if test.status == .failure {
+                                    if let failureMessage = testFailureMessages[test.identifier] {
+                                        div { failureMessage }.class("row indent3 background color-error")
+                                    } else if test.status == .failure {
+                                        div { "No failure message found" }.class("row indent3 background color-error")
+                                    }
                                 }
-                            }
                             }.class("row indent1 small-col")
                             tableData {
                                 div { hoursMinutesSeconds(in: test.duration) }

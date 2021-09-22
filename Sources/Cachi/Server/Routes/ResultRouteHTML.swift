@@ -181,7 +181,7 @@ struct ResultRouteHTML: Routable {
         return table {
             tableRow {
                 tableHeadData { "Test" }.alignment(.left).scope(.column).class("row dark-bordered-container indent1")
-                tableHeadData { "Duration" }.alignment(.center).scope(.column).class("row dark-bordered-container")
+                tableHeadData { "Duration" }.alignment(.left).scope(.column).class("row dark-bordered-container")
                 tableHeadData { "&nbsp;" }.scope(.column).class("row dark-bordered-container")
             }.id("table-header")
             
@@ -226,7 +226,7 @@ struct ResultRouteHTML: Routable {
                                 self.linkToResultDetail(test: test, showFilter: showFilter) {
                                     hoursMinutesSeconds(in: test.duration)
                                 }.class("color-text")
-                            }.alignment(.center).class("row indent3")
+                            }.alignment(.left).class("row indent1")
                             tableData { "&nbsp;" }
                         }.class("light-bordered-container")
                     }

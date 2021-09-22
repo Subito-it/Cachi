@@ -98,9 +98,9 @@ struct ResultsRouteHTML: Routable {
                                             div { testFailedString }.class("color-subtext").inlineBlock()
                                             div { testRetriedString }.class("color-subtext").inlineBlock()
                                         }
-                                    }.alignment(.center).class("row indent3")
+                                    }.alignment(.left).class("row indent1")
                                 )
-                            }
+                            }.class("light-bordered-container")
                         }
                     )
                 }

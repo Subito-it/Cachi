@@ -162,7 +162,7 @@ struct TestStatRouteHTML: Routable {
         return table {
             tableRow {
                 tableHeadData { "Test" }.alignment(.left).scope(.column).class("row dark-bordered-container indent1")
-                tableHeadData { "Duration" }.alignment(.center).scope(.column).class("row dark-bordered-container")
+                tableHeadData { "Duration" }.alignment(.left).scope(.column).class("row dark-bordered-container")
             }.id("table-header")
             
             forEach(results) { matching in
@@ -186,10 +186,11 @@ struct TestStatRouteHTML: Routable {
                                     div { "No failure message found" }.class("row indent3 background color-error")
                                 }
                             }
+                            }.class("row indent1 small-col")
                             tableData {
-                                div { hoursMinutesSeconds(in: test.duration) }.class("row indent2 background")
-                            }
-                        }
+                                div { hoursMinutesSeconds(in: test.duration) }
+                            }.alignment(.left).class("row indent1 small-col")
+                        }.class("light-bordered-container")
                     )
                 }
             }

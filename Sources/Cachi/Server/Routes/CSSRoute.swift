@@ -59,6 +59,9 @@ struct CSSRoute: Routable {
         
         th {
             font-weight: 600;
+            text-align: left;
+        }
+
         }
 
         #top-bar {

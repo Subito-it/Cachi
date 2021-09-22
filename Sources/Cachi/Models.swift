@@ -6,6 +6,21 @@ struct PendingResultBundle: Codable {
 }
 
 struct ResultBundle: Codable {
+    enum TestStatsType: String {
+        case flaky, slowest, fastest
+    }
+    
+    struct TestStats: Codable, Hashable {
+        let first_summary_identifier: String
+        let title: String
+        let average_s: TimeInterval
+        let min_s: Double
+        let max_s: Double
+        let success_ratio: Double
+        let success_count: Int
+        let failure_count: Int
+    }
+    
     struct Test: Codable, Hashable {
         struct SessionLogs: Codable {
             let appStandardOutput: String?

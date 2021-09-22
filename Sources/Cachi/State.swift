@@ -193,25 +193,25 @@ class State {
         
         return .init(appStandardOutput: sessionLogs?[.appStdOutErr], runerAppStandardOutput: sessionLogs?[.runnerAppStdOutErr], sessionLogs: sessionLogs?[.session])
     }
-    
-    class RawTestStats: NSObject {
-        var title: String
-        var firstSummaryIdentifier: String
-        var executionSequence = [Bool]()
-        var successCount = 0
-        var failureCount = 0
-        var successDuration: Double = 0
-        var failureDuration: Double = 0
-        var minSuccessDuration: Double = .greatestFiniteMagnitude
-        var maxSuccessDuration: Double = 0
-
-        init(title: String, firstSummaryIdentifier: String) {
-            self.title = title
-            self.firstSummaryIdentifier = firstSummaryIdentifier
-        }
-    }
-    
+        
     func resultsTestStats(target: String, device: Device, type: ResultBundle.TestStatsType) -> [ResultBundle.TestStats] {
+        class RawTestStats: NSObject {
+            var title: String
+            var firstSummaryIdentifier: String
+            var executionSequence = [Bool]()
+            var successCount = 0
+            var failureCount = 0
+            var successDuration: Double = 0
+            var failureDuration: Double = 0
+            var minSuccessDuration: Double = .greatestFiniteMagnitude
+            var maxSuccessDuration: Double = 0
+
+            init(title: String, firstSummaryIdentifier: String) {
+                self.title = title
+                self.firstSummaryIdentifier = firstSummaryIdentifier
+            }
+        }
+        
         let targetTests = allTests(in: target).sorted(by: { $0.startDate > $1.startDate }).filter { $0.groupName != "System Failures" }
         let deviceTests = targetTests.filter { $0.deviceModel == device.model && $0.deviceOs == device.os }
         

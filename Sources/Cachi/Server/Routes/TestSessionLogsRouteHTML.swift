@@ -26,8 +26,7 @@ struct TestSessionLogsRouteHTML: Routable {
         guard let components = URLComponents(url: req.url, resolvingAgainstBaseURL: false),
               let queryItems = components.queryItems,
               let testSummaryIdentifier = queryItems.first(where: { $0.name == "id" })?.value,
-              let sessionType = queryItems.first(where: { $0.name == "type" })?.value,
-              let backShowFilter = queryItems.first(where: { $0.name == "show" }) else {
+              let sessionType = queryItems.first(where: { $0.name == "type" })?.value else {
             let res = HTTPResponse(status: .notFound, body: HTTPBody(staticString: "Not found..."))
             return promise.succeed(res)
         }
@@ -58,7 +57,7 @@ struct TestSessionLogsRouteHTML: Routable {
             }
             body {
                 div {
-                    div { floatingHeaderHTML(result: resultBundle, test: test, backShowFilter: backShowFilter) }.class("sticky-top").id("top-bar")
+                    div { floatingHeaderHTML(result: resultBundle, test: test) }.class("sticky-top").id("top-bar")
                     switch sessionType {
                     case "stdouts":
                         div { standardOutputsLogsTableHTML(sessionLogs: sessionLogs) }
@@ -74,7 +73,7 @@ struct TestSessionLogsRouteHTML: Routable {
         return promise.succeed(document.httpResponse())
     }
     
-    private func floatingHeaderHTML(result: ResultBundle, test: ResultBundle.Test, backShowFilter: URLQueryItem) -> HTML {
+    private func floatingHeaderHTML(result: ResultBundle, test: ResultBundle.Test) -> HTML {
         let testTitle = test.name
         let testSubtitle = test.groupName
         
@@ -88,29 +87,19 @@ struct TestSessionLogsRouteHTML: Routable {
         }
         
         let testDevice = "\(test.deviceModel) (\(test.deviceOs))"
-        
-        var backParameters = ""
-        if let value = backShowFilter.value {
-            backParameters = "&\(backShowFilter.name)=\(value)"
-        }
-        
+                
         return div {
             div {
                 div {
-                    link(url: "/html/test?id=\(test.summaryIdentifier ?? "")\(backParameters)") {
-                        image(url: "/image?imageArrorLeft")
-                            .iconStyleAttributes(width: 8)
-                            .class("icon color-svg-text")
-                    }
                     image(url: result.htmlStatusImageUrl(for: test))
                         .attr("title", result.htmlStatusTitle(for: test))
                         .iconStyleAttributes(width: 14)
                         .class("icon")
                     testTitle
                 }.class("header")
-                div { testSubtitle }.class("color-subtext indent1")
+                div { testSubtitle }.class("color-subtext subheader")
                 div { testDetail }.class("color-subtext indent1").floatRight()
-                div { testDevice }.class("color-subtext indent1")
+                div { testDevice }.class("color-subtext subheader")
             }.class("row light-bordered-container indent1")
         }
     }

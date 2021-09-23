@@ -95,16 +95,15 @@ struct ResultRouteHTML: Routable {
         return div {
             div {
                 div {
-                    link(url: "/html/results") {
-                        image(url: "/image?imageArrorLeft")
-                            .iconStyleAttributes(width: 8)
-                            .class("icon color-svg-text")
-                    }
+                    image(url: "/image?imageTestGray")
+                        .attr("title", "Test stats")
+                        .iconStyleAttributes(width: 14)
+                        .class("icon")
                     resultTitle
                 }.class("header")
-                div { resultSubtitle }.class("color-subtext indent1")
+                div { resultSubtitle }.class("color-subtext subheader")
                 div { resultDate }.class("color-subtext indent1").floatRight()
-                div { resultDevice }.class("color-subtext indent1")
+                div { resultDevice }.class("color-subtext subheader")
             }.class("row light-bordered-container indent1")
             div {
                 div {

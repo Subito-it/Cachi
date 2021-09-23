@@ -25,8 +25,7 @@ struct TestRouteHTML: Routable {
         
         guard let components = URLComponents(url: req.url, resolvingAgainstBaseURL: false),
               let queryItems = components.queryItems,
-              let testSummaryIdentifier = queryItems.first(where: { $0.name == "id" })?.value,
-              let backShowFilter = queryItems.first(where: { $0.name == "show" }) else {
+              let testSummaryIdentifier = queryItems.first(where: { $0.name == "id" })?.value else {
             let res = HTTPResponse(status: .notFound, body: HTTPBody(staticString: "Not found..."))
             return promise.succeed(res)
         }
@@ -61,7 +60,7 @@ struct TestRouteHTML: Routable {
             }
             body {
                 div {
-                    div { floatingHeaderHTML(result: resultBundle, test: test, backShowFilter: backShowFilter, source: source) }.class("sticky-top").id("top-bar")
+                    div { floatingHeaderHTML(result: resultBundle, test: test, source: source) }.class("sticky-top").id("top-bar")
                     div { resultsTableHTML(result: resultBundle, test: test, rowsData: rowsData) }
                 }.class("main-container background")
             }
@@ -70,7 +69,7 @@ struct TestRouteHTML: Routable {
         return promise.succeed(document.httpResponse())
     }
     
-    private func floatingHeaderHTML(result: ResultBundle, test: ResultBundle.Test, backShowFilter: URLQueryItem, source: String?) -> HTML {
+    private func floatingHeaderHTML(result: ResultBundle, test: ResultBundle.Test, source: String?) -> HTML {
         let testTitle = test.name
         let testSubtitle = test.groupName
         
@@ -84,12 +83,7 @@ struct TestRouteHTML: Routable {
         }
         
         let testDevice = "\(test.deviceModel) (\(test.deviceOs))"
-        
-        var backParameters = ""
-        if let value = backShowFilter.value {
-            backParameters = "&\(backShowFilter.name)=\(value)"
-        }
-        
+                
         var previousTest: ResultBundle.Test?
         var nextTest: ResultBundle.Test?
         
@@ -111,38 +105,31 @@ struct TestRouteHTML: Routable {
         return div {
             div {
                 div {
-                    if !fromTestStats {
-                        link(url: "/html/result?id=\(result.identifier)\(backParameters)") {
-                            image(url: "/image?imageArrorLeft")
-                                .iconStyleAttributes(width: 8)
-                                .class("icon color-svg-text")
-                        }
-                    }
                     image(url: result.htmlStatusImageUrl(for: test))
                         .attr("title", result.htmlStatusTitle(for: test))
                         .iconStyleAttributes(width: 14)
                         .class("icon")
                     testTitle
                 }.class("header")
-                div { testSubtitle }.class("color-subtext indent1")
+                div { testSubtitle }.class("color-subtext subheader")
                 div { testDetail }.class("color-subtext indent1").floatRight()
-                div { testDevice }.class("color-subtext indent1")
+                div { testDevice }.class("color-subtext subheader")
             }.class("row light-bordered-container indent1")
             div {
                 div {
                     if let previousTest = previousTest {
-                        link(url: "/html/test?id=\(previousTest.summaryIdentifier ?? "")&type=stdouts\(backParameters)") { "←" }.class("button")
+                        link(url: "/html/test?id=\(previousTest.summaryIdentifier ?? "")&type=stdouts") { "←" }.class("button")
                     }
                     if let nextTest = nextTest {
-                        link(url: "/html/test?id=\(nextTest.summaryIdentifier ?? "")&type=stdouts\(backParameters)") { "→" }.class("button")
+                        link(url: "/html/test?id=\(nextTest.summaryIdentifier ?? "")&type=stdouts") { "→" }.class("button")
                     }
                 }.floatRight()
                 div {
                     if !fromTestStats {
-                        link(url: "/html/teststats?id=\(test.summaryIdentifier ?? "")\(backParameters)&source=test_route") { "Test stats" }.class("button")
+                        link(url: "/html/teststats?id=\(test.summaryIdentifier ?? "")&source=test_route") { "Test stats" }.class("button")
                     }
-                    link(url: "/html/session_logs?id=\(test.summaryIdentifier ?? "")&type=stdouts\(backParameters)") { "Standard outputs" }.class("button")
-                    link(url: "/html/session_logs?id=\(test.summaryIdentifier ?? "")&type=session\(backParameters)") { "Session logs" }.class("button")
+                    link(url: "/html/session_logs?id=\(test.summaryIdentifier ?? "")&type=stdouts") { "Standard outputs" }.class("button")
+                    link(url: "/html/session_logs?id=\(test.summaryIdentifier ?? "")&type=session") { "Session logs" }.class("button")
                 }
             }.class("row indent2 background")
         }

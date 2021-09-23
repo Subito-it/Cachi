@@ -82,25 +82,15 @@ struct CoverageRouteHTML: Routable {
         return div {
             div {
                 div {
-                    if isFilteringFolders {
-                        link(url: "\(self.path)?id=\(result.identifier)\(queryParameters)\(CoverageShowFilter.folders.params())") {
-                            image(url: "/image?imageArrorLeft")
-                                .iconStyleAttributes(width: 8)
-                                .class("icon color-svg-text")
-                        }
-
-                    } else {
-                        link(url: "result?id=\(result.identifier)\(queryParameters)") {
-                            image(url: "/image?imageArrorLeft")
-                                .iconStyleAttributes(width: 8)
-                                .class("icon color-svg-text")
-                        }
-                    }
+                    image(url: "/image?imageTestGray")
+                        .attr("title", "Test stats")
+                        .iconStyleAttributes(width: 14)
+                        .class("icon")
                     resultTitle
                 }.class("header")
-                div { resultSubtitle }.class("color-subtext indent1")
+                div { resultSubtitle }.class("color-subtext subheader")
                 div { resultDate }.class("color-subtext indent1").floatRight()
-                div { resultDevice }.class("color-subtext indent1")
+                div { resultDevice }.class("color-subtext subheader")
             }.class("row light-bordered-container indent1")
             div {
                 div {

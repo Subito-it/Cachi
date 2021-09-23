@@ -21,8 +21,7 @@ struct TestStatRouteHTML: Routable {
         
         guard let components = URLComponents(url: req.url, resolvingAgainstBaseURL: false),
               let queryItems = components.queryItems,
-              let testSummaryIdentifier = queryItems.first(where: { $0.name == "id" })?.value,
-              let backShowFilter = queryItems.first(where: { $0.name == "show" }) else {
+              let testSummaryIdentifier = queryItems.first(where: { $0.name == "id" })?.value else {
             let res = HTTPResponse(status: .notFound, body: HTTPBody(staticString: "Not found..."))
             return promise.succeed(res)
         }
@@ -76,8 +75,8 @@ struct TestStatRouteHTML: Routable {
             }
             body {
                 div {
-                    div { floatingHeaderHTML(test: test, backShowFilter: backShowFilter, testDetail: testDetail, source: source) }.class("sticky-top").id("top-bar")
-                    div { resultsTableHTML(results: matchingResults, backShowFilter: backShowFilter) }
+                    div { floatingHeaderHTML(test: test, testDetail: testDetail, source: source) }.class("sticky-top").id("top-bar")
+                    div { resultsTableHTML(results: matchingResults) }
                     
                     div { "&nbsp;" }
                     div { "Average execution" }.class("header indent2")
@@ -118,46 +117,29 @@ struct TestStatRouteHTML: Routable {
         return promise.succeed(document.httpResponse())
     }
     
-    private func floatingHeaderHTML(test: ResultBundle.Test, backShowFilter: URLQueryItem, testDetail: String, source: String?) -> HTML {
+    private func floatingHeaderHTML(test: ResultBundle.Test, testDetail: String, source: String?) -> HTML {
         let testTitle = test.name
         let testSubtitle = test.groupName
                 
         let testDevice = "\(test.deviceModel) (\(test.deviceOs))"
-        
-        var backParameters = ""
-        if let value = backShowFilter.value {
-            backParameters = "&\(backShowFilter.name)=\(value)"
-        }
-        
+                
         return div {
             div {
                 div {
-                    if source == "test_route" {
-                        link(url: "/html/test?id=\(test.summaryIdentifier!)\(backParameters)") {
-                            image(url: "/image?imageArrorLeft")
-                                .iconStyleAttributes(width: 8)
-                                .class("icon color-svg-text")
-                        }
-                    }
                     image(url: "/image?imageTestGray")
                         .attr("title", "Test stats")
                         .iconStyleAttributes(width: 14)
                         .class("icon")
                     testTitle
                 }.class("header")
-                div { testSubtitle }.class("color-subtext indent1")
+                div { testSubtitle }.class("color-subtext subheader")
                 div { testDetail }.class("color-subtext indent1").floatRight()
-                div { testDevice }.class("color-subtext indent1")
+                div { testDevice }.class("color-subtext subheader")
             }.class("row light-bordered-container indent1")
         }
     }
         
-    private func resultsTableHTML(results: [(resultBundle: ResultBundle, tests: [ResultBundle.Test])], backShowFilter: URLQueryItem) -> HTML {
-        var backParameters = ""
-        if let value = backShowFilter.value {
-            backParameters = "&\(backShowFilter.name)=\(value)"
-        }
-        
+    private func resultsTableHTML(results: [(resultBundle: ResultBundle, tests: [ResultBundle.Test])]) -> HTML {
         let allTests = results.flatMap { $0.tests }
         let testFailureMessages = allTests.failureMessages()
 
@@ -175,7 +157,7 @@ struct TestStatRouteHTML: Routable {
                     return HTMLBuilder.buildBlock(
                         tableRow {
                             tableData {
-                                link(url: "/html/test?id=\(test.summaryIdentifier!)\(backParameters)&source=test_stats") {
+                                link(url: "/html/test?id=\(test.summaryIdentifier!)&source=test_stats") {
                                     div {
                                         image(url: matching.resultBundle.htmlStatusImageUrl(for: test))
                                             .attr("title", matching.resultBundle.htmlStatusTitle(for: test))

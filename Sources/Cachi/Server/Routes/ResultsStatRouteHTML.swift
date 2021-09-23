@@ -73,11 +73,6 @@ struct ResultsStatRouteHTML: Routable {
         return div {
             div {
                 div {
-                    link(url: "/html/results") {
-                        image(url: "/image?imageArrorLeft")
-                            .iconStyleAttributes(width: 8)
-                            .class("icon color-svg-text")
-                    }
                     image(url: "/image?imageTestGray")
                         .attr("title", "Test stats")
                         .iconStyleAttributes(width: 14)

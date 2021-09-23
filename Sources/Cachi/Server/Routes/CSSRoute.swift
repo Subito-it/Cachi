@@ -357,6 +357,10 @@ struct CSSRoute: Routable {
             font-weight: 600;
             font-size: 125%;
         }
+
+        .subheader {
+            padding-left: 0px;
+        }
         
         .bold {
             font-weight: 600;

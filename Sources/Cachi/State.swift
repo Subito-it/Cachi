@@ -267,7 +267,7 @@ class State {
         
         switch type {
         case .flaky:
-            return result.sorted(by: { $0.success_ratio < $1.success_ratio }).filter { $0.success_ratio < 0.9 }
+            return result.sorted(by: { $0.success_ratio < $1.success_ratio })
         case .slowest:
             return result.sorted(by: { $0.average_s > $1.average_s })
         case .fastest:

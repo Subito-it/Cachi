@@ -106,6 +106,9 @@ struct ResultsStatRouteHTML: Routable {
     
     private func resultsTableHTML(testStats: [ResultBundle.TestStats]) -> HTML {
         return table {
+            columnGroup(styles: [TableColumnStyle(span: 1, styles: [StyleAttribute(key: "wrap-word", value: "break-word")]),
+                                 TableColumnStyle(span: 4, styles: [StyleAttribute(key: "width", value: "100")])])
+            
             tableRow {
                 tableHeadData { "Test" }.alignment(.left).scope(.column).class("row dark-bordered-container indent1")
                 tableHeadData { "Min" }.alignment(.left).scope(.column).class("row dark-bordered-container")
@@ -131,16 +134,16 @@ struct ResultsStatRouteHTML: Routable {
                         }.class("row indent2")
                         tableData {
                             div { hoursMinutesSeconds(in: testStat.min_s) }
-                        }.alignment(.left).class("row indent1 small-col")
+                        }.alignment(.left).class("row indent1")
                         tableData {
                             div { hoursMinutesSeconds(in: testStat.average_s) }
-                        }.alignment(.left).class("row indent1 small-col")
+                        }.alignment(.left).class("row indent1")
                         tableData {
                             div { hoursMinutesSeconds(in: testStat.max_s) }
-                        }.alignment(.left).class("row indent1 small-col")
+                        }.alignment(.left).class("row indent1")
                         tableData {
                             div { progress {}.attr("max", "1").attr("value", testStat.success_ratio.description) }
-                        }.alignment(.left).class("row indent1 small-col")
+                        }.alignment(.left).class("row indent1")
                     }.class("light-bordered-container")
                 )
             }

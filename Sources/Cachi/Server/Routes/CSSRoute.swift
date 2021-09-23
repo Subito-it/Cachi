@@ -45,6 +45,10 @@ struct CSSRoute: Routable {
             border-collapse: collapse;
         }
 
+        .wrap-word {
+            word-wrap: break-word;
+        }
+
         .log {
             padding-top: 8px;
             font-family: Courier;
@@ -60,11 +64,6 @@ struct CSSRoute: Routable {
         th {
             font-weight: 600;
             text-align: left;
-        }
-
-        .small-col {
-            width: 100px;
-            white-space: nowrap;
         }
 
         #top-bar {

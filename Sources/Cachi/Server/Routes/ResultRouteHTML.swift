@@ -179,6 +179,9 @@ struct ResultRouteHTML: Routable {
         let testFailureMessages = failureMessageFilter == .enable ? tests.failureMessages() : [:]
                 
         return table {
+            columnGroup(styles: [TableColumnStyle(span: 1, styles: [StyleAttribute(key: "wrap-word", value: "break-word")]),
+                                 TableColumnStyle(span: 1, styles: [StyleAttribute(key: "width", value: "100px")])])
+
             tableRow {
                 tableHeadData { "Test" }.alignment(.left).scope(.column).class("row dark-bordered-container indent1")
                 tableHeadData { "Duration" }.alignment(.left).scope(.column).class("row dark-bordered-container")
@@ -232,7 +235,7 @@ struct ResultRouteHTML: Routable {
                     }
                 )
             }
-        }
+        }.style([StyleAttribute(key: "table-layout", value: "fixed")])
     }
         
     private func linkToResultDetail(test: ResultBundle.Test, showFilter: ShowFilter, @HTMLBuilder child: () -> HTML) -> HTML {

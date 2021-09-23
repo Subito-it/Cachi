@@ -101,14 +101,16 @@ struct TestStatRouteHTML: Routable {
                             hoursMinutesSeconds(in: failedTestsAverageDuration)
                         }.class("row indent3")
                     }
-                    div {
-                        image(url: "/image?imageTestGray")
-                            .attr("title", "All tests average")
-                            .iconStyleAttributes(width: 14)
-                            .class("icon")
+                    if successfulTests.count > 0, failedTests.count > 0 {
+                        div {
+                            image(url: "/image?imageTestGray")
+                                .attr("title", "All tests average")
+                                .iconStyleAttributes(width: 14)
+                                .class("icon")
 
-                        hoursMinutesSeconds(in: allTestsAverageDuration)
-                    }.class("row indent3")
+                            hoursMinutesSeconds(in: allTestsAverageDuration)
+                        }.class("row indent3")
+                    }
                 }.class("main-container background")
             }
         }
@@ -160,6 +162,9 @@ struct TestStatRouteHTML: Routable {
         let testFailureMessages = allTests.failureMessages()
 
         return table {
+            columnGroup(styles: [TableColumnStyle(span: 1, styles: [StyleAttribute(key: "wrap-word", value: "break-word")]),
+                                 TableColumnStyle(span: 1, styles: [StyleAttribute(key: "width", value: "100px")])])
+
             tableRow {
                 tableHeadData { "Test" }.alignment(.left).scope(.column).class("row dark-bordered-container indent1")
                 tableHeadData { "Duration" }.alignment(.left).scope(.column).class("row dark-bordered-container")
@@ -187,14 +192,14 @@ struct TestStatRouteHTML: Routable {
                                         div { "No failure message found" }.class("row indent3 background color-error")
                                     }
                                 }
-                            }.class("row indent1 small-col")
+                            }.class("row indent1")
                             tableData {
                                 div { hoursMinutesSeconds(in: test.duration) }
-                            }.alignment(.left).class("row indent1 small-col")
+                            }.alignment(.left).class("row indent1")
                         }.class("light-bordered-container")
                     )
                 }
             }
-        }
+        }.style([StyleAttribute(key: "table-layout", value: "fixed")])
     }    
 }

@@ -107,7 +107,8 @@ struct ResultsStatRouteHTML: Routable {
     private func resultsTableHTML(testStats: [ResultBundle.TestStats]) -> HTML {
         return table {
             columnGroup(styles: [TableColumnStyle(span: 1, styles: [StyleAttribute(key: "wrap-word", value: "break-word")]),
-                                 TableColumnStyle(span: 4, styles: [StyleAttribute(key: "width", value: "100")])])
+                                 TableColumnStyle(span: 3, styles: [StyleAttribute(key: "width", value: "100px")]),
+                                 TableColumnStyle(span: 1, styles: [StyleAttribute(key: "width", value: "140px")])])
             
             tableRow {
                 tableHeadData { "Test" }.alignment(.left).scope(.column).class("row dark-bordered-container indent1")
@@ -131,7 +132,7 @@ struct ResultsStatRouteHTML: Routable {
                                     testStat.title
                                 }
                             }.class("color-text")
-                        }.class("row indent2")
+                        }.class("row indent2 wrap-word")
                         tableData {
                             div { hoursMinutesSeconds(in: testStat.min_s) }
                         }.alignment(.left).class("row indent1")
@@ -142,11 +143,11 @@ struct ResultsStatRouteHTML: Routable {
                             div { hoursMinutesSeconds(in: testStat.max_s) }
                         }.alignment(.left).class("row indent1")
                         tableData {
-                            div { progress {}.attr("max", "1").attr("value", testStat.success_ratio.description) }
+                            div { progress {}.attr("max", "1").attr("value", testStat.success_ratio.description).style([StyleAttribute(key: "width", value: "100px")]) }
                         }.alignment(.left).class("row indent1")
                     }.class("light-bordered-container")
                 )
             }
-        }
+        }.style([StyleAttribute(key: "table-layout", value: "fixed")])
     }
 }

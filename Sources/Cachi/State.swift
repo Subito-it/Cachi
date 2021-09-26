@@ -272,6 +272,8 @@ class State {
             return result.sorted(by: { $0.average_s > $1.average_s })
         case .fastest:
             return result.sorted(by: { $0.average_s < $1.average_s })
+        case .slowestFlaky:
+            return result.sorted(by: { $0.average_s / ($0.success_ratio + Double.leastNonzeroMagnitude) > $1.average_s / ($1.success_ratio + Double.leastNonzeroMagnitude) })
         }
     }
 

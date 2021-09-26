@@ -196,7 +196,8 @@ class State {
         
     func resultsTestStats(target: String, device: Device, type: ResultBundle.TestStatsType) -> [ResultBundle.TestStats] {
         class RawTestStats: NSObject {
-            var title: String
+            var groupName: String
+            var testName: String
             var firstSummaryIdentifier: String
             var executionSequence = [Bool]()
             var successCount = 0
@@ -206,8 +207,9 @@ class State {
             var minSuccessDuration: Double = .greatestFiniteMagnitude
             var maxSuccessDuration: Double = 0
 
-            init(title: String, firstSummaryIdentifier: String) {
-                self.title = title
+            init(groupName: String, testName: String, firstSummaryIdentifier: String) {
+                self.groupName = groupName
+                self.testName = testName
                 self.firstSummaryIdentifier = firstSummaryIdentifier
             }
         }
@@ -223,7 +225,7 @@ class State {
             guard let testSummaryIdentifier = test.summaryIdentifier else { continue }
             
             if stats[test.targetIdentifier] == nil {
-                stats[test.targetIdentifier] = RawTestStats(title: "\(test.groupName)/\(test.name)", firstSummaryIdentifier: testSummaryIdentifier)
+                stats[test.targetIdentifier] = RawTestStats(groupName: test.groupName, testName: test.name, firstSummaryIdentifier: testSummaryIdentifier)
             }
             let testStat = stats[test.targetIdentifier] as! RawTestStats
 
@@ -262,7 +264,8 @@ class State {
                                     
             let averageDuration = Double(stat.successDuration + stat.failureDuration) / Double(stat.successCount + stat.failureCount)
             let resultStat = ResultBundle.TestStats(first_summary_identifier: stat.firstSummaryIdentifier,
-                                                    title: stat.title,
+                                                    group_name: stat.groupName,
+                                                    test_name: stat.testName,
                                                     average_s: averageDuration,
                                                     success_min_s: stat.minSuccessDuration == .greatestFiniteMagnitude ? 0 : stat.minSuccessDuration,
                                                     success_max_s: stat.maxSuccessDuration,

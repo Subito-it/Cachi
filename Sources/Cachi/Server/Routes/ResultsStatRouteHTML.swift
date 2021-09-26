@@ -125,7 +125,7 @@ struct ResultsStatRouteHTML: Routable {
                                         .attr("title", "Test stats")
                                         .iconStyleAttributes(width: 14)
                                         .class("icon")
-                                    testStat.title
+                                    testStat.group_name + "/" + testStat.test_name
                                 }
                             }.class("color-text")
                         }.class("row indent2 wrap-word")

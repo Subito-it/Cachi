@@ -15,7 +15,8 @@ struct ResultBundle: Codable {
     
     struct TestStats: Codable, Hashable {
         let first_summary_identifier: String
-        let title: String
+        let group_name: String
+        let test_name: String
         let average_s: TimeInterval
         let success_min_s: Double
         let success_max_s: Double

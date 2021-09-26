@@ -216,6 +216,8 @@ class State {
         let deviceTests = targetTests.filter { $0.deviceModel == device.model && $0.deviceOs == device.os }
         
         let stats = NSMutableDictionary()
+
+        let windowSize = 20.0
         
         for test in deviceTests {
             guard let testSummaryIdentifier = test.summaryIdentifier else { continue }
@@ -224,6 +226,11 @@ class State {
                 stats[test.targetIdentifier] = RawTestStats(title: "\(test.groupName)/\(test.name)", firstSummaryIdentifier: testSummaryIdentifier)
             }
             let testStat = stats[test.targetIdentifier] as! RawTestStats
+
+            if testStat.executionSequence.count >= Int(windowSize) {
+                continue
+            }
+
             if test.status == .success {
                 testStat.executionSequence.append(true)
                 testStat.successCount += 1
@@ -236,14 +243,14 @@ class State {
                 testStat.failureDuration += test.duration
             }
         }
-                        
+
         var result = [ResultBundle.TestStats]()
         for stat in stats.allValues as! [RawTestStats] {
             let elementWeight = 1.0 / Double(stat.executionSequence.count)
             var totalWeight = 0.0
             var failureRatio = 0.0
             for (index, success) in stat.executionSequence.enumerated() {
-                let weight = elementWeight * (1.0 - Double(index) / 10.0)
+                let weight = elementWeight * (1.0 - Double(index) / windowSize)
                 totalWeight += weight
                 
                 if !success {
@@ -274,7 +281,7 @@ class State {
         case .fastest:
             return result.sorted(by: { $0.average_s < $1.average_s })
         case .slowestFlaky:
-            return result.sorted(by: { $0.average_s / ($0.success_ratio + Double.leastNonzeroMagnitude) > $1.average_s / ($1.success_ratio + Double.leastNonzeroMagnitude) })
+            return result.sorted(by: { $0.average_s / pow($0.success_ratio + Double.leastNonzeroMagnitude, 2.0) > $1.average_s / pow($1.success_ratio + Double.leastNonzeroMagnitude, 2.0) })
         }
     }
 

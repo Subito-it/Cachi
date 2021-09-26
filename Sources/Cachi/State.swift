@@ -257,8 +257,8 @@ class State {
             let resultStat = ResultBundle.TestStats(first_summary_identifier: stat.firstSummaryIdentifier,
                                                     title: stat.title,
                                                     average_s: averageDuration,
-                                                    min_s: stat.minSuccessDuration == .greatestFiniteMagnitude ? 0 : stat.minSuccessDuration,
-                                                    max_s: stat.maxSuccessDuration,
+                                                    success_min_s: stat.minSuccessDuration == .greatestFiniteMagnitude ? 0 : stat.minSuccessDuration,
+                                                    success_max_s: stat.maxSuccessDuration,
                                                     success_ratio: successRatio,
                                                     success_count: stat.successCount,
                                                     failure_count: stat.failureCount)

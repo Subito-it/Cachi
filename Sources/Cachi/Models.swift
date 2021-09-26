@@ -17,8 +17,8 @@ struct ResultBundle: Codable {
         let first_summary_identifier: String
         let title: String
         let average_s: TimeInterval
-        let min_s: Double
-        let max_s: Double
+        let success_min_s: Double
+        let success_max_s: Double
         let success_ratio: Double
         let success_count: Int
         let failure_count: Int

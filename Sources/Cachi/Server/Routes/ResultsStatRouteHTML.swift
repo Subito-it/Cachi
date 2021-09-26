@@ -102,14 +102,15 @@ struct ResultsStatRouteHTML: Routable {
     private func resultsTableHTML(testStats: [ResultBundle.TestStats]) -> HTML {
         return table {
             columnGroup(styles: [TableColumnStyle(span: 1, styles: [StyleAttribute(key: "wrap-word", value: "break-word")]),
-                                 TableColumnStyle(span: 3, styles: [StyleAttribute(key: "width", value: "100px")]),
+                                 TableColumnStyle(span: 2, styles: [StyleAttribute(key: "width", value: "105px")]),
+                                 TableColumnStyle(span: 1, styles: [StyleAttribute(key: "width", value: "80px")]),
                                  TableColumnStyle(span: 1, styles: [StyleAttribute(key: "width", value: "140px")])])
             
             tableRow {
                 tableHeadData { "Test" }.alignment(.left).scope(.column).class("row dark-bordered-container indent1")
-                tableHeadData { "Min" }.alignment(.left).scope(.column).class("row dark-bordered-container")
+                tableHeadData { "Success Min" }.alignment(.left).scope(.column).class("row dark-bordered-container")
+                tableHeadData { "Success Max" }.alignment(.left).scope(.column).class("row dark-bordered-container")
                 tableHeadData { "Avg" }.alignment(.left).scope(.column).class("row dark-bordered-container")
-                tableHeadData { "Max" }.alignment(.left).scope(.column).class("row dark-bordered-container")
                 tableHeadData { "Success ratio" }.alignment(.left).scope(.column).class("row dark-bordered-container")
                 
             }.id("table-header")
@@ -129,13 +130,13 @@ struct ResultsStatRouteHTML: Routable {
                             }.class("color-text")
                         }.class("row indent2 wrap-word")
                         tableData {
-                            div { hoursMinutesSeconds(in: testStat.min_s) }
+                            div { hoursMinutesSeconds(in: testStat.success_min_s) }
+                        }.alignment(.left).class("row indent1")
+                        tableData {
+                            div { hoursMinutesSeconds(in: testStat.success_max_s) }
                         }.alignment(.left).class("row indent1")
                         tableData {
                             div { hoursMinutesSeconds(in: testStat.average_s) }
-                        }.alignment(.left).class("row indent1")
-                        tableData {
-                            div { hoursMinutesSeconds(in: testStat.max_s) }
                         }.alignment(.left).class("row indent1")
                         tableData {
                             div { progress {}.attr("max", "1").attr("value", testStat.success_ratio.description).style([StyleAttribute(key: "width", value: "100px")]) }

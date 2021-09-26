@@ -261,7 +261,8 @@ class State {
                                                     success_max_s: stat.maxSuccessDuration,
                                                     success_ratio: successRatio,
                                                     success_count: stat.successCount,
-                                                    failure_count: stat.failureCount)
+                                                    failure_count: stat.failureCount,
+                                                    execution_sequence: stat.executionSequence.map({ $0 ? "S" : "F"}).joined())
             result.append(resultStat)
         }
         

@@ -22,6 +22,7 @@ struct ResultBundle: Codable {
         let success_ratio: Double
         let success_count: Int
         let failure_count: Int
+        let execution_sequence: String
     }
     
     struct Test: Codable, Hashable {

@@ -36,7 +36,7 @@ struct TestRouteHTML: Routable {
         let resultBundles = State.shared.resultBundles
         
         guard let resultBundle = resultBundles.first(where: { $0.tests.contains(where: { $0.summaryIdentifier == testSummaryIdentifier })}),
-            let test = resultBundle.tests.first(where: { $0.summaryIdentifier == testSummaryIdentifier }) else {
+              let test = resultBundle.tests.first(where: { $0.summaryIdentifier == testSummaryIdentifier }) else {
             let res = HTTPResponse(status: .notFound, body: HTTPBody(staticString: "Not found..."))
             return promise.succeed(res)
         }        
@@ -50,6 +50,7 @@ struct TestRouteHTML: Routable {
         }
         
         let source = queryItems.first(where: { $0.name == "source" })?.value
+        let backUrl = queryItems.backUrl
                 
         let document = html {
             head {
@@ -60,7 +61,7 @@ struct TestRouteHTML: Routable {
             }
             body {
                 div {
-                    div { floatingHeaderHTML(result: resultBundle, test: test, source: source) }.class("sticky-top").id("top-bar")
+                    div { floatingHeaderHTML(result: resultBundle, test: test, source: source, backUrl: backUrl) }.class("sticky-top").id("top-bar")
                     div { resultsTableHTML(result: resultBundle, test: test, rowsData: rowsData) }
                 }.class("main-container background")
             }
@@ -69,7 +70,7 @@ struct TestRouteHTML: Routable {
         return promise.succeed(document.httpResponse())
     }
     
-    private func floatingHeaderHTML(result: ResultBundle, test: ResultBundle.Test, source: String?) -> HTML {
+    private func floatingHeaderHTML(result: ResultBundle, test: ResultBundle.Test, source: String?, backUrl: String) -> HTML {
         let testTitle = test.name
         let testSubtitle = test.groupName
         
@@ -101,14 +102,17 @@ struct TestRouteHTML: Routable {
         }
         
         let fromTestStats = source == "test_stats"
+        
+        let sourceParam = source == nil ? "" : "&source=\(source!)"
 
         return div {
             div {
                 div {
-                    image(url: result.htmlStatusImageUrl(for: test))
-                        .attr("title", result.htmlStatusTitle(for: test))
-                        .iconStyleAttributes(width: 14)
-                        .class("icon")
+                    link(url: backUrl) {
+                        image(url: "/image?imageArrorLeft")
+                            .iconStyleAttributes(width: 8)
+                            .class("icon color-svg-text")
+                    }
                     testTitle
                 }.class("header")
                 div { testSubtitle }.class("color-subtext subheader")
@@ -118,18 +122,18 @@ struct TestRouteHTML: Routable {
             div {
                 div {
                     if let previousTest = previousTest {
-                        link(url: "/html/test?id=\(previousTest.summaryIdentifier ?? "")&type=stdouts") { "←" }.class("button")
+                        link(url: "/html/test?id=\(previousTest.summaryIdentifier ?? "")\(sourceParam)&type=stdouts&back_url=\(backUrl.hexadecimalRepresentation)") { "←" }.class("button")
                     }
                     if let nextTest = nextTest {
-                        link(url: "/html/test?id=\(nextTest.summaryIdentifier ?? "")&type=stdouts") { "→" }.class("button")
+                        link(url: "/html/test?id=\(nextTest.summaryIdentifier ?? "")\(sourceParam)&type=stdouts&back_url=\(backUrl.hexadecimalRepresentation)") { "→" }.class("button")
                     }
                 }.floatRight()
                 div {
                     if !fromTestStats {
-                        link(url: "/html/teststats?id=\(test.summaryIdentifier ?? "")&source=test_route") { "Test stats" }.class("button")
+                        link(url: "/html/teststats?id=\(test.summaryIdentifier ?? "")&source=test_route&back_url=\(currentUrl(test: test, source: source, backUrl: backUrl).hexadecimalRepresentation)") { "Test stats" }.class("button")
                     }
-                    link(url: "/html/session_logs?id=\(test.summaryIdentifier ?? "")&type=stdouts") { "Standard outputs" }.class("button")
-                    link(url: "/html/session_logs?id=\(test.summaryIdentifier ?? "")&type=session") { "Session logs" }.class("button")
+                    link(url: "/html/session_logs?id=\(test.summaryIdentifier ?? "")&type=stdouts&back_url=\(currentUrl(test: test, source: source, backUrl: backUrl).hexadecimalRepresentation)") { "Standard outputs" }.class("button")
+                    link(url: "/html/session_logs?id=\(test.summaryIdentifier ?? "")&type=session&back_url=\(currentUrl(test: test, source: source, backUrl: backUrl).hexadecimalRepresentation)") { "Session logs" }.class("button")
                 }
             }.class("row indent2 background")
         }
@@ -266,5 +270,13 @@ struct TestRouteHTML: Routable {
         }
                 
         return data
+    }
+    
+    private func currentUrl(test: ResultBundle.Test, source: String?, backUrl: String) -> String {
+        if let source = source {
+            return "\(self.path)?id=\(test.summaryIdentifier!)&source=\(source)&back_url=\(backUrl.hexadecimalRepresentation)"
+        } else {
+            return "\(self.path)?id=\(test.summaryIdentifier!)&back_url=\(backUrl.hexadecimalRepresentation)"
+        }
     }
 }

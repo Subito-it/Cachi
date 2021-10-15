@@ -25,12 +25,6 @@ struct CoverageFileRouteHTML: Routable {
             return promise.succeed(res)
         }
         
-        var queryParameters = ""
-        for queryItem in queryItems {
-            guard queryItem.name != "path" else { continue }
-            queryParameters += "&\(queryItem.name)=\(queryItem.value ?? "")"
-        }
-
         let document = html {
             head {
                 title("Cachi - Test result")
@@ -39,7 +33,7 @@ struct CoverageFileRouteHTML: Routable {
             }
             body {
                 div {
-                    div { floatingHeaderHTML(result: resultBundle, path: path, queryParameters: queryParameters) }.class("sticky-top").id("top-bar")
+                    div { floatingHeaderHTML(result: resultBundle, path: path) }.class("sticky-top").id("top-bar")
                     
                     div { RawHTML(rawContent: fileCoverageHtml) }
                 }.class("main-container background")
@@ -49,7 +43,7 @@ struct CoverageFileRouteHTML: Routable {
         return promise.succeed(document.httpResponse())
     }
     
-    private func floatingHeaderHTML(result: ResultBundle, path: String, queryParameters: String) -> HTML {
+    private func floatingHeaderHTML(result: ResultBundle, path: String) -> HTML {
         let resultTitle = result.htmlTitle()
         let resultSubtitle = result.htmlSubtitle()
         let resultDate = DateFormatter.fullDateFormatter.string(from: result.date)
@@ -59,10 +53,11 @@ struct CoverageFileRouteHTML: Routable {
         return div {
             div {
                 div {
-                    image(url: "/image?imageTestGray")
-                        .attr("title", "Test stats")
-                        .iconStyleAttributes(width: 14)
-                        .class("icon")
+                    link(url: "javascript:history.back()") {
+                        image(url: "/image?imageArrorLeft")
+                            .iconStyleAttributes(width: 8)
+                            .class("icon color-svg-text")
+                    }
                     resultTitle
                 }.class("header")
                 div { resultSubtitle }.class("color-subtext subheader")

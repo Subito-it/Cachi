@@ -32,29 +32,24 @@ struct CoverageRouteHTML: Routable {
             return promise.succeed(res)
         }
         
-        var queryParameters = ""
-        for queryItem in queryItems {
-            guard queryItem.name != "id" else { continue }
-            queryParameters += "&\(queryItem.name)=\(queryItem.value ?? "")"
-        }
-
-        let coverageShowFilter = CoverageShowFilter(rawValue: queryItems.first(where: { $0.name == CoverageShowFilter.queryName })?.value ?? "") ?? .files
-
+        let state = RouteState(queryItems: queryItems)
+        let backUrl = queryItems.backUrl
+        
         let document = html {
             head {
                 title("Cachi - Test result")
                 meta().attr("charset", "utf-8")
                 linkStylesheet(url: "/css?main")
-                switch coverageShowFilter {
+                switch state.showFilter {
                 case .files:
-                    script(filepath: Filepath(name: "/script?type=coverage-files&id=\(resultBundle.identifier)\(queryParameters)", path: ""))
+                    script(filepath: Filepath(name: "/script?type=coverage-files&id=\(resultBundle.identifier)", path: ""))
                 case .folders:
-                    script(filepath: Filepath(name: "/script?type=coverage-folders&id=\(resultBundle.identifier)\(queryParameters)", path: ""))
+                    script(filepath: Filepath(name: "/script?type=coverage-folders&id=\(resultBundle.identifier)", path: ""))
                 }
             }
             body {
                 div {
-                    div { floatingHeaderHTML(result: resultBundle, coverageShowFilter: coverageShowFilter, queryItems: queryItems) }.class("sticky-top").id("top-bar")
+                    div { floatingHeaderHTML(result: resultBundle, state: state, backUrl: backUrl) }.class("sticky-top").id("top-bar")
                     
                     div { table(child: {}).id("coverage-table") }
                 }.class("main-container background")
@@ -64,28 +59,21 @@ struct CoverageRouteHTML: Routable {
         return promise.succeed(document.httpResponse())
     }
     
-    private func floatingHeaderHTML(result: ResultBundle, coverageShowFilter: CoverageShowFilter, queryItems: [URLQueryItem]) -> HTML {
+    private func floatingHeaderHTML(result: ResultBundle, state: RouteState, backUrl: String) -> HTML {
         let resultTitle = result.htmlTitle()
         let resultSubtitle = result.htmlSubtitle()
         let resultDate = DateFormatter.fullDateFormatter.string(from: result.date)
         
         let resultDevice = "\(result.tests.first!.deviceModel) (\(result.tests.first!.deviceOs))"
-        
-        let filteredFolder = queryItems.first(where: { $0.name == "folder" })?.value
-        let isFilteringFolders = filteredFolder != nil
-        var queryParameters = ""
-        for queryItem in queryItems {
-            guard queryItem.name != "id" && queryItem.name != "coverage_show" && queryItem.name != "folder" && (queryItem.name != "q" || isFilteringFolders) else { continue }
-            queryParameters += "&\(queryItem.name)=\(queryItem.value ?? "")"
-        }
-                
+                        
         return div {
             div {
                 div {
-                    image(url: "/image?imageTestGray")
-                        .attr("title", "Test stats")
-                        .iconStyleAttributes(width: 14)
-                        .class("icon")
+                    link(url: backUrl) {
+                        image(url: "/image?imageArrorLeft")
+                            .iconStyleAttributes(width: 8)
+                            .class("icon color-svg-text")
+                    }
                     resultTitle
                 }.class("header")
                 div { resultSubtitle }.class("color-subtext subheader")
@@ -96,18 +84,68 @@ struct CoverageRouteHTML: Routable {
                 div {
                     var blocks = [HTML]()
                     
-                    if !isFilteringFolders {
-                        blocks.append(link(url: "\(self.path)?id=\(result.identifier)\(queryParameters)\(CoverageShowFilter.files.params())") { CoverageShowFilter.files.rawValue.capitalized }.class(coverageShowFilter == CoverageShowFilter.files ? "button-selected" : "button"))
-                        blocks.append(link(url: "\(self.path)?id=\(result.identifier)\(queryParameters)\(CoverageShowFilter.folders.params())") { CoverageShowFilter.folders.rawValue.capitalized }.class(coverageShowFilter == CoverageShowFilter.folders ? "button-selected" : "button"))
+                    if state.hideFilters {
+                        blocks.append(span { state.showFilter.rawValue.capitalized; "&nbsp;" }.class("bold"))
                     } else {
-                        blocks.append(span { filteredFolder!; "&nbsp;" }.class("bold"))
+                        var mState = state
+                        let linkForState: (RouteState) -> HTML = { linkState in
+                            return link(url: currentUrl(result: result, state: linkState, backUrl: backUrl)) { linkState.showFilter.rawValue.capitalized }.class(state.showFilter == linkState.showFilter ? "button-selected" : "button")
+                        }
+                        
+                        mState.showFilter = .files
+                        blocks.append(linkForState(mState))
+
+                        mState.showFilter = .folders
+                        blocks.append(linkForState(mState))
                     }
                     
-                    blocks.append(span { span { "Filter" }.id("filter-placeholder"); input().id("filter-input").attr("placeholder", coverageShowFilter == CoverageShowFilter.files ? "File name" : "Folder name") }.id("filter-search"))
+                    blocks.append(span { span { "Filter" }.id("filter-placeholder"); input().id("filter-input").attr("placeholder", state.showFilter == .files ? "File name" : "Folder name") }.id("filter-search"))
                     
                     return HTMLBuilder.buildBlocks(blocks)
                 }
             }.class("row light-bordered-container indent2")
+        }
+    }
+    
+    private func currentUrl(result: ResultBundle, state: RouteState, backUrl: String) -> String {
+        "\(self.path)?id=\(result.identifier)\(state)&back_url=\(backUrl.hexadecimalRepresentation)"
+    }
+}
+
+private extension CoverageRouteHTML {
+    struct RouteState: Codable, CustomStringConvertible {
+        static let key = "state"
+        
+        enum ShowFilter: String, Codable, CaseIterable { case files, folders }
+        
+        var showFilter: ShowFilter
+        var filterQuery: String
+        var hideFilters: Bool
+        
+        init(queryItems: [URLQueryItem]?) {
+            self.init(hexadecimalRepresentation: queryItems?.first(where: { $0.name == Self.key})?.value)
+        }
+
+        init(hexadecimalRepresentation: String?) {
+            if let hexadecimalRepresentation = hexadecimalRepresentation,
+               let data = Data(hexadecimalRepresentation: hexadecimalRepresentation),
+               let state = try? JSONDecoder().decode(RouteState.self, from: data) {
+                showFilter = state.showFilter
+                filterQuery = state.filterQuery
+                hideFilters = state.hideFilters
+            } else {
+                showFilter = .files
+                filterQuery = ""
+                hideFilters = false
+            }
+        }
+        
+        var description: String {
+            guard let hexRepresentation = (try? JSONEncoder().encode(self))?.hexadecimalRepresentation else {
+                return ""
+            }
+            
+            return "&\(Self.key)=" + hexRepresentation
         }
     }
 }

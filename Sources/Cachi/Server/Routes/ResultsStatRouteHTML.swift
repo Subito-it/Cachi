@@ -52,7 +52,7 @@ struct ResultsStatRouteHTML: Routable {
         }
         
         let testStats = State.shared.resultsTestStats(target: selectedTarget, device: selectedDevice, type: typeFilter)
-                
+
         let document = html {
             head {
                 title("Cachi - Results")
@@ -61,7 +61,7 @@ struct ResultsStatRouteHTML: Routable {
             }
             body {
                 div {
-                    div { floatingHeaderHTML(targets: allTargets, selectedTarget: selectedTarget, devices: allDevices.map(\.description), selectedDevice: rawSelectedDevice, typeFilter: typeFilter, backUrl: backUrl) }.class("sticky-top").id("top-bar")
+                    div { floatingHeaderHTML(targets: allTargets, selectedTarget: selectedTarget, devices: allDevices.map(\.description), selectedDevice: rawSelectedDevice!, typeFilter: typeFilter, backUrl: backUrl) }.class("sticky-top").id("top-bar")
                     div { resultsTableHTML(testStats: testStats, selectedTarget: selectedTarget, selectedDevice: rawSelectedDevice!, statType: typeFilter, backUrl: backUrl) }
                 }.class("main-container background")
                 script(filepath: Filepath(name: "/script?type=result-stat", path: ""))
@@ -71,7 +71,7 @@ struct ResultsStatRouteHTML: Routable {
         return promise.succeed(document.httpResponse())
     }
     
-    private func floatingHeaderHTML(targets: [String], selectedTarget: String?, devices: [String], selectedDevice: String?, typeFilter: ResultBundle.TestStatsType, backUrl: String) -> HTML {
+    private func floatingHeaderHTML(targets: [String], selectedTarget: String, devices: [String], selectedDevice: String, typeFilter: ResultBundle.TestStatsType, backUrl: String) -> HTML {
         return div {
             div {
                 div {
@@ -95,9 +95,9 @@ struct ResultsStatRouteHTML: Routable {
                     }
                 }.id("device")
                 "&nbsp;&nbsp;&nbsp;&nbsp;"
-                link(url: "\(currentUrl(selectedTarget: selectedTarget!, selectedDevice: selectedDevice!, statType: .flaky, backUrl: backUrl))") { ResultBundle.TestStatsType.flaky.rawValue.capitalized }.class(typeFilter == .flaky ? "button-selected" : "button")
-                link(url: "\(currentUrl(selectedTarget: selectedTarget!, selectedDevice: selectedDevice!, statType: .slowest, backUrl: backUrl))") { ResultBundle.TestStatsType.slowest.rawValue.capitalized }.class(typeFilter == .slowest ? "button-selected" : "button")
-                link(url: "\(currentUrl(selectedTarget: selectedTarget!, selectedDevice: selectedDevice!, statType: .fastest, backUrl: backUrl))") { ResultBundle.TestStatsType.fastest.rawValue.capitalized }.class(typeFilter == .fastest ? "button-selected" : "button")
+                link(url: "\(currentUrl(selectedTarget: selectedTarget, selectedDevice: selectedDevice, statType: .flaky, backUrl: backUrl))") { ResultBundle.TestStatsType.flaky.rawValue.capitalized }.class(typeFilter == .flaky ? "button-selected" : "button")
+                link(url: "\(currentUrl(selectedTarget: selectedTarget, selectedDevice: selectedDevice, statType: .slowest, backUrl: backUrl))") { ResultBundle.TestStatsType.slowest.rawValue.capitalized }.class(typeFilter == .slowest ? "button-selected" : "button")
+                link(url: "\(currentUrl(selectedTarget: selectedTarget, selectedDevice: selectedDevice, statType: .fastest, backUrl: backUrl))") { ResultBundle.TestStatsType.fastest.rawValue.capitalized }.class(typeFilter == .fastest ? "button-selected" : "button")
             }.class("row light-bordered-container indent2")
         }
     }

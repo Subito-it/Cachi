@@ -113,7 +113,7 @@ struct ScriptRoute: Routable {
 
             let parentParams = [];
             urlParams.forEach((value,name) => parentParams.push(`${name}=${value}`));
-            parentParams = parentParams.filter(t => !t.startsWith('id=') && !t.startsWith('q=') && !t.startsWith('qq=') && !t.startsWith('path='));
+            parentParams = parentParams.filter(t => !t.startsWith('id=') && !t.startsWith('q=') && !t.startsWith('qq=') && !t.startsWith('path=') && !t.startsWith('back_url='));
 
             const inputHandler = function(e) {
                 var filteredItems = [];

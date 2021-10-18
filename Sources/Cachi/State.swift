@@ -3,7 +3,7 @@ import CachiKit
 import os
 
 class State {
-    struct Device: Hashable, CustomStringConvertible {
+    struct Device: Codable, Hashable, CustomStringConvertible {
         let model: String
         let os: String
         

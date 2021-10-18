@@ -6,7 +6,7 @@ struct PendingResultBundle: Codable {
 }
 
 struct ResultBundle: Codable {
-    enum TestStatsType: String {
+    enum TestStatsType: String, Codable {
         case flaky
         case slowest
         case fastest

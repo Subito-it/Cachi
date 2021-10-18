@@ -66,6 +66,8 @@ struct TestStatRouteHTML: Routable {
         let testDetail = "Success ratio \(String(format: "%.1f", successRatio))% (\(successfulTests.count) passed, \(failedTests.count) failed)"
         
         let source = queryItems.first(where: { $0.name == "source" })?.value
+        
+        let backUrl = queryItems.backUrl
                         
         let document = html {
             head {
@@ -75,8 +77,8 @@ struct TestStatRouteHTML: Routable {
             }
             body {
                 div {
-                    div { floatingHeaderHTML(test: test, testDetail: testDetail, source: source) }.class("sticky-top").id("top-bar")
-                    div { resultsTableHTML(results: matchingResults) }
+                    div { floatingHeaderHTML(test: test, testDetail: testDetail, source: source, backUrl: backUrl) }.class("sticky-top").id("top-bar")
+                    div { resultsTableHTML(results: matchingResults, source: source, backUrl: backUrl) }
                     
                     div { "&nbsp;" }
                     div { "Average execution" }.class("header indent2")
@@ -117,7 +119,7 @@ struct TestStatRouteHTML: Routable {
         return promise.succeed(document.httpResponse())
     }
     
-    private func floatingHeaderHTML(test: ResultBundle.Test, testDetail: String, source: String?) -> HTML {
+    private func floatingHeaderHTML(test: ResultBundle.Test, testDetail: String, source: String?, backUrl: String) -> HTML {
         let testTitle = test.name
         let testSubtitle = test.groupName
                 
@@ -126,10 +128,11 @@ struct TestStatRouteHTML: Routable {
         return div {
             div {
                 div {
-                    image(url: "/image?imageTestGray")
-                        .attr("title", "Test stats")
-                        .iconStyleAttributes(width: 14)
-                        .class("icon")
+                    link(url: backUrl) {
+                        image(url: "/image?imageArrorLeft")
+                            .iconStyleAttributes(width: 8)
+                            .class("icon color-svg-text")
+                    }
                     testTitle
                 }.class("header")
                 div { testSubtitle }.class("color-subtext subheader")
@@ -139,7 +142,7 @@ struct TestStatRouteHTML: Routable {
         }
     }
         
-    private func resultsTableHTML(results: [(resultBundle: ResultBundle, tests: [ResultBundle.Test])]) -> HTML {
+    private func resultsTableHTML(results: [(resultBundle: ResultBundle, tests: [ResultBundle.Test])], source: String?, backUrl: String) -> HTML {
         let allTests = results.flatMap { $0.tests }
         let testFailureMessages = allTests.failureMessages()
 
@@ -157,7 +160,7 @@ struct TestStatRouteHTML: Routable {
                     return HTMLBuilder.buildBlock(
                         tableRow {
                             tableData {
-                                link(url: "/html/test?id=\(test.summaryIdentifier!)&source=test_stats") {
+                                link(url: "/html/test?id=\(test.summaryIdentifier!)&source=test_stats&back_url=\(currentUrl(test: test, source: source, backUrl: backUrl).hexadecimalRepresentation)") {
                                     div {
                                         image(url: matching.resultBundle.htmlStatusImageUrl(for: test))
                                             .attr("title", matching.resultBundle.htmlStatusTitle(for: test))
@@ -183,5 +186,13 @@ struct TestStatRouteHTML: Routable {
                 }
             }
         }.style([StyleAttribute(key: "table-layout", value: "fixed")])
-    }    
+    }
+    
+    private func currentUrl(test: ResultBundle.Test, source: String?, backUrl: String) -> String {
+        if let source = source {
+            return "\(self.path)?id=\(test.summaryIdentifier!)&source=\(source)&back_url=\(backUrl.hexadecimalRepresentation)"
+        } else {
+            return "\(self.path)?id=\(test.summaryIdentifier!)&back_url=\(backUrl.hexadecimalRepresentation)"
+        }
+    }
 }

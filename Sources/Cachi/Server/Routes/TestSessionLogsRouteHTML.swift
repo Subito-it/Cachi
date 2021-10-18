@@ -47,6 +47,8 @@ struct TestSessionLogsRouteHTML: Routable {
             let res = HTTPResponse(status: .notFound, body: HTTPBody(staticString: "Not diagnistics found..."))
             return promise.succeed(res)
         }
+        
+        let backUrl = queryItems.backUrl
                         
         let document = html {
             head {
@@ -57,7 +59,7 @@ struct TestSessionLogsRouteHTML: Routable {
             }
             body {
                 div {
-                    div { floatingHeaderHTML(result: resultBundle, test: test) }.class("sticky-top").id("top-bar")
+                    div { floatingHeaderHTML(result: resultBundle, test: test, backUrl: backUrl) }.class("sticky-top").id("top-bar")
                     switch sessionType {
                     case "stdouts":
                         div { standardOutputsLogsTableHTML(sessionLogs: sessionLogs) }
@@ -73,7 +75,7 @@ struct TestSessionLogsRouteHTML: Routable {
         return promise.succeed(document.httpResponse())
     }
     
-    private func floatingHeaderHTML(result: ResultBundle, test: ResultBundle.Test) -> HTML {
+    private func floatingHeaderHTML(result: ResultBundle, test: ResultBundle.Test, backUrl: String) -> HTML {
         let testTitle = test.name
         let testSubtitle = test.groupName
         
@@ -91,10 +93,11 @@ struct TestSessionLogsRouteHTML: Routable {
         return div {
             div {
                 div {
-                    image(url: result.htmlStatusImageUrl(for: test))
-                        .attr("title", result.htmlStatusTitle(for: test))
-                        .iconStyleAttributes(width: 14)
-                        .class("icon")
+                    link(url: backUrl) {
+                        image(url: "/image?imageArrorLeft")
+                            .iconStyleAttributes(width: 8)
+                            .class("icon color-svg-text")
+                    }
                     testTitle
                 }.class("header")
                 div { testSubtitle }.class("color-subtext subheader")

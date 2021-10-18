@@ -3,30 +3,6 @@ import HTTPKit
 import os
 import Vaux
 
-private enum ShowFilter: String, CaseIterable {
-    case all, passed, failed, retried
-    
-    func params() -> String {
-        return "&\(Self.queryName)=\(self.rawValue)"
-    }
-    
-    static let queryName = "show"
-}
-
-private enum FailureMessageFilter: String, CaseIterable {
-    case enable, disable
-    
-    func toggle() -> Self {
-        return self == .enable ? .disable : .enable
-    }
-    
-    func params() -> String {
-        return "&\(Self.queryName)=\(self.rawValue)"
-    }
-    
-    static let queryName = "failure_messages"
-}
-
 struct ResultRouteHTML: Routable {    
     let path: String = "/html/result"
     let description: String = "Detail of result in html (pass identifier)"
@@ -65,8 +41,8 @@ struct ResultRouteHTML: Routable {
             }
         }
         
-        let showFilter = ShowFilter(rawValue: queryItems.first(where: { $0.name == ShowFilter.queryName })?.value ?? "") ?? .all
-        let failureMessageFilter = FailureMessageFilter(rawValue: queryItems.first(where: { $0.name == FailureMessageFilter.queryName })?.value ?? "") ?? .disable
+        let state = RouteState(queryItems: queryItems)
+        let backUrl = queryItems.backUrl
         
         let document = html {
             head {
@@ -76,8 +52,8 @@ struct ResultRouteHTML: Routable {
             }
             body {
                 div {
-                    div { floatingHeaderHTML(result: result, showFilter: showFilter, failureMessageFilter: failureMessageFilter) }.class("sticky-top").id("top-bar")
-                    div { resultsTableHTML(result: result, showFilter: showFilter, failureMessageFilter: failureMessageFilter) }
+                    div { floatingHeaderHTML(result: result, state:state, backUrl: backUrl) }.class("sticky-top").id("top-bar")
+                    div { resultsTableHTML(result: result, state:state, backUrl: backUrl) }
                 }.class("main-container background")
             }
         }
@@ -85,7 +61,7 @@ struct ResultRouteHTML: Routable {
         return promise.succeed(document.httpResponse())
     }
     
-    private func floatingHeaderHTML(result: ResultBundle, showFilter: ShowFilter, failureMessageFilter: FailureMessageFilter) -> HTML {
+    private func floatingHeaderHTML(result: ResultBundle, state: RouteState, backUrl: String) -> HTML {
         let resultTitle = result.htmlTitle()
         let resultSubtitle = result.htmlSubtitle()
         let resultDate = DateFormatter.fullDateFormatter.string(from: result.date)
@@ -95,10 +71,11 @@ struct ResultRouteHTML: Routable {
         return div {
             div {
                 div {
-                    image(url: "/image?imageTestGray")
-                        .attr("title", "Test stats")
-                        .iconStyleAttributes(width: 14)
-                        .class("icon")
+                    link(url: backUrl) {
+                        image(url: "/image?imageArrorLeft")
+                            .iconStyleAttributes(width: 8)
+                            .class("icon color-svg-text")
+                    }
                     resultTitle
                 }.class("header")
                 div { resultSubtitle }.class("color-subtext subheader")
@@ -107,7 +84,7 @@ struct ResultRouteHTML: Routable {
             }.class("row light-bordered-container indent1")
             div {
                 div {
-                    switch showFilter {
+                    switch state.showFilter {
                     case .all:
                         let testsCount = result.testsPassed.count + result.testsUniquelyFailed.count
                         let testsFailedCount = result.testsFailed.count
@@ -133,25 +110,37 @@ struct ResultRouteHTML: Routable {
                 
                 div {
                     var blocks = [HTML]()
-
-                    blocks.append(link(url: "\(self.path)?id=\(result.identifier)\(ShowFilter.all.params())\(failureMessageFilter.params())") { ShowFilter.all.rawValue.capitalized }.class(showFilter == .all ? "button-selected" : "button"))
+                    
+                    var mState = state
+                    let linkForState: (RouteState) -> HTML = { linkState in
+                        return link(url: currentUrl(result: result, state: linkState, backUrl: backUrl)) { linkState.showFilter.rawValue.capitalized }.class(state.showFilter == linkState.showFilter ? "button-selected" : "button")
+                    }
+                    
+                    mState.showFilter = .all
+                    blocks.append(linkForState(mState))
                     if result.testsPassed.count > 0 {
-                        blocks.append(link(url: "\(self.path)?id=\(result.identifier)\(ShowFilter.passed.params())\(failureMessageFilter.params())") { ShowFilter.passed.rawValue.capitalized }.class(showFilter == .passed ? "button-selected" : "button"))
+                        mState.showFilter = .passed
+                        blocks.append(linkForState(mState))
                     }
                     if result.testsUniquelyFailed.count > 0 {
-                        blocks.append(link(url: "\(self.path)?id=\(result.identifier)\(ShowFilter.failed.params())\(failureMessageFilter.params())") { ShowFilter.failed.rawValue.capitalized }.class(showFilter == .failed ? "button-selected" : "button"))
+                        mState.showFilter = .failed
+                        blocks.append(linkForState(mState))
                     }
                     if result.testsRepeated.count > 0 {
-                        blocks.append(link(url: "\(self.path)?id=\(result.identifier)\(ShowFilter.retried.params())\(failureMessageFilter.params())") { ShowFilter.retried.rawValue.capitalized }.class(showFilter == .retried ? "button-selected" : "button"))
+                        mState.showFilter = .retried
+                        blocks.append(linkForState(mState))
                     }
+                    
+                    mState = state
                     if result.testsFailed.count > 0 {
+                        mState.showFailureMessage.toggle()
                         blocks.append("&nbsp;&nbsp;&nbsp;&nbsp;")
-                        blocks.append(link(url: "\(self.path)?id=\(result.identifier)\(showFilter.params())\(failureMessageFilter.toggle().params())") { "Show failures" }.class(failureMessageFilter == .enable ? "button-selected" : "button"))
+                        blocks.append(link(url: currentUrl(result: result, state: mState, backUrl: backUrl)) { "Show failures" }.class(state.showFailureMessage ? "button-selected" : "button"))
                     }
 
                     if result.codeCoverageSplittedHtmlBaseUrl != nil {
                         blocks.append("&nbsp;&nbsp;&nbsp;&nbsp;")
-                        blocks.append(link(url: "coverage?id=\(result.identifier)\(showFilter.params())\(failureMessageFilter.params())") { "Coverage" }.class("button"))
+                        blocks.append(link(url: "coverage?id=\(result.identifier)&back_url=\(currentUrl(result: result, state: state, backUrl: backUrl).hexadecimalRepresentation)") { "Coverage" }.class("button"))
                     }
 
                     return HTMLBuilder.buildBlocks(blocks)
@@ -160,9 +149,9 @@ struct ResultRouteHTML: Routable {
         }
     }
     
-    private func resultsTableHTML(result: ResultBundle, showFilter: ShowFilter, failureMessageFilter: FailureMessageFilter) -> HTML {
+    private func resultsTableHTML(result: ResultBundle, state: RouteState, backUrl: String) -> HTML {
         let tests: [ResultBundle.Test]
-        switch showFilter {
+        switch state.showFilter {
         case .failed:
             tests = result.testsFailedExcludingRetries()
         case .passed:
@@ -175,7 +164,7 @@ struct ResultRouteHTML: Routable {
             
         let groupNames = Set(tests.map({ $0.groupName })).sorted()
         
-        let testFailureMessages = failureMessageFilter == .enable ? tests.failureMessages() : [:]
+        let testFailureMessages = state.showFailureMessage ? tests.failureMessages() : [:]
                 
         return table {
             columnGroup(styles: [TableColumnStyle(span: 1, styles: [StyleAttribute(key: "wrap-word", value: "break-word")]),
@@ -213,19 +202,19 @@ struct ResultRouteHTML: Routable {
                     forEach(tests) { test in
                         return tableRow {
                             tableData {
-                                self.linkToResultDetail(test: test, showFilter: showFilter) {
+                                link(url: resultDetailUrlString(result: result, test: test, state: state, backUrl: backUrl)) {
                                     image(url: result.htmlStatusImageUrl(for: test))
                                         .attr("title", result.htmlStatusTitle(for: test))
                                         .iconStyleAttributes(width: 14)
                                         .class("icon")
                                     test.name
-                                    if test.status == .failure, failureMessageFilter == .enable, let failureMessage = testFailureMessages[test.identifier] {
+                                    if test.status == .failure, state.showFailureMessage, let failureMessage = testFailureMessages[test.identifier] {
                                         div { failureMessage }.class("row indent3 background color-error")
                                     }
                                 }.class(result.htmlTextColor(for: test))
                             }.class("row indent3")
                             tableData {
-                                self.linkToResultDetail(test: test, showFilter: showFilter) {
+                                link(url: resultDetailUrlString(result: result, test: test, state: state, backUrl: backUrl)) {
                                     hoursMinutesSeconds(in: test.duration)
                                 }.class("color-text")
                             }.alignment(.left).class("row indent1")
@@ -236,16 +225,54 @@ struct ResultRouteHTML: Routable {
             }
         }.style([StyleAttribute(key: "table-layout", value: "fixed")])
     }
-        
-    private func linkToResultDetail(test: ResultBundle.Test, showFilter: ShowFilter, @HTMLBuilder child: () -> HTML) -> HTML {
-        return link(url: "/html/test?id=\(test.summaryIdentifier!)\(showFilter.params())") {
-            child()
-        }
-    }    
+    
+    private func currentUrl(result: ResultBundle, state: RouteState, backUrl: String) -> String {
+        "\(self.path)?id=\(result.identifier)\(state)&back_url=\(backUrl.hexadecimalRepresentation)"
+    }
+    
+    private func resultDetailUrlString(result: ResultBundle, test: ResultBundle.Test, state: RouteState, backUrl: String) -> String {
+        "/html/test?id=\(test.summaryIdentifier!)&back_url=\(currentUrl(result: result, state: state, backUrl: backUrl).hexadecimalRepresentation)"
+    }
 }
 
 private extension ResultBundle {
     func testsFailedExcludingRetries() -> [ResultBundle.Test] {
         return testsFailed.filter { test in testsUniquelyFailed.contains(where: { test.matches($0) }) }
+    }
+}
+
+private extension ResultRouteHTML {
+    struct RouteState: Codable, CustomStringConvertible {
+        static let key = "state"
+        
+        enum ShowFilter: String, Codable { case all, passed, failed, retried }
+        
+        var showFilter: ShowFilter
+        var showFailureMessage: Bool
+        
+        init(queryItems: [URLQueryItem]?) {
+            self.init(hexadecimalRepresentation: queryItems?.first(where: { $0.name == Self.key})?.value)
+        }
+
+        init(hexadecimalRepresentation: String?) {
+            if let hexadecimalRepresentation = hexadecimalRepresentation,
+               let data = Data(hexadecimalRepresentation: hexadecimalRepresentation),
+               let state = try? JSONDecoder().decode(RouteState.self, from: data) {
+                showFilter = state.showFilter
+                showFailureMessage = state.showFailureMessage
+            } else {
+                showFilter = .all
+                showFailureMessage = false
+            }
+        }
+        
+        var description: String {
+            guard let data = try? JSONEncoder().encode(self),
+                  let hexRepresentation = data.hexadecimalRepresentation else {
+                return ""
+            }
+                        
+            return "&\(Self.key)=" + hexRepresentation
+        }
     }
 }

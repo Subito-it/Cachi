@@ -75,16 +75,27 @@ struct ResultBundle: Codable {
         let commitMessage: String?
         let commitHash: String?
         let metadata: String?
-        
+        let startDate: Date?
+        let endDate: Date?
+                
         init(from decoder: Decoder) throws {
             let container = try decoder.container(keyedBy: CodingKeys.self)
             
             self.branchName = try container.decodeIfPresent(String.self, forKey: .branchName)
+                        
             self.commitMessage = try container.decodeIfPresent(String.self, forKey: .commitMessage)
             self.commitHash = try container.decodeIfPresent(String.self, forKey: .commitHash)
             self.metadata = try container.decodeIfPresent(String.self, forKey: .metadata)
+            
+            self.startDate = try container.decodeIfPresent(Date.self, forKey: .startDate)
+            self.endDate = try container.decodeIfPresent(Date.self, forKey: .endDate)
 
-            if self.branchName == nil, self.commitMessage == nil, self.commitHash == nil, self.metadata == nil {
+            if self.branchName == nil,
+               self.commitMessage == nil,
+               self.commitHash == nil,
+               self.metadata == nil,
+               self.startDate == nil,
+               self.endDate == nil {
                 throw Error.empty
             }
         }

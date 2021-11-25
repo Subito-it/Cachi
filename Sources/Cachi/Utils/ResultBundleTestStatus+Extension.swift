@@ -1,7 +1,7 @@
 extension ResultBundle {
     func htmlTitle() -> String {
-        if let userInfo = userInfo {
-            return "\(userInfo.branchName) - \(userInfo.commitHash)"
+        if let branchName = userInfo?.branchName, let commitHash = userInfo?.commitHash {
+            return "\(branchName) - \(commitHash)"
         } else {
             return identifier
         }

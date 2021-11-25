@@ -12,9 +12,10 @@ struct ResultInfo: Codable {
     let count: Int
     let has_crashes: Bool
     let destinations: String
-    let branch: String
-    let commit_hash: String
-    let commit_message: String
+    let branch: String?
+    let commit_hash: String?
+    let commit_message: String?
+    let metadata: String?
 }
 
 struct ResultsRoute: Routable {
@@ -47,9 +48,10 @@ struct ResultsRoute: Routable {
                                   count: result.tests.count,
                                   has_crashes: result.testsCrashCount > 0,
                                   destinations: result.destinations,
-                                  branch: result.userInfo?.branchName ?? "",
-                                  commit_hash: result.userInfo?.commitHash ?? "",
-                                  commit_message: result.userInfo?.commitMessage ?? "")
+                                  branch: result.userInfo?.branchName,
+                                  commit_hash: result.userInfo?.commitHash,
+                                  commit_message: result.userInfo?.commitMessage,
+                                  metadata: result.userInfo?.metadata)
             
             resultInfos.append(info)
         }

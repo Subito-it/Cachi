@@ -69,9 +69,25 @@ struct ResultBundle: Codable {
     }
     
     struct UserInfo: Codable {
-        let branchName: String
-        let commitMessage: String
-        let commitHash: String
+        enum Error: Swift.Error { case empty }
+        
+        let branchName: String?
+        let commitMessage: String?
+        let commitHash: String?
+        let metadata: String?
+        
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            
+            self.branchName = try container.decodeIfPresent(String.self, forKey: .branchName)
+            self.commitMessage = try container.decodeIfPresent(String.self, forKey: .commitMessage)
+            self.commitHash = try container.decodeIfPresent(String.self, forKey: .commitHash)
+            self.metadata = try container.decodeIfPresent(String.self, forKey: .metadata)
+
+            if self.branchName == nil, self.commitMessage == nil, self.commitHash == nil, self.metadata == nil {
+                throw Error.empty
+            }
+        }
     }
     
     let identifier: String

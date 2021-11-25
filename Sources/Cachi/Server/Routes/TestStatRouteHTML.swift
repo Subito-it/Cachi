@@ -52,7 +52,7 @@ struct TestStatRouteHTML: Routable {
             return promise.succeed(res)
         }
         
-        matchingResults = matchingResults.sorted(by: { $0.resultBundle.date < $1.resultBundle.date })
+        matchingResults = matchingResults.sorted(by: { $0.resultBundle.startDate < $1.resultBundle.startDate })
         
         let allTests = matchingResults.map { $0.tests }.flatMap { $0 }
         let allTestsAverageDuration = allTests.reduce(0, { $0 + $1.duration}) / Double(max(1, allTests.count))

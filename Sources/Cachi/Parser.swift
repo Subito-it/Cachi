@@ -91,10 +91,16 @@ class Parser {
             os_log("No tests found in test bundle '%@'", log: .default, type: .info, bundlePath)
             return nil
         }
-
-        let date = tests.map { $0.startDate }.sorted().first!
-        let totalExecutionTime = tests.reduce(0, { $0 + $1.duration })
         
+        var totalExecutionTime = 0.0
+        var minStartDate = Date.distantFuture
+        var maxEndDate = Date.distantPast
+        for test in tests {
+            minStartDate = min(minStartDate, test.startDate)
+            maxEndDate = max(maxEndDate, test.startDate.addingTimeInterval(test.duration))
+            totalExecutionTime += test.duration
+        }
+
         let testsPassed = tests.filter { $0.status == .success }
         let testsFailed = tests.filter { $0.status == .failure }
         let testsGrouped = Array(Dictionary(grouping: tests, by: { "\($0.groupName)-\($0.name)-\($0.deviceModel)-\($0.deviceOs)" }).values)
@@ -106,7 +112,7 @@ class Parser {
         return ResultBundle(identifier: bundleIdentifier,
                             xcresultUrls: Set(urls),
                             destinations: runDestinations.joined(separator: ", "),
-                            date: date,
+                            startDate: minStartDate,
                             totalExecutionTime: totalExecutionTime,
                             tests: tests,
                             testsPassed: testsPassed,

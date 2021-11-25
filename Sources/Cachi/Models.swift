@@ -93,7 +93,7 @@ struct ResultBundle: Codable {
     let identifier: String
     let xcresultUrls: Set<URL>
     let destinations: String
-    let date: Date
+    let startDate: Date
     let totalExecutionTime: TimeInterval
     let tests: [Test]
     let testsPassed: [Test]

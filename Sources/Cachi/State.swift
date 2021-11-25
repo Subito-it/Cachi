@@ -131,7 +131,7 @@ class State {
 
         syncQueue.sync(flags: .barrier) {
             _resultBundles += resultBundles
-            _resultBundles.sort(by: { $0.date > $1.date })
+            _resultBundles.sort(by: { $0.startDate > $1.startDate })
         }
 
         let parser = Parser()
@@ -141,7 +141,7 @@ class State {
                 if let resultBundle = parser.parseResultBundles(urls: urls) {
                     syncQueue.sync(flags: .barrier) {
                         _resultBundles.append(resultBundle)
-                        _resultBundles.sort(by: { $0.date > $1.date })
+                        _resultBundles.sort(by: { $0.startDate > $1.startDate })
                         _state = .parsing(progress: Double(index) / Double(bundleUrls.count))
                         writeCachedResultBundle(resultBundle)
                     }
@@ -292,7 +292,7 @@ class State {
         var successfulTests = ArraySlice<ResultBundle.Test>()
         var failedTests = ArraySlice<ResultBundle.Test>()
         
-        let sortedResultBundles = resultBundles.sorted { $0.date > $1.date }
+        let sortedResultBundles = resultBundles.sorted { $0.startDate > $1.startDate }
                 
         for resultBundle in sortedResultBundles {
             let matchingTests = resultBundle.tests.filter { $0.routeIdentifier == md5Identifier }

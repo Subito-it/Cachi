@@ -58,7 +58,7 @@ struct ResultsRouteHTML: Routable {
     }
     
     private func resultsTableHTML(results: [ResultBundle], backUrl: String) -> HTML {
-        let days = results.map { DateFormatter.dayMonthFormatter.string(from: $0.date) }.uniques
+        let days = results.map { DateFormatter.dayMonthFormatter.string(from: $0.startDate) }.uniques
         
         if days.count == 0 {
             return table {
@@ -72,7 +72,7 @@ struct ResultsRouteHTML: Routable {
         } else {
             return table {
                 forEach(days) { day in
-                    let dayResults = results.filter { DateFormatter.dayMonthFormatter.string(from: $0.date) == day }
+                    let dayResults = results.filter { DateFormatter.dayMonthFormatter.string(from: $0.startDate) == day }
                     
                     return HTMLBuilder.buildBlock(
                         tableRow {

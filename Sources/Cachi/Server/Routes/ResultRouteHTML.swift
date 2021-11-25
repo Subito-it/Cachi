@@ -64,7 +64,7 @@ struct ResultRouteHTML: Routable {
     private func floatingHeaderHTML(result: ResultBundle, state: RouteState, backUrl: String) -> HTML {
         let resultTitle = result.htmlTitle()
         let resultSubtitle = result.htmlSubtitle()
-        let resultDate = DateFormatter.fullDateFormatter.string(from: result.date)
+        let resultDate = DateFormatter.fullDateFormatter.string(from: result.startDate)
         
         let resultDevice = "\(result.tests.first!.deviceModel) (\(result.tests.first!.deviceOs))"
                 

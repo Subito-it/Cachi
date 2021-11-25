@@ -3,6 +3,7 @@ import HTTPKit
 import os
 
 struct ResultInfo: Codable {
+    let target_name: String
     let identifier: String
     let url: String
     let html_url: String
@@ -39,8 +40,10 @@ struct ResultsRoute: Routable {
         let results = State.shared.resultBundles
         
         var resultInfos = [ResultInfo]()
+
         for result in results {
-            let info = ResultInfo(identifier: result.identifier,
+            let info = ResultInfo(target_name: result.tests.first?.targetName ?? "",
+                                  identifier: result.identifier,
                                   url: "\(ResultRoute().path)?\(result.identifier)",
                                   html_url: "\(ResultRouteHTML(baseUrl: baseUrl, depth: depth, mergeResults: mergeResults).path)?id=\(result.identifier)",
                                   start_date: result.startDate,

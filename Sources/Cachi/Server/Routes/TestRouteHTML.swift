@@ -89,7 +89,7 @@ struct TestRouteHTML: Routable {
         var nextTest: ResultBundle.Test?
         
         if test.status == .failure {
-            let sortedTests = result.testsFailed.sorted(by: { "\($0.groupName)-\($0.name)-\($0.startDate.timeIntervalSince1970)" < "\($1.groupName)-\($1.name)-\($1.startDate.timeIntervalSince1970)" })
+            let sortedTests = result.testsFailed.sorted(by: { "\($0.groupName)-\($0.name)-\($0.testStartDate.timeIntervalSince1970)" < "\($1.groupName)-\($1.name)-\($1.testStartDate.timeIntervalSince1970)" })
             
             if let index = sortedTests.firstIndex(of: test) {
                 if index > 0 {

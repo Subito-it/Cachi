@@ -96,8 +96,8 @@ class Parser {
         var minStartDate = Date.distantFuture
         var maxEndDate = Date.distantPast
         for test in tests {
-            minStartDate = min(minStartDate, test.startDate)
-            maxEndDate = max(maxEndDate, test.startDate.addingTimeInterval(test.duration))
+            minStartDate = min(minStartDate, test.testStartDate)
+            maxEndDate = max(maxEndDate, test.testStartDate.addingTimeInterval(test.duration))
             totalExecutionTime += test.duration
         }
 
@@ -112,8 +112,8 @@ class Parser {
         return ResultBundle(identifier: bundleIdentifier,
                             xcresultUrls: Set(urls),
                             destinations: runDestinations.joined(separator: ", "),
-                            startDate: minStartDate,
-                            endDate: maxEndDate,
+                            testStartDate: minStartDate,
+                            testEndDate: maxEndDate,
                             totalExecutionTime: totalExecutionTime,
                             tests: tests,
                             testsPassed: testsPassed,
@@ -257,7 +257,7 @@ class Parser {
                                              groupName: group.name,
                                              groupIdentifier: group.identifier,
                                              name: $0.name,
-                                             startDate: actionRecord.startedTime,
+                                             testStartDate: actionRecord.startedTime,
                                              duration: $0.duration ?? 0,
                                              status: testStatus,
                                              deviceName: targetDeviceRecord.name,

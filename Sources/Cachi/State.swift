@@ -131,7 +131,7 @@ class State {
 
         syncQueue.sync(flags: .barrier) {
             _resultBundles += resultBundles
-            _resultBundles.sort(by: { $0.startDate > $1.startDate })
+            _resultBundles.sort(by: { $0.testStartDate > $1.testStartDate })
         }
 
         let parser = Parser()
@@ -141,7 +141,7 @@ class State {
                 if let resultBundle = parser.parseResultBundles(urls: urls) {
                     syncQueue.sync(flags: .barrier) {
                         _resultBundles.append(resultBundle)
-                        _resultBundles.sort(by: { $0.startDate > $1.startDate })
+                        _resultBundles.sort(by: { $0.testStartDate > $1.testStartDate })
                         _state = .parsing(progress: Double(index) / Double(bundleUrls.count))
                         writeCachedResultBundle(resultBundle)
                     }
@@ -214,7 +214,7 @@ class State {
             }
         }
         
-        let targetTests = allTests(in: target).sorted(by: { $0.startDate > $1.startDate }).filter { $0.groupName != "System Failures" }
+        let targetTests = allTests(in: target).sorted(by: { $0.testStartDate > $1.testStartDate }).filter { $0.groupName != "System Failures" }
         let deviceTests = targetTests.filter { $0.deviceModel == device.model && $0.deviceOs == device.os }
         
         let stats = NSMutableDictionary()
@@ -292,7 +292,7 @@ class State {
         var successfulTests = ArraySlice<ResultBundle.Test>()
         var failedTests = ArraySlice<ResultBundle.Test>()
         
-        let sortedResultBundles = resultBundles.sorted { $0.startDate > $1.startDate }
+        let sortedResultBundles = resultBundles.sorted { $0.testStartDate > $1.testStartDate }
                 
         for resultBundle in sortedResultBundles {
             let matchingTests = resultBundle.tests.filter { $0.routeIdentifier == md5Identifier }

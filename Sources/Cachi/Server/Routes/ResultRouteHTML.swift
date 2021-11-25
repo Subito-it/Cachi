@@ -64,7 +64,7 @@ struct ResultRouteHTML: Routable {
     private func floatingHeaderHTML(result: ResultBundle, state: RouteState, backUrl: String) -> HTML {
         let resultTitle = result.htmlTitle()
         let resultSubtitle = result.htmlSubtitle()
-        let resultDate = DateFormatter.fullDateFormatter.string(from: result.startDate)
+        let resultDate = DateFormatter.fullDateFormatter.string(from: result.testStartDate)
         
         let resultDevice = "\(result.tests.first!.deviceModel) (\(result.tests.first!.deviceOs))"
                 
@@ -177,7 +177,7 @@ struct ResultRouteHTML: Routable {
             }.id("table-header")
             
             forEach(groupNames) { group in
-                let tests = tests.filter { $0.groupName == group }.sorted(by: { "\($0.name)-\($0.startDate.timeIntervalSince1970)" < "\($1.name)-\($1.startDate.timeIntervalSince1970)" })
+                let tests = tests.filter { $0.groupName == group }.sorted(by: { "\($0.name)-\($0.testStartDate.timeIntervalSince1970)" < "\($1.name)-\($1.testStartDate.timeIntervalSince1970)" })
                 let testsCount = tests.count
                 let testsFailedCount = tests.filter({ $0.status == .failure }).count
                 let testsPassedCount = testsCount - testsFailedCount

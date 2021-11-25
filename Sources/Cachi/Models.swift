@@ -57,7 +57,7 @@ struct ResultBundle: Codable {
         let groupName: String
         let groupIdentifier: String
         let name: String
-        let startDate: Date
+        let testStartDate: Date
         let duration: Double
         let status: Status
         let deviceName: String
@@ -93,8 +93,8 @@ struct ResultBundle: Codable {
     let identifier: String
     let xcresultUrls: Set<URL>
     let destinations: String
-    let startDate: Date
-    let endDate: Date
+    let testStartDate: Date
+    let testEndDate: Date
     let totalExecutionTime: TimeInterval
     let tests: [Test]
     let testsPassed: [Test]

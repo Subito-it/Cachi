@@ -5,7 +5,7 @@ import os
 struct ResultInfo: Codable {
     let identifier: String
     let url: String
-    let htmlUrl: String
+    let html_url: String
     let start_date: Date
     let end_date: Date
     let success_count: Int
@@ -42,7 +42,7 @@ struct ResultsRoute: Routable {
         for result in results {
             let info = ResultInfo(identifier: result.identifier,
                                   url: "\(ResultRoute().path)?\(result.identifier)",
-                                  htmlUrl: "\(ResultRouteHTML(baseUrl: baseUrl, depth: depth, mergeResults: mergeResults).path)?id=\(result.identifier)",
+                                  html_url: "\(ResultRouteHTML(baseUrl: baseUrl, depth: depth, mergeResults: mergeResults).path)?id=\(result.identifier)",
                                   start_date: result.startDate,
                                   end_date: result.endDate,
                                   success_count: result.testsPassed.count,

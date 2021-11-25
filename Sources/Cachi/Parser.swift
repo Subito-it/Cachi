@@ -113,6 +113,7 @@ class Parser {
                             xcresultUrls: Set(urls),
                             destinations: runDestinations.joined(separator: ", "),
                             startDate: minStartDate,
+                            endDate: maxEndDate,
                             totalExecutionTime: totalExecutionTime,
                             tests: tests,
                             testsPassed: testsPassed,

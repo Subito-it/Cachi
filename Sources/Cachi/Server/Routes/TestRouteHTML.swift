@@ -214,8 +214,6 @@ struct TestRouteHTML: Routable {
     private func rowsData(from actionSummaries: [ActionTestActivitySummary], currentTimestamp: Double, indentation: Int = 1, lastScreenshotIdentifier: String = "", lastScreenshotContentType: String = "") -> [RowData] {
         var data = [RowData]()
                 
-        var screenshotIdentifier = lastScreenshotIdentifier
-        var screenshotContentType = lastScreenshotContentType
         for summary in actionSummaries {
             guard var title = summary.title else {
                 continue
@@ -251,18 +249,17 @@ struct TestRouteHTML: Routable {
                 }
                 
                 let isScreenshot = attachment.name == "kXCTAttachmentLegacyScreenImageData"
-                if isScreenshot {
-                    screenshotIdentifier = attachmentIdentifier
-                    screenshotContentType = attachmentContentType
-                }
-                
                 subRowData += [RowData(indentation: indentation + 1, title: attachmentTitle , attachmentImage: attachmentImage, attachmentIdentifier: attachmentIdentifier, attachmentContentType: attachmentContentType, hasChildren: false, isError: false, isKeyScreenshot: isScreenshot, isScreenshot: isScreenshot)]
             }
+            
+            let lastScreenshotRow = (data + subRowData).reversed().first(where: { $0.isKeyScreenshot })
+            let screenshotIdentifier = lastScreenshotRow?.attachmentIdentifier ?? lastScreenshotIdentifier
+            let screenshotContentType = lastScreenshotRow?.attachmentContentType ?? lastScreenshotContentType
                         
             let isError = summary.activityType == "com.apple.dt.xctest.activity-type.testAssertionFailure"
             
             let actionTimestamp = summary.start?.timeIntervalSince1970 ?? currentTimestamp
-            subRowData = subRowData + rowsData(from: summary.subactivities, currentTimestamp: currentTimestamp, indentation: indentation + 1, lastScreenshotIdentifier: screenshotIdentifier, lastScreenshotContentType: screenshotContentType)
+            subRowData += rowsData(from: summary.subactivities, currentTimestamp: currentTimestamp, indentation: indentation + 1, lastScreenshotIdentifier: screenshotIdentifier, lastScreenshotContentType: screenshotContentType)
 
             title += currentTimestamp - actionTimestamp == 0 ? " (Start)" : " (\(String(format: "%.2f", actionTimestamp - currentTimestamp))s)"
             

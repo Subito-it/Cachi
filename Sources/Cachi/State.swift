@@ -84,7 +84,7 @@ class State {
         var results = [(result: PendingResultBundle, creationDate: Date)]()
 
         for urls in bundleUrls {
-            let bundlePath = (urls.count > 1 ? urls.first?.deletingLastPathComponent() : urls.first)?.absoluteString ?? ""
+            let bundlePath = (urls.count > 1 ? urls.first?.deletingLastPathComponent() : urls.first)?.path ?? ""
             
             let benchId = benchmarkStart()
             let creationDate = ((try? FileManager.default.attributesOfItem(atPath: bundlePath))?[.creationDate] as? Date) ?? Date()

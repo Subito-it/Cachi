@@ -8,5 +8,9 @@ func hoursMinutesSeconds(in elapsed: Double) -> String {
     if minutes > 0 { components.append("\(minutes)m") }
     if seconds > 0 { components.append("\(seconds)s") }
     
-    return components.joined(separator: " ")
+    if components.isEmpty {
+        return "-"
+    } else {
+        return components.joined(separator: " ")
+    }
 }

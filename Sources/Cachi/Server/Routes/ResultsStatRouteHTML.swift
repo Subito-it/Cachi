@@ -34,6 +34,7 @@ struct ResultsStatRouteHTML: Routable {
         let typeFilter = ResultBundle.TestStatsType(rawValue: queryItems.first(where: { $0.name == ResultBundle.TestStatsType.queryName })?.value ?? "") ?? .flaky
         let selectedTarget = queryItems.first(where: { $0.name == "target" })?.value ?? allTargets.first!
         var rawSelectedDevice = queryItems.first(where: { $0.name == "device" })?.value
+        let rawWindowSize = queryItems.first(where: { $0.name == "window_size" })?.value ?? ""
         
         let backUrl = components.queryItems?.backUrl ?? ""
 
@@ -50,8 +51,10 @@ struct ResultsStatRouteHTML: Routable {
             let res = HTTPResponse(status: .notFound, body: HTTPBody(staticString: "Empty selected device..."))
             return promise.succeed(res)
         }
+
+        let windowSize = Int(rawWindowSize) ?? State.defaultStatWindowSize
         
-        let testStats = State.shared.resultsTestStats(target: selectedTarget, device: selectedDevice, type: typeFilter)
+        let testStats = State.shared.resultsTestStats(target: selectedTarget, device: selectedDevice, type: typeFilter, windowSize: windowSize)
 
         let document = html {
             head {
@@ -61,7 +64,7 @@ struct ResultsStatRouteHTML: Routable {
             }
             body {
                 div {
-                    div { floatingHeaderHTML(targets: allTargets, selectedTarget: selectedTarget, devices: allDevices.map(\.description), selectedDevice: rawSelectedDevice!, typeFilter: typeFilter, backUrl: backUrl) }.class("sticky-top").id("top-bar")
+                    div { floatingHeaderHTML(targets: allTargets, selectedTarget: selectedTarget, devices: allDevices.map(\.description), selectedDevice: rawSelectedDevice!, typeFilter: typeFilter, windowSize: windowSize, backUrl: backUrl) }.class("sticky-top").id("top-bar")
                     div { resultsTableHTML(testStats: testStats, selectedTarget: selectedTarget, selectedDevice: rawSelectedDevice!, statType: typeFilter, backUrl: backUrl) }
                 }.class("main-container background")
                 script(filepath: Filepath(name: "/script?type=result-stat", path: ""))
@@ -71,7 +74,7 @@ struct ResultsStatRouteHTML: Routable {
         return promise.succeed(document.httpResponse())
     }
     
-    private func floatingHeaderHTML(targets: [String], selectedTarget: String, devices: [String], selectedDevice: String, typeFilter: ResultBundle.TestStatsType, backUrl: String) -> HTML {
+    private func floatingHeaderHTML(targets: [String], selectedTarget: String, devices: [String], selectedDevice: String, typeFilter: ResultBundle.TestStatsType, windowSize: Int, backUrl: String) -> HTML {
         return div {
             div {
                 div {
@@ -94,6 +97,16 @@ struct ResultsStatRouteHTML: Routable {
                         option { device }.attr(device == selectedDevice ? "selected" : "", nil)
                     }
                 }.id("device")
+                "&nbsp;&nbsp;"
+                span {
+                    span { "Window size" }.id("filter-placeholder");
+                    input().id("filter-input")
+                        .attr("value", "\(windowSize)")
+                        .style([.init(key: "width", value: "25px")])
+                }
+                .id("filter-search")
+                .style([.init(key: "width", value: "140px")])
+
                 "&nbsp;&nbsp;&nbsp;&nbsp;"
                 link(url: "\(currentUrl(selectedTarget: selectedTarget, selectedDevice: selectedDevice, statType: .flaky, backUrl: backUrl))") { ResultBundle.TestStatsType.flaky.rawValue.capitalized }.class(typeFilter == .flaky ? "button-selected" : "button")
                 link(url: "\(currentUrl(selectedTarget: selectedTarget, selectedDevice: selectedDevice, statType: .slowest, backUrl: backUrl))") { ResultBundle.TestStatsType.slowest.rawValue.capitalized }.class(typeFilter == .slowest ? "button-selected" : "button")

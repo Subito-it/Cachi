@@ -30,6 +30,8 @@ class State {
     }
     
     static let shared = State()
+
+    static let defaultStatWindowSize = 20
     
     private var _resultBundles: [ResultBundle]
     var resultBundles: [ResultBundle] {
@@ -194,7 +196,7 @@ class State {
         return .init(appStandardOutput: sessionLogs?[.appStdOutErr], runerAppStandardOutput: sessionLogs?[.runnerAppStdOutErr], sessionLogs: sessionLogs?[.session])
     }
         
-    func resultsTestStats(target: String, device: Device, type: ResultBundle.TestStatsType) -> [ResultBundle.TestStats] {
+    func resultsTestStats(target: String, device: Device, type: ResultBundle.TestStatsType, windowSize: Int?) -> [ResultBundle.TestStats] {
         class RawTestStats: NSObject {
             var groupName: String
             var testName: String
@@ -214,12 +216,11 @@ class State {
             }
         }
         
+        let windowSize = windowSize ?? Self.defaultStatWindowSize
         let targetTests = allTests(in: target).sorted(by: { $0.testStartDate > $1.testStartDate }).filter { $0.groupName != "System Failures" }
         let deviceTests = targetTests.filter { $0.deviceModel == device.model && $0.deviceOs == device.os }
         
         let stats = NSMutableDictionary()
-
-        let windowSize = 20.0
         
         for test in deviceTests {
             guard let testSummaryIdentifier = test.summaryIdentifier else { continue }
@@ -229,7 +230,7 @@ class State {
             }
             let testStat = stats[test.targetIdentifier] as! RawTestStats
 
-            if testStat.executionSequence.count >= Int(windowSize) {
+            if testStat.executionSequence.count >= windowSize {
                 continue
             }
 
@@ -252,7 +253,7 @@ class State {
             var totalWeight = 0.0
             var failureRatio = 0.0
             for (index, success) in stat.executionSequence.enumerated() {
-                let weight = elementWeight * (1.0 - Double(index) / windowSize)
+                let weight = elementWeight * (1.0 - Double(index) / Double(windowSize))
                 totalWeight += weight
                 
                 if !success {

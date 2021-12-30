@@ -16,15 +16,17 @@ struct ResultsStatRoute: Routable {
               let deviceOs = queryItems.first(where: { $0.name == "device_os" })?.value,
               let rawStatType = queryItems.first(where: { $0.name == "type" })?.value,
               let statType = ResultBundle.TestStatsType(rawValue: rawStatType) else {
-            let res = HTTPResponse(status: .notFound, body: HTTPBody(staticString: "Not all required parameters provided. Expecting target, device_model, device_os, type"))
+            let res = HTTPResponse(status: .notFound, body: HTTPBody(staticString: "Not all required parameters provided. Expecting target, device_model, device_os, type. Optionally you can pass the window_size to specify numer of events per test"))
             
             return promise.succeed(res)
         }
 
+        let rawWindowSize = queryItems.first(where: { $0.name == "window_size" })?.value ?? "" // optional parameter
+
         let benchId = benchmarkStart()
         defer { os_log("Results stats for fetched in %fms", log: .default, type: .info, benchmarkStop(benchId)) }
         
-        let stats = State.shared.resultsTestStats(target: targetName, device: .init(model: deviceModel, os: deviceOs), type: statType)
+        let stats = State.shared.resultsTestStats(target: targetName, device: .init(model: deviceModel, os: deviceOs), type: statType, windowSize: Int(rawWindowSize))
 
         let res: HTTPResponse
         if let bodyData = try? JSONEncoder().encode(stats) {

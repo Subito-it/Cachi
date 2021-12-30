@@ -278,7 +278,7 @@ struct ScriptRoute: Routable {
                 const params = new URLSearchParams(currentLocation.search)
                 const typeParam = params.get('test')
 
-                const updatedParams = `target=${document.getElementById('target').value}&device=${document.getElementById('device').value}&type=typeParam`;
+                const updatedParams = `target=${document.getElementById('target').value}&device=${document.getElementById('device').value}&type=typeParam&window_size=${document.getElementById('filter-input').value}`;
               
                 window.location = '/html/results_stat?' + updatedParams;
             }
@@ -288,6 +288,11 @@ struct ScriptRoute: Routable {
             };
             document.getElementById('device').onchange = function() {
                 updateLocation();
+            };
+            document.getElementById('filter-input').onkeydown = function(e) {
+                if (e.keyCode == 13) {
+                    updateLocation();
+                }
             };
 """
     }

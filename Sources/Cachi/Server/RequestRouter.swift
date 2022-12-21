@@ -9,15 +9,15 @@ struct RequestRouter: HTTPServerDelegate {
     let routes: [Routable]
     let unhandledRoute = UnhandledRoute()
     
-    init(baseUrl: URL, parseDepth: Int, mergeResults: Bool) {
+    init(baseUrl: URL, parseDepth: Int, mergeResults: Bool, ignoreSystemFailures: Bool) {
         self.baseUrl = baseUrl
         self.parseDepth = parseDepth
         self.mergeResults = mergeResults
         
         var routes = [Routable]()
         routes = [
-            ResetRoute(baseUrl: baseUrl, depth: parseDepth, mergeResults: mergeResults),
-            ParseRoute(baseUrl: baseUrl, depth: parseDepth, mergeResults: mergeResults),
+            ResetRoute(baseUrl: baseUrl, depth: parseDepth, mergeResults: mergeResults, ignoreSystemFailures: ignoreSystemFailures),
+            ParseRoute(baseUrl: baseUrl, depth: parseDepth, mergeResults: mergeResults, ignoreSystemFailures: ignoreSystemFailures),
             KillRoute(),
             VersionRoute(),
             HomeRoute(),
@@ -25,14 +25,14 @@ struct RequestRouter: HTTPServerDelegate {
             TestStatRouteHTML(baseUrl: baseUrl, depth: parseDepth),
             TestSessionLogsRouteHTML(),
             TestRoute(),
-            ResultsRoute(baseUrl: baseUrl, depth: parseDepth, mergeResults: mergeResults),
-            ResultsIdentifiersRoute(baseUrl: baseUrl, depth: parseDepth, mergeResults: mergeResults),
+            ResultsRoute(baseUrl: baseUrl, depth: parseDepth, mergeResults: mergeResults, ignoreSystemFailures: ignoreSystemFailures),
+            ResultsIdentifiersRoute(baseUrl: baseUrl, depth: parseDepth, mergeResults: mergeResults, ignoreSystemFailures: ignoreSystemFailures),
             ResultRoute(),
             HelpRoute(futureRoutes: { routes.map { AnyRoutable($0) } }),
             ResultsRouteHTML(),
             ResultsStatRoute(),
             ResultsStatRouteHTML(),
-            ResultRouteHTML(baseUrl: baseUrl, depth: parseDepth, mergeResults: mergeResults),
+            ResultRouteHTML(baseUrl: baseUrl, depth: parseDepth, mergeResults: mergeResults, ignoreSystemFailures: ignoreSystemFailures),
             TestRouteHTML(),
             AttachmentRoute(),
             ImageRoute(),

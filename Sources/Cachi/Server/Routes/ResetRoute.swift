@@ -9,11 +9,13 @@ struct ResetRoute: Routable {
     private let baseUrl: URL
     private let depth: Int
     private let mergeResults: Bool
+    private let ignoreSystemFailures: Bool
     
-    init(baseUrl: URL, depth: Int, mergeResults: Bool) {
+    init(baseUrl: URL, depth: Int, mergeResults: Bool, ignoreSystemFailures: Bool) {
         self.baseUrl = baseUrl
         self.depth = depth
         self.mergeResults = mergeResults
+        self.ignoreSystemFailures = ignoreSystemFailures
     }
     
     func respond(to req: HTTPRequest, with promise: EventLoopPromise<HTTPResponse>) {
@@ -26,7 +28,7 @@ struct ResetRoute: Routable {
         case let .parsing(progress):
             res = HTTPResponse(body: HTTPBody(string: #"{ "status": "parsing \#(Int(progress * 100))% done" }"#))
         default:
-            State.shared.parse(baseUrl: baseUrl, depth: depth, mergeResults: mergeResults)
+            State.shared.parse(baseUrl: baseUrl, depth: depth, mergeResults: mergeResults, ignoreSystemFailures: ignoreSystemFailures)
             res = HTTPResponse(body: HTTPBody(staticString: #"{ "status": "ready" }"#))
         }
 

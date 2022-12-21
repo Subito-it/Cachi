@@ -78,7 +78,7 @@ class State {
         return tests.filter { $0.targetName == target }
     }
     
-    func pendingResultBundles(baseUrl: URL, depth: Int, mergeResults: Bool) -> [PendingResultBundle] {
+    func pendingResultBundles(baseUrl: URL, depth: Int, mergeResults: Bool, ignoreSystemFailures: Bool) -> [PendingResultBundle] {
         let benchId = benchmarkStart()
         let bundleUrls = findResultBundles(at: baseUrl, depth: depth, mergeResults: mergeResults)
         os_log("Found %ld test bundles searching '%@' with depth %ld in %fms", log: .default, type: .info, bundleUrls.count, baseUrl.absoluteString, depth, benchmarkStop(benchId))
@@ -91,7 +91,7 @@ class State {
             let benchId = benchmarkStart()
             let creationDate = ((try? FileManager.default.attributesOfItem(atPath: bundlePath))?[.creationDate] as? Date) ?? Date()
 
-            if let cachedResultBundle = cachedResultBundle(urls: urls) {
+            if let cachedResultBundle = cachedResultBundle(urls: urls, ignoreSystemFailures: ignoreSystemFailures) {
                 os_log("Restored partial result bundle '%@' from cache in %fms", log: .default, type: .info, bundlePath, benchmarkStop(benchId))
                results.append((result: PendingResultBundle(identifier: cachedResultBundle.identifier, resultUrls: urls), creationDate: creationDate))
             } else {
@@ -106,7 +106,7 @@ class State {
         return results.sorted(by: { $0.creationDate > $1.creationDate }).map { $0.result }
     }
     
-    func parse(baseUrl: URL, depth: Int, mergeResults: Bool) {
+    func parse(baseUrl: URL, depth: Int, mergeResults: Bool, ignoreSystemFailures: Bool) {
         syncQueue.sync(flags: .barrier) { _state = .parsing(progress: 0) }
         
         var benchId = benchmarkStart()
@@ -124,7 +124,7 @@ class State {
             }
 
             let benchId = benchmarkStart()
-            if let cachedResultBundle = cachedResultBundle(urls: urls) {
+            if let cachedResultBundle = cachedResultBundle(urls: urls, ignoreSystemFailures: ignoreSystemFailures) {
                 os_log("Restored test bundle '%@' from cache in %fms", log: .default, type: .info, bundlePath, benchmarkStop(benchId))
                 resultBundles.append(cachedResultBundle)
                 bundleUrls.remove(at: index)
@@ -140,7 +140,7 @@ class State {
         benchId = benchmarkStart()
         for (index, urls) in bundleUrls.enumerated() {
             autoreleasepool {
-                if let resultBundle = parser.parseResultBundles(urls: urls) {
+                if let resultBundle = parser.parseResultBundles(urls: urls, ignoreSystemFailures: ignoreSystemFailures) {
                     syncQueue.sync(flags: .barrier) {
                         _resultBundles.append(resultBundle)
                         _resultBundles.sort(by: { $0.testStartDate > $1.testStartDate })
@@ -412,7 +412,7 @@ class State {
         try? data.write(to: cacheUrl)
     }
     
-    private func cachedResultBundle(urls: [URL]) -> ResultBundle? {
+    private func cachedResultBundle(urls: [URL], ignoreSystemFailures: Bool) -> ResultBundle? {
         let baseUrl: URL
 
         if urls.count == 0 {
@@ -431,6 +431,10 @@ class State {
                 if !FileManager.default.fileExists(atPath: url.path) {
                     return nil
                 }
+            }
+            
+            guard cache.ignoreSystemFailures == ignoreSystemFailures else {
+                return nil
             }
             
             return cache

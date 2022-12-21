@@ -116,6 +116,7 @@ struct ResultBundle: Codable {
     let testsRepeated: [[Test]]
     let testsCrashCount: Int
     let userInfo: UserInfo?
+    let ignoreSystemFailures: Bool
 }
 
 extension ResultBundle.Test {

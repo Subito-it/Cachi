@@ -9,15 +9,15 @@ struct RequestRouter: HTTPServerDelegate {
     let routes: [Routable]
     let unhandledRoute = UnhandledRoute()
     
-    init(baseUrl: URL, parseDepth: Int, mergeResults: Bool) {
+    init(baseUrl: URL, parseDepth: Int, mergeResults: Bool, ignoreSystemFailures: Bool) {
         self.baseUrl = baseUrl
         self.parseDepth = parseDepth
         self.mergeResults = mergeResults
         
         var routes = [Routable]()
         routes = [
-            ResetRoute(baseUrl: baseUrl, depth: parseDepth, mergeResults: mergeResults),
-            ParseRoute(baseUrl: baseUrl, depth: parseDepth, mergeResults: mergeResults),
+            ResetRoute(baseUrl: baseUrl, depth: parseDepth, mergeResults: mergeResults, ignoreSystemFailures: ignoreSystemFailures),
+            ParseRoute(baseUrl: baseUrl, depth: parseDepth, mergeResults: mergeResults, ignoreSystemFailures: ignoreSystemFailures),
             KillRoute(),
             VersionRoute(),
             HomeRoute(),

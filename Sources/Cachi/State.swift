@@ -106,7 +106,7 @@ class State {
         return results.sorted(by: { $0.creationDate > $1.creationDate }).map { $0.result }
     }
     
-    func parse(baseUrl: URL, depth: Int, mergeResults: Bool) {
+    func parse(baseUrl: URL, depth: Int, mergeResults: Bool, ignoreSystemFailures: Bool) {
         syncQueue.sync(flags: .barrier) { _state = .parsing(progress: 0) }
         
         var benchId = benchmarkStart()

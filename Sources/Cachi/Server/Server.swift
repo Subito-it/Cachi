@@ -8,9 +8,9 @@ struct Server {
     
     private let responder: RequestRouter
 
-    init(port: Int, baseUrl: URL, parseDepth: Int, mergeResults: Bool) {
+    init(port: Int, baseUrl: URL, parseDepth: Int, mergeResults: Bool, ignoreSystemFailures: Bool) {
         self.port = port
-        self.responder = RequestRouter(baseUrl: baseUrl, parseDepth: parseDepth, mergeResults: mergeResults)
+        self.responder = RequestRouter(baseUrl: baseUrl, parseDepth: parseDepth, mergeResults: mergeResults, ignoreSystemFailures: ignoreSystemFailures)
     }
     
     func listen() throws {

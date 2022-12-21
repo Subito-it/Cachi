@@ -123,7 +123,8 @@ class Parser {
                             testsUniquelyFailed: testsUniquelyFailed,
                             testsRepeated: testsRepeated,
                             testsCrashCount: testsCrashCount,
-                            userInfo: userInfo)
+                            userInfo: userInfo,
+                            ignoreSystemFailures: ignoreSystemFailures)
     }
     
     func splitHtmlCoverageFile(resultBundle: ResultBundle) throws {

@@ -10,11 +10,13 @@ struct ResultRouteHTML: Routable {
     private let baseUrl: URL
     private let depth: Int
     private let mergeResults: Bool
+    private let ignoreSystemFailures: Bool
     
-    init(baseUrl: URL, depth: Int, mergeResults: Bool) {
+    init(baseUrl: URL, depth: Int, mergeResults: Bool, ignoreSystemFailures: Bool) {
         self.baseUrl = baseUrl
         self.depth = depth
         self.mergeResults = mergeResults
+        self.ignoreSystemFailures = ignoreSystemFailures
     }
         
     func respond(to req: HTTPRequest, with promise: EventLoopPromise<HTTPResponse>) {
@@ -31,7 +33,7 @@ struct ResultRouteHTML: Routable {
         defer { os_log("Result bundle with id '%@' fetched in %fms", log: .default, type: .info, resultIdentifier, benchmarkStop(benchId)) }
                 
         guard let result = State.shared.result(identifier: resultIdentifier) else {
-            let pendingResultBundles = State.shared.pendingResultBundles(baseUrl: baseUrl, depth: depth, mergeResults: mergeResults)
+            let pendingResultBundles = State.shared.pendingResultBundles(baseUrl: baseUrl, depth: depth, mergeResults: mergeResults, ignoreSystemFailures: ignoreSystemFailures)
             if pendingResultBundles.contains(where: { $0.identifier == resultIdentifier }) {
                 let res = HTTPResponse(status: .notFound, body: HTTPBody(staticString: "Result is being parsed, please wait..."))
                 return promise.succeed(res)

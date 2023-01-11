@@ -13,6 +13,7 @@ struct ResultInfo: Codable {
     let test_end_time: Date
     let success_count: Int
     let failure_count: Int
+    let failure_by_system_count: Int
     let count: Int
     let has_crashes: Bool
     let destinations: String
@@ -54,6 +55,7 @@ struct ResultsRoute: Routable {
                                   test_end_time: result.testEndDate,
                                   success_count: result.testsPassed.count,
                                   failure_count: result.testsUniquelyFailed.count,
+                                  failure_by_system_count: result.testsFailedBySystem.count,
                                   count: result.tests.count,
                                   has_crashes: result.testsCrashCount > 0,
                                   destinations: result.destinations,

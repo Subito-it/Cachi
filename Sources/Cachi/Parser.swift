@@ -100,10 +100,13 @@ class Parser {
             maxEndDate = max(maxEndDate, test.testStartDate.addingTimeInterval(test.duration))
             totalExecutionTime += test.duration
         }
+        
+        let testsExcludingFailedBySystem = tests.filter { $0.groupName != "System Failures" }
 
         let testsPassed = tests.filter { $0.status == .success }
-        let testsFailed = tests.filter { $0.status == .failure }
-        let testsGrouped = Array(Dictionary(grouping: tests, by: { "\($0.groupName)-\($0.name)-\($0.deviceModel)-\($0.deviceOs)" }).values)
+        let testsFailed = testsExcludingFailedBySystem.filter { $0.status == .failure }
+        let testsFailedBySystem = tests.filter { $0.status == .failure && $0.groupName == "System Failures" }
+        let testsGrouped = Array(Dictionary(grouping: testsExcludingFailedBySystem, by: { "\($0.groupName)-\($0.name)-\($0.deviceModel)-\($0.deviceOs)" }).values)
         let testsRepeated = testsGrouped.filter { $0.count > 1 }
         let testsPassedRetring = testsRepeated.compactMap { $0.first(where: { $0.status == .success }) }
         let testsFailedRetring = testsGrouped.filter { $0.contains(where: { $0.status == .success })}.flatMap { $0 }.filter { $0.status == .failure }
@@ -118,6 +121,7 @@ class Parser {
                             tests: tests,
                             testsPassed: testsPassed,
                             testsFailed: testsFailed,
+                            testsFailedBySystem: testsFailedBySystem,
                             testsPassedRetring: testsPassedRetring,
                             testsFailedRetring: testsFailedRetring,
                             testsUniquelyFailed: testsUniquelyFailed,

@@ -18,7 +18,7 @@ class Parser {
         return PendingResultBundle(identifier: bundleIdentifier, resultUrls: urls)
     }
     
-    func parseResultBundles(urls: [URL], ignoreSystemFailures: Bool) -> ResultBundle? {
+    func parseResultBundles(urls: [URL]) -> ResultBundle? {
         let benchId = benchmarkStart()
         
         let bundlePath = (urls.count > 1 ? urls.first?.deletingLastPathComponent() : urls.first)?.absoluteString ?? ""
@@ -63,7 +63,7 @@ class Parser {
                             return
                         }
                         
-                        let extractedTests = self.extractTests(resultBundleUrl: url, actionTestableSummaries: testPlanSummaries.first?.testableSummaries, actionRecord: action, ignoreSystemFailures: ignoreSystemFailures)
+                        let extractedTests = self.extractTests(resultBundleUrl: url, actionTestableSummaries: testPlanSummaries.first?.testableSummaries, actionRecord: action)
                         let targetDevice = action.runDestination.targetDeviceRecord
                         let testDestination = "\(targetDevice.modelName) (\(targetDevice.operatingSystemVersion))"
                         
@@ -123,8 +123,7 @@ class Parser {
                             testsUniquelyFailed: testsUniquelyFailed,
                             testsRepeated: testsRepeated,
                             testsCrashCount: testsCrashCount,
-                            userInfo: userInfo,
-                            ignoreSystemFailures: ignoreSystemFailures)
+                            userInfo: userInfo)
     }
     
     func splitHtmlCoverageFile(resultBundle: ResultBundle) throws {
@@ -230,7 +229,7 @@ class Parser {
         return messages.filter({ $0.contains(" crashed in ") }).count
     }
     
-    private func extractTests(resultBundleUrl: URL, actionTestSummariesGroup: [ActionTestSummaryGroup], actionRecord: ActionRecord, targetName: String?, ignoreSystemFailures: Bool) -> [ResultBundle.Test] {
+    private func extractTests(resultBundleUrl: URL, actionTestSummariesGroup: [ActionTestSummaryGroup], actionRecord: ActionRecord, targetName: String?) -> [ResultBundle.Test] {
         var result = [ResultBundle.Test]()
     
         for group in actionTestSummariesGroup {
@@ -247,10 +246,6 @@ class Parser {
                     let routeIdentifier = [targetName ?? "", group.name, $0.name, targetDeviceRecord.modelName, targetDeviceRecord.operatingSystemVersion].joined(separator: "-").md5Value
                     
                     guard let summaryIdentifier = $0.summaryRef?.id else {
-                        return nil
-                    }
-                    
-                    if ignoreSystemFailures && group.name == "System Failures" {
                         return nil
                     }
                     
@@ -273,7 +268,7 @@ class Parser {
                                              summaryIdentifier: summaryIdentifier)
                 }
             } else if let subGroups =  group.subtests as? [ActionTestSummaryGroup] {
-                result += extractTests(resultBundleUrl: resultBundleUrl, actionTestSummariesGroup: subGroups, actionRecord: actionRecord, targetName: targetName, ignoreSystemFailures: ignoreSystemFailures)
+                result += extractTests(resultBundleUrl: resultBundleUrl, actionTestSummariesGroup: subGroups, actionRecord: actionRecord, targetName: targetName)
             } else {
                 os_log("Unsupported groups %@", log: .default, type: .info, String(describing: type(of: group.subtests)))
             }
@@ -282,10 +277,10 @@ class Parser {
         return result
     }
     
-    private func extractTests(resultBundleUrl: URL, actionTestableSummaries: [ActionTestableSummary]?, actionRecord: ActionRecord, ignoreSystemFailures: Bool) -> [ResultBundle.Test] {
+    private func extractTests(resultBundleUrl: URL, actionTestableSummaries: [ActionTestableSummary]?, actionRecord: ActionRecord) -> [ResultBundle.Test] {
         guard let actionTestableSummaries = actionTestableSummaries else { return [] }
     
-        return actionTestableSummaries.flatMap { extractTests(resultBundleUrl: resultBundleUrl, actionTestSummariesGroup: $0.tests, actionRecord: actionRecord, targetName: $0.targetName, ignoreSystemFailures: ignoreSystemFailures) }
+        return actionTestableSummaries.flatMap { extractTests(resultBundleUrl: resultBundleUrl, actionTestSummariesGroup: $0.tests, actionRecord: actionRecord, targetName: $0.targetName) }
     }
     
     private func resultBundleUserInfoPlist(in resultBundleUrl: URL) -> ResultBundle.UserInfo? {

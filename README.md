@@ -21,7 +21,6 @@ Cachi can be launched by passing the port for the web interface and the location
 You can optionally pass:
 - `--search_depth` to specify how deep Cachi should traverse the location path. Default is 2, larger values may impact parsing speed. 
 - `--merge` to merge multiple xcresults in the same folder as if they belong to the same test run. This can be used in advanced scenarios like for example test sharding on on multiple machines.
-- `--ignore_system_failures` ignore system failures, which are generally tests that fail before launch
 
 ```bash
 $ cachi --port number [--search_depth level] [--merge] path

@@ -11,13 +11,13 @@ struct ResultsRouteHTML: Routable {
         os_log("HTML results request received", log: .default, type: .info)
         
         let results = State.shared.resultBundles
-        
+                
         guard let components = URLComponents(url: req.url, resolvingAgainstBaseURL: false) else {
             let res = HTTPResponse(status: .notFound, body: HTTPBody(staticString: "Not found..."))
             return promise.succeed(res)
         }
 
-        let backUrl = components.queryItems?.backUrl ?? ""
+        let state = RouteState(queryItems: components.queryItems)
         
         let document = html {
             head {
@@ -27,8 +27,8 @@ struct ResultsRouteHTML: Routable {
             }
             body {
                 div {
-                    div { floatingHeaderHTML(results: results, backUrl: backUrl) }.class("sticky-top").id("top-bar")
-                    div { resultsTableHTML(results: results, backUrl: backUrl) }
+                    div { floatingHeaderHTML(results: results, state: state) }.class("sticky-top").id("top-bar")
+                    div { resultsTableHTML(results: results, state: state) }
                 }.class("main-container background")
             }
         }
@@ -36,28 +36,36 @@ struct ResultsRouteHTML: Routable {
         return promise.succeed(document.httpResponse())
     }
     
-    private func floatingHeaderHTML(results: [ResultBundle], backUrl: String) -> HTML {
-        let params = "back_url=\(currentUrl(backUrl: backUrl).hexadecimalRepresentation)"
+    private func floatingHeaderHTML(results: [ResultBundle], state: RouteState) -> HTML {
+        var blocks = [HTML]()
+        
         switch State.shared.state {
         case let .parsing(progress):
-            return div {
-                div { "Parsing \(Int(progress * 100))% done" }.alignment(.center).class("warning-container bold")
-                div { "Results" }.class("header row light-bordered-container indent1")
-                if results.count > 0 {
-                    div { link(url: "/html/results_stat?\(params)") { "Stats" }.class("button") }.class("row indent2 background")
-                }
-            }
+            blocks.append(div { "Parsing \(Int(progress * 100))% done" }.alignment(.center).class("warning-container bold"))
         default:
-            return div {
-                div { "Results" }.class("header row light-bordered-container indent1")
-                if results.count > 0 {
-                    div { link(url: "/html/results_stat?\(params)") { "Stats" }.class("button") }.class("row indent2 background")
-                }
-            }
+            break
         }
+        
+        blocks.append(div { "Results" }.class("header row light-bordered-container indent1"))
+        
+        if results.count > 0 {
+            var buttonBlocks = [HTML]()
+
+            let params = "back_url=\(currentUrl(state: state).hexadecimalRepresentation)"
+            buttonBlocks.append(link(url: "/html/results_stat?\(params)") { "Stats" }.class("button"))
+            
+            var mState = state
+            mState.showSystemFailures.toggle()
+
+            buttonBlocks.append(link(url: currentUrl(state: mState)) { "Show system failures" }.class(state.showSystemFailures ? "button-selected" : "button"))
+            
+            blocks.append(div { HTMLBuilder.buildBlocks(buttonBlocks) }.class("row indent2 background"))
+        }
+        
+        return HTMLBuilder.buildBlocks(blocks)
     }
     
-    private func resultsTableHTML(results: [ResultBundle], backUrl: String) -> HTML {
+    private func resultsTableHTML(results: [ResultBundle], state: RouteState) -> HTML {
         let days = results.map { DateFormatter.dayMonthFormatter.string(from: $0.testStartDate) }.uniques
         
         if days.count == 0 {
@@ -89,17 +97,19 @@ struct ResultsRouteHTML: Routable {
                                 
                                 let testsPassed = result.testsPassed
                                 let testsFailed = result.testsUniquelyFailed
+                                let testsFailedBySystem = state.showSystemFailures ? result.testsFailedBySystem : []
                                 let testsRetried = result.testsFailedRetring
                                 let testsCount = testsPassed.count + testsFailed.count
                                 
                                 let testPassedString = testsPassed.count > 0 ? "\(testsPassed.count) passed (\(testsPassed.count.percentageString(total: testsCount, decimalDigits: 1)))" : ""
                                 let testFailedString = testsFailed.count > 0 ? "\(testsFailed.count) failed (\(testsFailed.count.percentageString(total: testsCount, decimalDigits: 1)))" : ""
+                                let testFailedBySystemString = testsFailedBySystem.count > 0 ? "\(testsFailedBySystem.count) system failures (\(testsFailedBySystem.count.percentageString(total: testsCount, decimalDigits: 1)))" : ""
                                 let testRetriedString = testsRetried.count > 0 ? "\(testsRetried.count) retries (\(testsRetried.count.percentageString(total: testsCount + testsRetried.count, decimalDigits: 1)))" : ""
                                 
                                 return HTMLBuilder.buildBlock(
                                     tableData {
-                                        self.linkToResultDetail(result: result, backUrl: backUrl) {
-                                            image(url: result.htmlStatusImageUrl())
+                                        self.linkToResultDetail(result: result, state: state) {
+                                            image(url: result.htmlStatusImageUrl(includeSystemFailures: state.showSystemFailures))
                                                 .attr("title", result.htmlStatusTitle())
                                                 .iconStyleAttributes(width: 14)
                                                 .class("icon")
@@ -109,10 +119,11 @@ struct ResultsRouteHTML: Routable {
                                         }.class(result.htmlTextColor())
                                     }.class("row indent3"),
                                     tableData {
-                                        self.linkToResultDetail(result: result, backUrl: backUrl) {
-                                            div { testPassedString }.class("color-subtext").inlineBlock()
+                                        self.linkToResultDetail(result: result, state: state) {
+                                            div { testPassedString }.class("color-subtext")
                                             div { testFailedString }.class("color-subtext").inlineBlock()
                                             div { testRetriedString }.class("color-subtext").inlineBlock()
+                                            div { testFailedBySystemString }.class("color-subtext")
                                         }
                                     }.alignment(.left).class("row indent1")
                                 )
@@ -124,13 +135,44 @@ struct ResultsRouteHTML: Routable {
         }
     }
     
-    private func currentUrl(backUrl: String) -> String {
-        return "/"
+    private func currentUrl(state: RouteState) -> String {
+        return "/?\(state)"
     }
     
-    private func linkToResultDetail(result: ResultBundle, backUrl: String, @HTMLBuilder child: () -> HTML) -> HTML {
-        return link(url: "/html/result?id=\(result.identifier)&back_url=\(currentUrl(backUrl: backUrl).hexadecimalRepresentation)") {
+    private func linkToResultDetail(result: ResultBundle, state: RouteState, @HTMLBuilder child: () -> HTML) -> HTML {
+        return link(url: "/html/result?id=\(result.identifier)&back_url=\(currentUrl(state: state).hexadecimalRepresentation)") {
             child()
+        }
+    }
+}
+
+private extension ResultsRouteHTML {
+    struct RouteState: Codable, CustomStringConvertible {
+        static let key = "state"
+        
+        var showSystemFailures: Bool
+        
+        init(queryItems: [URLQueryItem]?) {
+            self.init(hexadecimalRepresentation: queryItems?.first(where: { $0.name == Self.key})?.value)
+        }
+
+        init(hexadecimalRepresentation: String?) {
+            if let hexadecimalRepresentation = hexadecimalRepresentation,
+               let data = Data(hexadecimalRepresentation: hexadecimalRepresentation),
+               let state = try? JSONDecoder().decode(RouteState.self, from: data) {
+                showSystemFailures = state.showSystemFailures
+            } else {
+                showSystemFailures = false
+            }
+        }
+        
+        var description: String {
+            guard let data = try? JSONEncoder().encode(self),
+                  let hexRepresentation = data.hexadecimalRepresentation else {
+                return ""
+            }
+                        
+            return "&\(Self.key)=" + hexRepresentation
         }
     }
 }

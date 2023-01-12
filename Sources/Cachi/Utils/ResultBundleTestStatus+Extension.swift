@@ -51,8 +51,14 @@ extension ResultBundle {
 }
 
 extension ResultBundle {
-    func htmlStatusImageUrl() -> String {
-        if testsUniquelyFailed.count > 0 {
+    func htmlStatusImageUrl(includeSystemFailures: Bool) -> String {
+        var failedTestCount = testsUniquelyFailed.count
+        
+        if includeSystemFailures {
+            failedTestCount += testsFailedBySystem.count
+        }
+        
+        if failedTestCount > 0 {
             return "/image?imageTestFail"
         } else {
             return "/image?imageTestPass"

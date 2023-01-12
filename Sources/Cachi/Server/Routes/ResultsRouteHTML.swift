@@ -100,11 +100,13 @@ struct ResultsRouteHTML: Routable {
                                 let testsFailedBySystem = state.showSystemFailures ? result.testsFailedBySystem : []
                                 let testsRetried = result.testsFailedRetring
                                 let testsCount = testsPassed.count + testsFailed.count
+                                let testCrashCount = result.testsCrashCount
                                 
                                 let testPassedString = testsPassed.count > 0 ? "\(testsPassed.count) passed (\(testsPassed.count.percentageString(total: testsCount, decimalDigits: 1)))" : ""
                                 let testFailedString = testsFailed.count > 0 ? "\(testsFailed.count) failed (\(testsFailed.count.percentageString(total: testsCount, decimalDigits: 1)))" : ""
                                 let testFailedBySystemString = testsFailedBySystem.count > 0 ? "\(testsFailedBySystem.count) system failures (\(testsFailedBySystem.count.percentageString(total: testsCount, decimalDigits: 1)))" : ""
                                 let testRetriedString = testsRetried.count > 0 ? "\(testsRetried.count) retries (\(testsRetried.count.percentageString(total: testsCount + testsRetried.count, decimalDigits: 1)))" : ""
+                                let testCrashCountString = testCrashCount > 0 ? "\(testCrashCount) crashes (\(testCrashCount.percentageString(total: testsCount, decimalDigits: 1)))" : ""
                                 
                                 return HTMLBuilder.buildBlock(
                                     tableData {
@@ -124,6 +126,7 @@ struct ResultsRouteHTML: Routable {
                                             div { testFailedString }.class("color-subtext").inlineBlock()
                                             div { testRetriedString }.class("color-subtext").inlineBlock()
                                             div { testFailedBySystemString }.class("color-subtext")
+                                            div { testCrashCountString }.class("color-subtext")
                                         }
                                     }.alignment(.left).class("row indent1")
                                 )

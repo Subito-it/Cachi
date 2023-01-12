@@ -228,6 +228,7 @@ class Parser {
     }
     
     private func optimisticCrashCount(in actionsInvocationRecord: ActionsInvocationRecord) -> Int {
+        // To properly extract crash count we would need to extract the test summary which does however take too long
         let messages = actionsInvocationRecord.issues?.testFailureSummaries?.map({ $0.message }) ?? []
         
         return messages.filter({ $0.contains(" crashed in ") }).count

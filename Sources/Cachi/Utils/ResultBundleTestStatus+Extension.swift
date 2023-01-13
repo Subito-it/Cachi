@@ -18,7 +18,7 @@ extension ResultBundle {
             return "/image?imageTestPass"
         }
         
-        if testsUniquelyFailed.contains(where: { $0.matches(test) }) {
+        if testsUniquelyFailed.contains(where: { $0.matches(test) }) || test.groupName == "System Failures" {
             return "/image?imageTestFail"
         } else {
             return "/image?imageTestRetried"
@@ -30,7 +30,7 @@ extension ResultBundle {
             return "Passed"
         }
         
-        if testsUniquelyFailed.contains(where: { $0.matches(test) }) {
+        if testsUniquelyFailed.contains(where: { $0.matches(test) }) || test.groupName == "System Failures" {
             return "Failed"
         } else {
             return "Failed, but passed on retry"
@@ -42,7 +42,7 @@ extension ResultBundle {
             return "color-text"
         }
         
-        if testsUniquelyFailed.contains(where: { $0.matches(test) }) {
+        if testsUniquelyFailed.contains(where: { $0.matches(test) }) || test.groupName == "System Failures" {
             return "color-error"
         } else {
             return "color-retry"
@@ -51,8 +51,14 @@ extension ResultBundle {
 }
 
 extension ResultBundle {
-    func htmlStatusImageUrl() -> String {
-        if testsUniquelyFailed.count > 0 {
+    func htmlStatusImageUrl(includeSystemFailures: Bool) -> String {
+        var failedTestCount = testsUniquelyFailed.count
+        
+        if includeSystemFailures {
+            failedTestCount += testsFailedBySystem.count
+        }
+        
+        if failedTestCount > 0 {
             return "/image?imageTestFail"
         } else {
             return "/image?imageTestPass"

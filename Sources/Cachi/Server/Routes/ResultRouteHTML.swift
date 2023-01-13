@@ -10,13 +10,11 @@ struct ResultRouteHTML: Routable {
     private let baseUrl: URL
     private let depth: Int
     private let mergeResults: Bool
-    private let ignoreSystemFailures: Bool
     
-    init(baseUrl: URL, depth: Int, mergeResults: Bool, ignoreSystemFailures: Bool) {
+    init(baseUrl: URL, depth: Int, mergeResults: Bool) {
         self.baseUrl = baseUrl
         self.depth = depth
         self.mergeResults = mergeResults
-        self.ignoreSystemFailures = ignoreSystemFailures
     }
         
     func respond(to req: HTTPRequest, with promise: EventLoopPromise<HTTPResponse>) {
@@ -33,7 +31,7 @@ struct ResultRouteHTML: Routable {
         defer { os_log("Result bundle with id '%@' fetched in %fms", log: .default, type: .info, resultIdentifier, benchmarkStop(benchId)) }
                 
         guard let result = State.shared.result(identifier: resultIdentifier) else {
-            let pendingResultBundles = State.shared.pendingResultBundles(baseUrl: baseUrl, depth: depth, mergeResults: mergeResults, ignoreSystemFailures: ignoreSystemFailures)
+            let pendingResultBundles = State.shared.pendingResultBundles(baseUrl: baseUrl, depth: depth, mergeResults: mergeResults)
             if pendingResultBundles.contains(where: { $0.identifier == resultIdentifier }) {
                 let res = HTTPResponse(status: .notFound, body: HTTPBody(staticString: "Result is being parsed, please wait..."))
                 return promise.succeed(res)
@@ -88,8 +86,13 @@ struct ResultRouteHTML: Routable {
                 div {
                     switch state.showFilter {
                     case .all:
-                        let testsCount = result.testsPassed.count + result.testsUniquelyFailed.count
-                        let testsFailedCount = result.testsFailed.count
+                        var testsCount = result.testsPassed.count + result.testsUniquelyFailed.count
+                        var testsFailedCount = result.testsFailed.count
+                        
+                        if state.showSystemFailures {
+                            testsCount += result.testsFailedBySystem.count
+                            testsFailedCount += result.testsFailedBySystem.count
+                        }
                         
                         var blocks = [HTML]()
                         
@@ -104,7 +107,12 @@ struct ResultRouteHTML: Routable {
                     case .passed:
                         return div { "\(result.testsPassed.count) tests" }.inlineBlock()
                     case .failed:
-                        return div { "\(result.testsFailedExcludingRetries().count) tests" }.inlineBlock()
+                        var testsFailedCount = result.testsFailedExcludingRetries().count
+                        if state.showSystemFailures {
+                            testsFailedCount += result.testsFailedBySystem.count
+                        }
+                        
+                        return div { "\(testsFailedCount) tests" }.inlineBlock()
                     case .retried:
                         return div { "\(result.testsFailedRetring.count) tests" }.inlineBlock()
                     }
@@ -133,11 +141,21 @@ struct ResultRouteHTML: Routable {
                         blocks.append(linkForState(mState))
                     }
                     
-                    mState = state
                     if result.testsFailed.count > 0 {
-                        mState.showFailureMessage.toggle()
-                        blocks.append("&nbsp;&nbsp;&nbsp;&nbsp;")
-                        blocks.append(link(url: currentUrl(result: result, state: mState, backUrl: backUrl)) { "Show failures" }.class(state.showFailureMessage ? "button-selected" : "button"))
+                        if state.showFilter != .passed {
+                            var mState = state
+                            mState.showFailureMessage.toggle()
+                            blocks.append("&nbsp;&nbsp;&nbsp;&nbsp;")
+                            blocks.append(link(url: currentUrl(result: result, state: mState, backUrl: backUrl)) { "Show failure message" }.class(state.showFailureMessage ? "button-selected" : "button"))
+                        }
+                    }
+                    
+                    if result.testsFailedBySystem.count > 0 {
+                        if state.showFilter == .all || state.showFilter == .failed {
+                            var mState = state
+                            mState.showSystemFailures.toggle()
+                            blocks.append(link(url: currentUrl(result: result, state: mState, backUrl: backUrl)) { "Show system failures" }.class(state.showSystemFailures ? "button-selected" : "button"))
+                        }
                     }
 
                     if result.codeCoverageSplittedHtmlBaseUrl != nil {
@@ -152,7 +170,7 @@ struct ResultRouteHTML: Routable {
     }
     
     private func resultsTableHTML(result: ResultBundle, state: RouteState, backUrl: String) -> HTML {
-        let tests: [ResultBundle.Test]
+        var tests: [ResultBundle.Test]
         switch state.showFilter {
         case .failed:
             tests = result.testsFailedExcludingRetries()
@@ -162,6 +180,10 @@ struct ResultRouteHTML: Routable {
             tests = result.testsFailedRetring
         default:
             tests = result.tests
+        }
+        
+        if state.showSystemFailures && state.showFilter != .retried {
+            tests += result.testsFailedBySystem
         }
             
         let groupNames = Set(tests.map({ $0.groupName })).sorted()
@@ -251,6 +273,7 @@ private extension ResultRouteHTML {
         
         var showFilter: ShowFilter
         var showFailureMessage: Bool
+        var showSystemFailures: Bool
         
         init(queryItems: [URLQueryItem]?) {
             self.init(hexadecimalRepresentation: queryItems?.first(where: { $0.name == Self.key})?.value)
@@ -262,9 +285,11 @@ private extension ResultRouteHTML {
                let state = try? JSONDecoder().decode(RouteState.self, from: data) {
                 showFilter = state.showFilter
                 showFailureMessage = state.showFailureMessage
+                showSystemFailures = state.showSystemFailures
             } else {
                 showFilter = .all
                 showFailureMessage = false
+                showSystemFailures = false
             }
         }
         

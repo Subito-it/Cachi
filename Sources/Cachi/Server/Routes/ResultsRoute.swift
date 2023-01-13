@@ -13,6 +13,7 @@ struct ResultInfo: Codable {
     let test_end_time: Date
     let success_count: Int
     let failure_count: Int
+    let failure_by_system_count: Int
     let count: Int
     let has_crashes: Bool
     let destinations: String
@@ -29,13 +30,11 @@ struct ResultsRoute: Routable {
     private let baseUrl: URL
     private let depth: Int
     private let mergeResults: Bool
-    private let ignoreSystemFailures: Bool
     
-    init(baseUrl: URL, depth: Int, mergeResults: Bool, ignoreSystemFailures: Bool) {
+    init(baseUrl: URL, depth: Int, mergeResults: Bool) {
         self.baseUrl = baseUrl
         self.depth = depth
         self.mergeResults = mergeResults
-        self.ignoreSystemFailures = ignoreSystemFailures
     }
         
     func respond(to req: HTTPRequest, with promise: EventLoopPromise<HTTPResponse>) {
@@ -49,13 +48,14 @@ struct ResultsRoute: Routable {
             let info = ResultInfo(target_name: result.tests.first?.targetName ?? "",
                                   identifier: result.identifier,
                                   url: "\(ResultRoute().path)?\(result.identifier)",
-                                  html_url: "\(ResultRouteHTML(baseUrl: baseUrl, depth: depth, mergeResults: mergeResults, ignoreSystemFailures: ignoreSystemFailures).path)?id=\(result.identifier)",
+                                  html_url: "\(ResultRouteHTML(baseUrl: baseUrl, depth: depth, mergeResults: mergeResults).path)?id=\(result.identifier)",
                                   start_time: result.userInfo?.startDate ?? result.testStartDate,
                                   end_time: result.userInfo?.endDate ?? result.testEndDate,
                                   test_start_time: result.testStartDate,
                                   test_end_time: result.testEndDate,
                                   success_count: result.testsPassed.count,
                                   failure_count: result.testsUniquelyFailed.count,
+                                  failure_by_system_count: result.testsFailedBySystem.count,
                                   count: result.tests.count,
                                   has_crashes: result.testsCrashCount > 0,
                                   destinations: result.destinations,

@@ -110,13 +110,13 @@ struct ResultBundle: Codable {
     let tests: [Test]
     let testsPassed: [Test]
     let testsFailed: [Test]
+    let testsFailedBySystem: [Test]
     let testsPassedRetring: [Test]
     let testsFailedRetring: [Test]
     let testsUniquelyFailed: [Test]
     let testsRepeated: [[Test]]
     let testsCrashCount: Int
     let userInfo: UserInfo?
-    let ignoreSystemFailures: Bool
 }
 
 extension ResultBundle.Test {

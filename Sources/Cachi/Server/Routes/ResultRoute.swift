@@ -4,7 +4,7 @@ import os
 
 struct ResultRoute: Routable {
     let path = "/v1/result"
-    let description = "Detail of result (pass identifier)"
+    let description = "Detail of result. Pass identifier"
 
     func respond(to req: HTTPRequest, with promise: EventLoopPromise<HTTPResponse>) {
         os_log("Result request received", log: .default, type: .info)

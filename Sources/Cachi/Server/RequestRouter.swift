@@ -38,6 +38,7 @@ struct RequestRouter: HTTPServerDelegate {
             ImageRoute(),
             CSSRoute(),
             ScriptRoute(),
+            CoverageRoute(),
             CoverageRouteHTML(),
             CoverageFileRouteHTML()
         ]

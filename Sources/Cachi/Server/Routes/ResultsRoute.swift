@@ -6,6 +6,7 @@ struct ResultInfo: Codable {
     let target_name: String
     let identifier: String
     let url: String
+    let coverage_url: String?
     let html_url: String
     let start_time: Date
     let end_time: Date
@@ -48,6 +49,7 @@ struct ResultsRoute: Routable {
             let info = ResultInfo(target_name: result.tests.first?.targetName ?? "",
                                   identifier: result.identifier,
                                   url: "\(ResultRoute().path)?\(result.identifier)",
+                                  coverage_url: result.codeCoveragePerFolderJsonUrl != nil ? "\(CoverageRoute().path)?id=\(result.identifier)" : nil,
                                   html_url: "\(ResultRouteHTML(baseUrl: baseUrl, depth: depth, mergeResults: mergeResults).path)?id=\(result.identifier)",
                                   start_time: result.userInfo?.startDate ?? result.testStartDate,
                                   end_time: result.userInfo?.endDate ?? result.testEndDate,

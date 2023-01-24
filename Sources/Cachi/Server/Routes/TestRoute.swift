@@ -4,7 +4,7 @@ import os
 
 struct TestRoute: Routable {
     let path = "/v1/test"
-    let description = "Test details (pass summaryIdentifier)"
+    let description = "Test details. Pass summaryIdentifier"
         
     func respond(to req: HTTPRequest, with promise: EventLoopPromise<HTTPResponse>) {
         os_log("Test stats request received", log: .default, type: .info)

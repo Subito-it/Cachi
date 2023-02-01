@@ -45,7 +45,9 @@ struct ResultsStatRouteHTML: Routable {
             return promise.succeed(res)
         }
         
-        rawSelectedDevice = rawSelectedDevice ?? allDevices.first!.description
+        if rawSelectedDevice == nil || !allDevices.map(\.description).contains(rawSelectedDevice!) {
+            rawSelectedDevice = allDevices.first!.description
+        }
         
         guard let selectedDevice = State.Device(rawDescription: rawSelectedDevice) else {
             let res = HTTPResponse(status: .notFound, body: HTTPBody(staticString: "Empty selected device..."))

@@ -1,6 +1,7 @@
 import Foundation
 import CachiKit
 import os
+import ZippyJSON
 
 class Parser {
     private let actionInvocationRecordCache = NSCache<NSURL, ActionsInvocationRecord>()
@@ -158,7 +159,7 @@ class Parser {
     private func extractPerFolderLineCoverage(resultBundle: ResultBundle) throws -> [PathCoverage] {
         guard let coverageUrl = resultBundle.codeCoverageJsonSummaryUrl else { return [] }
         
-        let coverage = try JSONDecoder().decode(Coverage.self, from: try Data(contentsOf: coverageUrl))
+        let coverage = try ZippyJSONDecoder().decode(Coverage.self, from: try Data(contentsOf: coverageUrl))
         let files = coverage.data.first?.files ?? []
         
         var folderCoverageAggregation = [String: Set<Coverage.Item.File>]()

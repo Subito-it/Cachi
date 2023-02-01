@@ -6,7 +6,7 @@ import PackageDescription
 let package = Package(
     name: "Cachi",
     platforms: [
-       .macOS(.v10_13)
+       .macOS(.v10_15)
     ],
     dependencies: [
         // Dependencies declare other packages that this package depends on.
@@ -14,14 +14,14 @@ let package = Package(
         .package(url: "https://github.com/Subito-it/Bariloche", .branch("master")),
         .package(url: "https://github.com/tcamin/http.git", .branch("master")),
         .package(url: "https://github.com/tcamin/Vaux", .branch("cachi")),
-        
+        .package(url: "https://github.com/michaeleisel/ZippyJSON", .branch("master")),
     ],
     targets: [
         // Targets are the basic building blocks of a package. A target can define a module or a test suite.
         // Targets can depend on other targets in this package, and on products in packages which this package depends on.
         .target(
             name: "Cachi",
-            dependencies: ["HTTPKit", "CachiKit", "Bariloche", "Vaux"]),
+            dependencies: ["HTTPKit", "CachiKit", "Bariloche", "Vaux", "ZippyJSON"]),
         .testTarget(
             name: "CachiTests",
             dependencies: ["Cachi"]),

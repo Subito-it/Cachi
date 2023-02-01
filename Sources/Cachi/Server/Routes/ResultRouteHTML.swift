@@ -2,6 +2,7 @@ import Foundation
 import HTTPKit
 import os
 import Vaux
+import ZippyJSON
 
 struct ResultRouteHTML: Routable {    
     let path: String = "/html/result"
@@ -282,7 +283,7 @@ private extension ResultRouteHTML {
         init(hexadecimalRepresentation: String?) {
             if let hexadecimalRepresentation = hexadecimalRepresentation,
                let data = Data(hexadecimalRepresentation: hexadecimalRepresentation),
-               let state = try? JSONDecoder().decode(RouteState.self, from: data) {
+               let state = try? ZippyJSONDecoder().decode(RouteState.self, from: data) {
                 showFilter = state.showFilter
                 showFailureMessage = state.showFailureMessage
                 showSystemFailures = state.showSystemFailures

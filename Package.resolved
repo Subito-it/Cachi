@@ -6,7 +6,7 @@
         "repositoryURL": "https://github.com/Subito-it/Bariloche",
         "state": {
           "branch": "master",
-          "revision": "507f4121d2a7479522908dabf83aed78a6e5e268",
+          "revision": "cf832fc53f6d003e9017df08e12b972a097bb015",
           "version": null
         }
       },
@@ -15,7 +15,7 @@
         "repositoryURL": "https://github.com/Subito-it/CachiKit",
         "state": {
           "branch": "master",
-          "revision": "2140eb7c0a3cac26d972a3f82b5892651ad4f265",
+          "revision": "ed675245ac943c7c244372461bd6d0eb14fb8356",
           "version": null
         }
       },
@@ -26,6 +26,15 @@
           "branch": "master",
           "revision": "756f380b928d625e21701a4d4a199d8117f2271d",
           "version": null
+        }
+      },
+      {
+        "package": "JJLISO8601DateFormatter",
+        "repositoryURL": "https://github.com/michaeleisel/JJLISO8601DateFormatter",
+        "state": {
+          "branch": null,
+          "revision": "de422afd9a47b72703c30a81423c478337191390",
+          "version": "0.1.6"
         }
       },
       {
@@ -47,11 +56,29 @@
         }
       },
       {
+        "package": "swift-atomics",
+        "repositoryURL": "https://github.com/apple/swift-atomics.git",
+        "state": {
+          "branch": null,
+          "revision": "ff3d2212b6b093db7f177d0855adbc4ef9c5f036",
+          "version": "1.0.3"
+        }
+      },
+      {
+        "package": "swift-collections",
+        "repositoryURL": "https://github.com/apple/swift-collections.git",
+        "state": {
+          "branch": null,
+          "revision": "937e904258d22af6e447a0b72c0bc67583ef64a2",
+          "version": "1.0.4"
+        }
+      },
+      {
         "package": "swift-log",
         "repositoryURL": "https://github.com/apple/swift-log.git",
         "state": {
           "branch": "main",
-          "revision": "a7e6d7fef58b8909ec9463a492e257ab00d89a4b",
+          "revision": "6763fd0b73a46aa02f59fb61a0a05986b62c9f6a",
           "version": null
         }
       },
@@ -60,8 +87,8 @@
         "repositoryURL": "https://github.com/apple/swift-nio.git",
         "state": {
           "branch": null,
-          "revision": "f2705f9655ede35399b12040e892cf653126de98",
-          "version": "2.32.2"
+          "revision": "45167b8006448c79dda4b7bd604e07a034c15c49",
+          "version": "2.48.0"
         }
       },
       {
@@ -69,8 +96,8 @@
         "repositoryURL": "https://github.com/apple/swift-nio-extras.git",
         "state": {
           "branch": null,
-          "revision": "f72c4688f89c28502105509186eadc49a49cb922",
-          "version": "1.10.0"
+          "revision": "91dd2d61fb772e1311bb5f13b59266b579d77e42",
+          "version": "1.15.0"
         }
       },
       {
@@ -78,8 +105,8 @@
         "repositoryURL": "https://github.com/apple/swift-nio-http2.git",
         "state": {
           "branch": null,
-          "revision": "42bdcae4ac4913507a5ee7af963c559deb60d1fc",
-          "version": "1.18.2"
+          "revision": "d6656967f33ed8b368b38e4b198631fc7c484a40",
+          "version": "1.23.1"
         }
       },
       {
@@ -87,8 +114,8 @@
         "repositoryURL": "https://github.com/apple/swift-nio-ssl.git",
         "state": {
           "branch": null,
-          "revision": "2e74773972bd6254c41ceeda827f229bccbf1c0f",
-          "version": "2.15.0"
+          "revision": "4fb7ead803e38949eb1d6fabb849206a72c580f3",
+          "version": "2.23.0"
         }
       },
       {
@@ -98,6 +125,24 @@
           "branch": "cachi",
           "revision": "183c93bffaea43feb2f4750645b9a466dc159aaa",
           "version": null
+        }
+      },
+      {
+        "package": "ZippyJSON",
+        "repositoryURL": "https://github.com/michaeleisel/ZippyJSON",
+        "state": {
+          "branch": "master",
+          "revision": "3a80ab6a4bfdf36f3b87d732ece6f598c02262d0",
+          "version": null
+        }
+      },
+      {
+        "package": "ZippyJSONCFamily",
+        "repositoryURL": "https://github.com/michaeleisel/ZippyJSONCFamily",
+        "state": {
+          "branch": null,
+          "revision": "8abdd7a5e943afe68e7b03fdaa63b21c042a3893",
+          "version": "1.2.9"
         }
       }
     ]

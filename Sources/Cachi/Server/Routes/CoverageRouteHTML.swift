@@ -3,7 +3,7 @@ import HTTPKit
 import os
 import Vaux
 import CachiKit
-
+import ZippyJSON
 
 private enum CoverageShowFilter: String, CaseIterable {
     case files, folders
@@ -129,7 +129,7 @@ private extension CoverageRouteHTML {
         init(hexadecimalRepresentation: String?) {
             if let hexadecimalRepresentation = hexadecimalRepresentation,
                let data = Data(hexadecimalRepresentation: hexadecimalRepresentation),
-               let state = try? JSONDecoder().decode(RouteState.self, from: data) {
+               let state = try? ZippyJSONDecoder().decode(RouteState.self, from: data) {
                 showFilter = state.showFilter
                 filterQuery = state.filterQuery
                 hideFilters = state.hideFilters

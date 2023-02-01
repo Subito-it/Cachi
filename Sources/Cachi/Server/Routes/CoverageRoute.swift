@@ -1,6 +1,7 @@
 import Foundation
 import HTTPKit
 import os
+import ZippyJSON
 
 struct CoverageRoute: Routable {
     let path = "/coverage"
@@ -44,10 +45,10 @@ struct CoverageRoute: Routable {
         
         switch kind {
         case .files:
-            let result = try? JSONDecoder().decode(Coverage.self, from: coverageData)
+            let result = try? ZippyJSONDecoder().decode(Coverage.self, from: coverageData)
             return result?.data.first?.files.map { PathCoverage(path: $0.filename, percent: $0.summary.lines.percent) }
         case .paths:
-            return try? JSONDecoder().decode([PathCoverage].self, from: coverageData)
+            return try? ZippyJSONDecoder().decode([PathCoverage].self, from: coverageData)
         }
     }
     

@@ -1,6 +1,7 @@
 import Foundation
 import CachiKit
 import os
+import ZippyJSON
 
 class State {
     struct Device: Codable, Hashable, CustomStringConvertible {
@@ -426,7 +427,7 @@ class State {
         let cacheUrl = makeCacheUrl(baseUrl: baseUrl).appendingPathComponent("cached_result.json")
         guard let data = try? Foundation.Data(contentsOf: cacheUrl) else { return nil }
         
-        if let cache = try? JSONDecoder().decode(ResultBundle.self, from: data) {
+        if let cache = try? ZippyJSONDecoder().decode(ResultBundle.self, from: data) {
             for url in cache.xcresultUrls {
                 if !FileManager.default.fileExists(atPath: url.path) {
                     return nil

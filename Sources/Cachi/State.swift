@@ -476,13 +476,7 @@ class State {
         
         var groupedUrls: [[URL]]
         if mergeResults {
-            var groupDictionary = [URL: [URL]]()
-            for testBundleUrl in testBundleUrls {
-                let baseUrl = testBundleUrl.deletingLastPathComponent()
-                var group = groupDictionary[baseUrl] ?? []
-                group.append(testBundleUrl)
-                groupDictionary[baseUrl] = group
-            }
+            let groupDictionary = Dictionary(grouping: testBundleUrls, by: { $0.deletingLastPathComponent() })
             groupedUrls = Array(groupDictionary.values)
         } else {
             groupedUrls = testBundleUrls.map { [$0] }

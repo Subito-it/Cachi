@@ -449,7 +449,7 @@ class State {
         
         if let cache = try? ZippyJSONDecoder().decode(ResultBundle.self, from: data) {
             for url in cache.xcresultUrls {
-                if !FileManager.default.fileExists(atPath: url.path) {
+                if !urls.contains(url) {
                     return nil
                 }
             }

@@ -86,23 +86,32 @@ class State {
         
         var results = [(result: PendingResultBundle, creationDate: Date)]()
 
-        for urls in bundleUrls {
-            let bundlePath = (urls.count > 1 ? urls.first?.deletingLastPathComponent() : urls.first)?.path ?? ""
-            
-            let benchId = benchmarkStart()
-            let creationDate = ((try? FileManager.default.attributesOfItem(atPath: bundlePath))?[.creationDate] as? Date) ?? Date()
+        let queue = OperationQueue()
+        let syncQueue = DispatchQueue(label: "com.subito.cachi.pending.result.bundles")
 
-            if let cachedResultBundle = cachedResultBundle(urls: urls) {
-                os_log("Restored partial result bundle '%@' from cache in %fms", log: .default, type: .info, bundlePath, benchmarkStop(benchId))
-               results.append((result: PendingResultBundle(identifier: cachedResultBundle.identifier, resultUrls: urls), creationDate: creationDate))
-            } else {
-                let parser = Parser()
-                if let pendingResultBundle = parser.parsePendingResultBundle(urls: urls) {
-                    results.append((result: pendingResultBundle, creationDate: creationDate))
+        for urls in bundleUrls {
+            queue.addOperation { [unowned self] in
+                let bundlePath = (urls.count > 1 ? urls.first?.deletingLastPathComponent() : urls.first)?.path ?? ""
+            
+                let benchId = benchmarkStart()
+                let creationDate = ((try? FileManager.default.attributesOfItem(atPath: bundlePath))?[.creationDate] as? Date) ?? Date()
+
+                if let cachedResultBundle = self.cachedResultBundle(urls: urls) {
+                    os_log("Restored partial result bundle '%@' from cache in %fms", log: .default, type: .info, bundlePath, benchmarkStop(benchId))
+                    let result = (result: PendingResultBundle(identifier: cachedResultBundle.identifier, resultUrls: urls), creationDate: creationDate)
+                    syncQueue.sync { results.append(result) }
+                } else {
+                    let parser = Parser()
+                    if let pendingResultBundle = parser.parsePendingResultBundle(urls: urls) {
+                        let result = (result: pendingResultBundle, creationDate: creationDate)
+                        syncQueue.sync { results.append(result) }
+                    }
+                    os_log("Parsed partial result bundle '%@' in %fms", log: .default, type: .info, bundlePath, benchmarkStop(benchId))
                 }
-                os_log("Parsed partial result bundle '%@' in %fms", log: .default, type: .info, bundlePath, benchmarkStop(benchId))
             }
         }
+
+        queue.waitUntilAllOperationsAreFinished()
 
         return results.sorted(by: { $0.creationDate > $1.creationDate }).map { $0.result }
     }
@@ -113,24 +122,35 @@ class State {
         var benchId = benchmarkStart()
         var bundleUrls = findResultBundles(at: baseUrl, depth: depth, mergeResults: mergeResults)
         os_log("Found %ld test bundles searching '%@' with depth %ld in %fms", log: .default, type: .info, bundleUrls.count, baseUrl.absoluteString, depth, benchmarkStop(benchId))
+
+        let queue = OperationQueue()
+        let syncQueue = DispatchQueue(label: "com.subito.cachi.pending.result.bundles")
         
         var resultBundles = [ResultBundle]()
-        for (index, urls) in bundleUrls.enumerated().reversed() {
-            let bundlePath = (urls.count > 1 ? urls.first?.deletingLastPathComponent() : urls.first)?.absoluteString ?? ""
-            
-            guard !self.resultBundles.contains(where: { $0.xcresultUrls == Set(urls) }) else {
-                os_log("Already parsed, skipping test bundle '%@'", log: .default, type: .info, bundlePath)
-                bundleUrls.remove(at: index)
-                continue
-            }
+        var parsedIndexes = [Int]()
+        for (index, urls) in bundleUrls.enumerated() {
+            queue.addOperation { [unowned self] in
+                let bundlePath = (urls.count > 1 ? urls.first?.deletingLastPathComponent() : urls.first)?.absoluteString ?? ""
 
-            let benchId = benchmarkStart()
-            if let cachedResultBundle = cachedResultBundle(urls: urls) {
-                os_log("Restored test bundle '%@' from cache in %fms", log: .default, type: .info, bundlePath, benchmarkStop(benchId))
-                resultBundles.append(cachedResultBundle)
-                bundleUrls.remove(at: index)
+                guard !self.resultBundles.contains(where: { $0.xcresultUrls == Set(urls) }) else {
+                    os_log("Already parsed, skipping test bundle '%@'", log: .default, type: .info, bundlePath)
+                    return syncQueue.sync { parsedIndexes.append(index) }
+                }
+
+                let benchId = benchmarkStart()
+                if let cachedResultBundle = cachedResultBundle(urls: urls) {
+                    os_log("Restored test bundle '%@' from cache in %fms", log: .default, type: .info, bundlePath, benchmarkStop(benchId))
+                    syncQueue.sync {
+                        resultBundles.append(cachedResultBundle)
+                        parsedIndexes.append(index)
+                    }
+                }
             }
         }
+
+        queue.waitUntilAllOperationsAreFinished()
+
+        parsedIndexes.sorted().reversed().forEach { bundleUrls.remove(at: $0) }
 
         syncQueue.sync(flags: .barrier) {
             _resultBundles += resultBundles
@@ -429,7 +449,7 @@ class State {
         
         if let cache = try? ZippyJSONDecoder().decode(ResultBundle.self, from: data) {
             for url in cache.xcresultUrls {
-                if !FileManager.default.fileExists(atPath: url.path) {
+                if !urls.contains(url) {
                     return nil
                 }
             }

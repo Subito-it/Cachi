@@ -9,7 +9,7 @@ extension HTML {
         do {
             try vaux.render(self)
             return HTTPResponse(body: HTTPBody(string: str))
-        } catch let error {
+        } catch {
             print("HTML rendering failed: \(error.localizedDescription)")
             return HTTPResponse(status: .internalServerError, body: HTTPBody(staticString: "Ouch..."))
         }

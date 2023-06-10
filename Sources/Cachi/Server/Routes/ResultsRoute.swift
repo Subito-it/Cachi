@@ -27,22 +27,22 @@ struct ResultInfo: Codable {
 struct ResultsRoute: Routable {
     let path: String = "/v1/results"
     let description: String = "List of results"
-    
+
     private let baseUrl: URL
     private let depth: Int
     private let mergeResults: Bool
-    
+
     init(baseUrl: URL, depth: Int, mergeResults: Bool) {
         self.baseUrl = baseUrl
         self.depth = depth
         self.mergeResults = mergeResults
     }
-        
-    func respond(to req: HTTPRequest, with promise: EventLoopPromise<HTTPResponse>) {
+
+    func respond(to _: HTTPRequest, with promise: EventLoopPromise<HTTPResponse>) {
         os_log("Results request received", log: .default, type: .info)
-        
+
         let results = State.shared.resultBundles
-        
+
         var resultInfos = [ResultInfo]()
 
         for result in results {
@@ -65,10 +65,10 @@ struct ResultsRoute: Routable {
                                   commit_hash: result.userInfo?.commitHash,
                                   commit_message: result.userInfo?.commitMessage,
                                   metadata: result.userInfo?.metadata)
-            
+
             resultInfos.append(info)
         }
-                
+
         let res: HTTPResponse
         if let bodyData = try? JSONEncoder().encode(resultInfos) {
             res = HTTPResponse(body: HTTPBody(data: bodyData))

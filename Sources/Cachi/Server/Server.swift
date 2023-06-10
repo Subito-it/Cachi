@@ -5,14 +5,14 @@ import os
 struct Server {
     private let port: Int
     private let hostname = "0.0.0.0"
-    
+
     private let responder: RequestRouter
 
     init(port: Int, baseUrl: URL, parseDepth: Int, mergeResults: Bool) {
         self.port = port
-        self.responder = RequestRouter(baseUrl: baseUrl, parseDepth: parseDepth, mergeResults: mergeResults)
+        responder = RequestRouter(baseUrl: baseUrl, parseDepth: parseDepth, mergeResults: mergeResults)
     }
-    
+
     func listen() throws {
         let elg = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount)
         defer { try? elg.syncShutdownGracefully() }

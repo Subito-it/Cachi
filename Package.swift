@@ -6,7 +6,7 @@ import PackageDescription
 let package = Package(
     name: "Cachi",
     platforms: [
-       .macOS(.v10_15)
+        .macOS(.v10_15),
     ],
     dependencies: [
         .package(url: "https://github.com/Subito-it/CachiKit", branch: "master"),
@@ -18,9 +18,11 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "Cachi",
-            dependencies: [.product(name: "HTTPKit", package: "http"), "CachiKit", "Bariloche", "Vaux", "ZippyJSON"]),
+            dependencies: [.product(name: "HTTPKit", package: "http"), "CachiKit", "Bariloche", "Vaux", "ZippyJSON"]
+        ),
         .testTarget(
             name: "CachiTests",
-            dependencies: ["Cachi"]),
+            dependencies: ["Cachi"]
+        ),
     ]
 )

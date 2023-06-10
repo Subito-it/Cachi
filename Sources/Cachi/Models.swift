@@ -12,7 +12,7 @@ struct ResultBundle: Codable {
         case fastest
         case slowestFlaky = "slowest_flaky"
     }
-    
+
     struct TestStats: Codable, Hashable {
         let first_summary_identifier: String
         let group_name: String
@@ -25,7 +25,7 @@ struct ResultBundle: Codable {
         let failure_count: Int
         let execution_sequence: String
     }
-    
+
     struct Test: Codable, Hashable {
         struct SessionLogs: Codable {
             let appStandardOutput: String?
@@ -48,7 +48,7 @@ struct ResultBundle: Codable {
         enum Status: String, Codable {
             case success, failure
         }
-        
+
         let xcresultUrl: URL
         let identifier: String
         let routeIdentifier: String
@@ -67,40 +67,41 @@ struct ResultBundle: Codable {
         let diagnosticsIdentifier: String?
         let summaryIdentifier: String?
     }
-    
+
     struct UserInfo: Codable {
         enum Error: Swift.Error { case empty }
-        
+
         let branchName: String?
         let commitMessage: String?
         let commitHash: String?
         let metadata: String?
         let startDate: Date?
         let endDate: Date?
-                
+
         init(from decoder: Decoder) throws {
             let container = try decoder.container(keyedBy: CodingKeys.self)
-            
-            self.branchName = try container.decodeIfPresent(String.self, forKey: .branchName)
-                        
-            self.commitMessage = try container.decodeIfPresent(String.self, forKey: .commitMessage)
-            self.commitHash = try container.decodeIfPresent(String.self, forKey: .commitHash)
-            self.metadata = try container.decodeIfPresent(String.self, forKey: .metadata)
-            
-            self.startDate = try container.decodeIfPresent(Date.self, forKey: .startDate)
-            self.endDate = try container.decodeIfPresent(Date.self, forKey: .endDate)
 
-            if self.branchName == nil,
-               self.commitMessage == nil,
-               self.commitHash == nil,
-               self.metadata == nil,
-               self.startDate == nil,
-               self.endDate == nil {
+            branchName = try container.decodeIfPresent(String.self, forKey: .branchName)
+
+            commitMessage = try container.decodeIfPresent(String.self, forKey: .commitMessage)
+            commitHash = try container.decodeIfPresent(String.self, forKey: .commitHash)
+            metadata = try container.decodeIfPresent(String.self, forKey: .metadata)
+
+            startDate = try container.decodeIfPresent(Date.self, forKey: .startDate)
+            endDate = try container.decodeIfPresent(Date.self, forKey: .endDate)
+
+            if branchName == nil,
+               commitMessage == nil,
+               commitHash == nil,
+               metadata == nil,
+               startDate == nil,
+               endDate == nil
+            {
                 throw Error.empty
             }
         }
     }
-    
+
     let identifier: String
     let xcresultUrls: Set<URL>
     let destinations: String
@@ -121,8 +122,7 @@ struct ResultBundle: Codable {
 
 extension ResultBundle.Test {
     func matches(_ test: ResultBundle.Test) -> Bool {
-        return
-            deviceModel == test.deviceModel &&
+        deviceModel == test.deviceModel &&
             deviceOs == test.deviceOs &&
             groupName == test.groupName &&
             name == test.name
@@ -138,7 +138,7 @@ class Coverage: Codable {
                     let count: Int
                     let covered: Int
                     let percent: Double
-                    
+
                     static func == (lhs: Coverage.Item.File.Summary.Detail, rhs: Coverage.Item.File.Summary.Detail) -> Bool {
                         lhs.count == rhs.count && lhs.covered == rhs.covered && lhs.percent == rhs.percent
                     }
@@ -149,11 +149,11 @@ class Coverage: Codable {
                         hasher.combine(percent)
                     }
                 }
-                
+
                 let functions: Detail
                 let instantiations: Detail
                 let lines: Detail
-                
+
                 static func == (lhs: Coverage.Item.File.Summary, rhs: Coverage.Item.File.Summary) -> Bool {
                     lhs.functions == rhs.functions && lhs.instantiations == rhs.instantiations && lhs.lines == rhs.lines
                 }
@@ -164,23 +164,23 @@ class Coverage: Codable {
                     hasher.combine(lines)
                 }
             }
-            
+
             let filename: String
             let summary: Summary
-            
+
             static func == (lhs: Coverage.Item.File, rhs: Coverage.Item.File) -> Bool {
                 lhs.filename == rhs.filename && lhs.summary == rhs.summary
             }
-            
+
             func hash(into hasher: inout Hasher) {
                 hasher.combine(filename)
                 hasher.combine(summary)
             }
         }
-        
+
         let files: [File]
     }
-    
+
     let data: [Item]
 }
 
@@ -201,15 +201,15 @@ extension ResultBundle {
     var codeCoverageJsonUrl: URL? {
         codeCoverageBaseUrl?.appendingPathComponent("coverage.json")
     }
-    
+
     var codeCoverageJsonSummaryUrl: URL? {
         codeCoverageBaseUrl?.appendingPathComponent("coverage-summary.json")
     }
-    
+
     var codeCoverageHtmlUrl: URL? {
         codeCoverageBaseUrl?.appendingPathComponent("coverage.html")
     }
-    
+
     var codeCoveragePerFolderJsonUrl: URL? {
         codeCoverageBaseUrl?.appendingPathComponent("coverage-folders.json")
     }

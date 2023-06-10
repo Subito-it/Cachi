@@ -5,30 +5,32 @@ import os
 struct ScriptRoute: Routable {
     let path = "/script"
     let description = "Script route, used for html rendering"
-    
+
     func respond(to req: HTTPRequest, with promise: EventLoopPromise<HTTPResponse>) {
         os_log("Script request received", log: .default, type: .info)
-        
+
         let components = URLComponents(url: req.url, resolvingAgainstBaseURL: false)
         let queryItems = components?.queryItems ?? []
         let scriptType = queryItems.first(where: { $0.name == "type" })?.value ?? ""
-        
+
         var scriptContent: String?
         switch scriptType {
         case "screenshot":
             scriptContent = scriptScreenshot()
         case "coverage-files":
             let resultBundles = State.shared.resultBundles
-            
+
             if let resultIdentifier = queryItems.first(where: { $0.name == "id" })?.value,
-               let resultBundle = resultBundles.first(where: { $0.identifier == resultIdentifier }) {
+               let resultBundle = resultBundles.first(where: { $0.identifier == resultIdentifier })
+            {
                 scriptContent = scriptFilesCoverage(resultBundle: resultBundle)
             }
         case "coverage-folders":
             let resultBundles = State.shared.resultBundles
-            
+
             if let resultIdentifier = queryItems.first(where: { $0.name == "id" })?.value,
-               let resultBundle = resultBundles.first(where: { $0.identifier == resultIdentifier }) {
+               let resultBundle = resultBundles.first(where: { $0.identifier == resultIdentifier })
+            {
                 scriptContent = scriptFoldersCoverage(resultBundle: resultBundle)
             }
         case "result-stat":
@@ -45,15 +47,15 @@ struct ScriptRoute: Routable {
         let res = HTTPResponse(headers: HTTPHeaders([("Content-Type", "application/javascript")]), body: HTTPBody(string: scriptContent!))
         return promise.succeed(res)
     }
-    
+
     private func scriptScreenshot() -> String {
-        return """
+        """
             var topBarElementRect = null;
             var tableHeaderElementRect = null;
 
             var screenshotImageElement = null;
             var screenshotImageTopOffset = 10;
-        
+
             window.onload = function() {
                 topBarElementRect = document.getElementById('top-bar').getBoundingClientRect();
                 tableHeaderElementRect = document.getElementById('table-header').getBoundingClientRect();
@@ -62,10 +64,10 @@ struct ScriptRoute: Routable {
 
                 window.onscroll();
             }
-        
+
             window.onscroll = function() {
                 if (screenshotImageElement == null) { return; }
-        
+
                 if (window.pageYOffset != undefined) {
                     if (pageYOffset <= screenshotImageTopOffset + tableHeaderElementRect.height) {
                         screenshotImageElement.style.position = "absolute";
@@ -76,7 +78,7 @@ struct ScriptRoute: Routable {
                     }
                 }
             }
-        
+
             function onMouseEnter(source_element, result_identifier, test_identifier, attachment_identifier, content_type) {
                 var destination_src = `\(AttachmentRoute().path)?result_id=${result_identifier}&test_id=${test_identifier}&id=${attachment_identifier}&content_type=${content_type}`;
                 if (!document.getElementById('screenshot-image').src.includes(destination_src)) {
@@ -85,7 +87,7 @@ struct ScriptRoute: Routable {
                         document.getElementById('screenshot-image').src = destination_src;
                     }, 50);
                 }
-        
+
                 Array.from(document.getElementsByClassName('screenshot')).forEach(
                     function(element, index, array) {
                         if (element.getAttribute("attachment_identifier") === attachment_identifier) {
@@ -101,10 +103,11 @@ struct ScriptRoute: Routable {
 
     private func scriptFilesCoverage(resultBundle: ResultBundle) -> String {
         guard let url = resultBundle.codeCoverageJsonSummaryUrl,
-              let coverageRaw = try? String(contentsOf: url) else {
+              let coverageRaw = try? String(contentsOf: url)
+        else {
             return "{}"
         }
-        
+
         let coverage = """
             const data = \(coverageRaw)
 
@@ -121,7 +124,7 @@ struct ScriptRoute: Routable {
                 const query = e == null ? '' : e.target.value.toLowerCase();
 
                 const folder = urlParams.get('folder');
-                
+
                 for (var file of data['d'][0]['f']) {
                     const matchesQuery = query == null || file.n.toLowerCase().includes(query);
                     const matchesFolder = folder == null || file.n.startsWith(folder);
@@ -163,15 +166,15 @@ struct ScriptRoute: Routable {
                 } else {
                     filterInput.value = urlParams.get('q') ?? '';
                 }
-                
+
                 const event = new Event('input');
                 event.value = filterInput.value;
-                
+
                 filterInput.addEventListener('input', inputHandler);
                 filterInput.dispatchEvent(event);
             };
         """
-        
+
         let minifiedCoverage = coverage
             .replacingOccurrences(of: #""files":"#, with: #""f":"#)
             .replacingOccurrences(of: #""filename":"#, with: #""n":"#)
@@ -185,17 +188,17 @@ struct ScriptRoute: Routable {
             .replacingOccurrences(of: #""lines":"#, with: #""l":"#)
             .replacingOccurrences(of: #""summary":"#, with: #""s":"#)
             .replacingOccurrences(of: #""data":"#, with: #""d":"#)
-        
-        
+
         return minifiedCoverage
     }
-    
+
     private func scriptFoldersCoverage(resultBundle: ResultBundle) -> String {
         guard let url = resultBundle.codeCoveragePerFolderJsonUrl,
-              let coverageRaw = try? String(contentsOf: url) else {
+              let coverageRaw = try? String(contentsOf: url)
+        else {
             return "{}"
         }
-        
+
         let coverage = """
             const data = \(coverageRaw)
 
@@ -213,7 +216,7 @@ struct ScriptRoute: Routable {
                 const query = e == null ? '' : e.target.value.toLowerCase();
 
                 const folder = urlParams.get('folder');
-                
+
                 for (var item of data) {
                     const matchesQuery = query == null || item.f.toLowerCase().includes(query);
                     const matchesFolder = folder == null || item.f.startsWith(folder);
@@ -258,42 +261,42 @@ struct ScriptRoute: Routable {
 
                 const event = new Event('input');
                 event.value = filterInput.value;
-                
+
                 filterInput.addEventListener('input', inputHandler);
                 filterInput.dispatchEvent(event);
             };
         """
-        
+
         let minifiedCoverage = coverage
             .replacingOccurrences(of: #""path":"#, with: #""f":"#)
             .replacingOccurrences(of: #""percent":"#, with: #""p":"#)
-        
+
         return minifiedCoverage
     }
-    
-    private func scriptResulsStat() -> String {
-        return """
-            function updateLocation() {
-                const currentLocation = window.location;
-                const params = new URLSearchParams(currentLocation.search)
-                const typeParam = params.get('test')
 
-                const updatedParams = `target=${document.getElementById('target').value}&device=${document.getElementById('device').value}&type=typeParam&window_size=${document.getElementById('filter-input').value}`;
-              
-                window.location = '/html/results_stat?' + updatedParams;
-            }
-            
-            document.getElementById('target').onchange = function() {
-                updateLocation();
-            };
-            document.getElementById('device').onchange = function() {
-                updateLocation();
-            };
-            document.getElementById('filter-input').onkeydown = function(e) {
-                if (e.keyCode == 13) {
-                    updateLocation();
-                }
-            };
-"""
+    private func scriptResulsStat() -> String {
+        """
+                    function updateLocation() {
+                        const currentLocation = window.location;
+                        const params = new URLSearchParams(currentLocation.search)
+                        const typeParam = params.get('test')
+
+                        const updatedParams = `target=${document.getElementById('target').value}&device=${document.getElementById('device').value}&type=typeParam&window_size=${document.getElementById('filter-input').value}`;
+
+                        window.location = '/html/results_stat?' + updatedParams;
+                    }
+
+                    document.getElementById('target').onchange = function() {
+                        updateLocation();
+                    };
+                    document.getElementById('device').onchange = function() {
+                        updateLocation();
+                    };
+                    document.getElementById('filter-input').onkeydown = function(e) {
+                        if (e.keyCode == 13) {
+                            updateLocation();
+                        }
+                    };
+        """
     }
 }

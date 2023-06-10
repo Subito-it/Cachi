@@ -8,15 +8,15 @@ struct ResultRoute: Routable {
 
     func respond(to req: HTTPRequest, with promise: EventLoopPromise<HTTPResponse>) {
         os_log("Result request received", log: .default, type: .info)
-        
+
         guard let resultIdentifier = req.url.query else {
             let res = HTTPResponse(status: .notFound, body: HTTPBody(staticString: "Not found..."))
             return promise.succeed(res)
         }
-        
+
         let benchId = benchmarkStart()
         defer { os_log("Result bundle with id '%@' fetched in %fms", log: .default, type: .info, resultIdentifier, benchmarkStop(benchId)) }
-        
+
         let result = State.shared.result(identifier: resultIdentifier)
 
         let res: HTTPResponse
@@ -25,7 +25,7 @@ struct ResultRoute: Routable {
         } else {
             res = HTTPResponse(status: .internalServerError, body: HTTPBody(staticString: "Ouch..."))
         }
-        
+
         return promise.succeed(res)
     }
 }

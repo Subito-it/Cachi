@@ -171,7 +171,15 @@ struct TestRouteHTML: Routable {
                                             }
                                         }
                                     } else {
-                                        return div { rowData.title }.class(rowData.isError ? "color-error" : "")
+                                        return div {
+                                            if rowData.hasChildren {
+                                                image(url: "/image?imageArrorDown")
+                                                    .iconStyleAttributes(width: 12)
+                                                    .class("icon color-svg-subtext")
+                                            }
+
+                                            div { rowData.title }.class(rowData.hasChildren ? "bold" : "").inlineBlock()
+                                        }.class(rowData.isError ? "color-error" : "")
                                     }
                                 }.class("row")
                                     .style([StyleAttribute(key: "padding-left", value: "\(20 * rowData.indentation)px")])

@@ -22,6 +22,7 @@ struct ImageRoute: Routable {
         case "imageTestGray": imageContent = imageTestGray()
         case "imageArrorLeft": imageContent = imageArrorLeft()
         case "imageArrorRight": imageContent = imageArrorRight()
+        case "imageArrorDown": imageContent = imageArrorDown()
         case "imageView": imageContent = imageView()
         case "imageAttachment": imageContent = imageAttachment()
         case "imageEmpty": imageContent = imageEmpty()
@@ -59,6 +60,10 @@ struct ImageRoute: Routable {
 
     private func imageArrorRight() -> StaticString {
         StaticString(stringLiteral: ##"<svg height="401.636" viewBox="0 0 235.66 401.636" width="235.66" xmlns="http://www.w3.org/2000/svg"><g transform="translate(-964.698 -50.387)"><path d="m966.198 417.475s34.048 34.048 34.048 34.048 199.612-199.61 199.612-199.61-199.612-200.026-199.612-200.026-34.048 34.048-34.048 34.048 165.77 165.77 165.77 165.77-165.77 165.77-165.77 165.77z" fill="#787877"/><path d="m966.198 417.475s34.048 34.048 34.048 34.048 199.612-199.61 199.612-199.61-199.612-200.026-199.612-200.026-34.048 34.048-34.048 34.048 165.77 165.77 165.77 165.77-165.77 165.77-165.77 165.77z" fill="none" stroke="#000"/></g></svg>"##)
+    }
+
+    private func imageArrorDown() -> StaticString {
+        StaticString(stringLiteral: ##"<svg width="402" height="236" xmlns="http://www.w3.org/2000/svg" xml:space="preserve" style="fill-rule:evenodd;clip-rule:evenodd"><path d="m966.198 417.475 34.052 34.048 199.61-199.61-199.61-200.026-34.052 34.048 165.772 165.77-165.772 165.77Z" style="fill:#787877;fill-rule:nonzero" transform="rotate(90 708.842 -255.836)"/><path d="m966.198 417.475 34.052 34.048 199.61-199.61-199.61-200.026-34.052 34.048 165.772 165.77-165.772 165.77Z" style="fill:none;fill-rule:nonzero;stroke:#000;stroke-width:1px" transform="rotate(90 708.842 -255.836)"/></svg>"##)
     }
 
     private func imageView() -> StaticString {

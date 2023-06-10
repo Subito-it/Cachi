@@ -18,7 +18,7 @@ struct TestRoute: Routable {
         defer { os_log("Result bundle with id '%@' fetched in %fms", log: .default, type: .info, testSummaryIdentifier, benchmarkStop(benchId)) }
 
         let res: HTTPResponse
-        if let summaries = State.shared.testActionSummaries(summaryIdentifier: testSummaryIdentifier),
+        if let summaries = State.shared.testActionActivitySummaries(summaryIdentifier: testSummaryIdentifier),
            let bodyData = try? JSONEncoder().encode(summaries)
         {
             res = HTTPResponse(body: HTTPBody(data: bodyData))

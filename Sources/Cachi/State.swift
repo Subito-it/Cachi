@@ -190,15 +190,15 @@ class State {
         resultBundles.flatMap(\.tests).first { $0.summaryIdentifier == summaryIdentifier }
     }
 
-    func testActionSummaries(summaryIdentifier: String) -> [ActionTestActivitySummary]? {
+    func testActionActivitySummaries(summaryIdentifier: String) -> [ActionTestActivitySummary]? {
         guard let test = test(summaryIdentifier: summaryIdentifier) else {
             return nil
         }
 
-        return testActionSummaries(test: test)
+        return testActionActivitySummaries(test: test)
     }
 
-    func testActionSummaries(test: ResultBundle.Test?) -> [ActionTestActivitySummary]? {
+    func testActionActivitySummaries(test: ResultBundle.Test?) -> [ActionTestActivitySummary]? {
         guard let test, let summaryIdentifier = test.summaryIdentifier else { return nil }
 
         let cachi = CachiKit(url: test.xcresultUrl)
@@ -398,7 +398,7 @@ class State {
 
         let cachi = CachiKit(url: test.xcresultUrl)
 
-        let actions = cachedActions ?? State.shared.testActionSummaries(summaryIdentifier: test.summaryIdentifier!) ?? []
+        let actions = cachedActions ?? State.shared.testActionActivitySummaries(test: test) ?? []
 
         let filemanager = FileManager.default
 

@@ -3,7 +3,7 @@ import Foundation
 
 extension ResultBundle.Test {
     func failureMessage() -> String? {
-        guard let summaries = State.shared.testActionSummaries(test: self) else {
+        guard let summaries = State.shared.testActionActivitySummaries(test: self) else {
             return nil
         }
 

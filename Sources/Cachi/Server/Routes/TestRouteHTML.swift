@@ -43,7 +43,7 @@ struct TestRouteHTML: Routable {
             return promise.succeed(res)
         }
 
-        let actions = State.shared.testActionSummaries(summaryIdentifier: test.summaryIdentifier!) ?? []
+        let actions = State.shared.testActionActivitySummaries(test: test) ?? []
         let rowsData: [RowData]
         if let firstTimestamp = actions.first(where: { $0.start != nil })?.start?.timeIntervalSince1970 {
             rowsData = self.rowsData(from: actions, currentTimestamp: firstTimestamp)

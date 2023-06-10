@@ -199,10 +199,10 @@ class State {
     }
 
     func testActionSummaries(test: ResultBundle.Test?) -> [ActionTestActivitySummary]? {
-        guard let test else { return nil }
+        guard let test, let summaryIdentifier = test.summaryIdentifier else { return nil }
 
         let cachi = CachiKit(url: test.xcresultUrl)
-        let testSummary = try? cachi.actionTestSummary(identifier: test.summaryIdentifier!)
+        let testSummary = try? cachi.actionTestSummary(identifier: summaryIdentifier)
 
         return testSummary?.activitySummaries
     }

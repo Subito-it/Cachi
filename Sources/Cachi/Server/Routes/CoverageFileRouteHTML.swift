@@ -54,7 +54,7 @@ struct CoverageFileRouteHTML: Routable {
             div {
                 div {
                     link(url: "javascript:history.back()") {
-                        image(url: "/image?imageArrorLeft")
+                        image(url: "/image?imageArrowLeft")
                             .iconStyleAttributes(width: 8)
                             .class("icon color-svg-text")
                     }

@@ -131,7 +131,7 @@ struct TestStatRouteHTML: Routable {
             div {
                 div {
                     link(url: backUrl) {
-                        image(url: "/image?imageArrorLeft")
+                        image(url: "/image?imageArrowLeft")
                             .iconStyleAttributes(width: 8)
                             .class("icon color-svg-text")
                     }

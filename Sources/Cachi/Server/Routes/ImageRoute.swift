@@ -20,9 +20,9 @@ struct ImageRoute: Routable {
         case "imageTestFail": imageContent = imageTestFail()
         case "imageTestRetried": imageContent = imageTestRetried()
         case "imageTestGray": imageContent = imageTestGray()
-        case "imageArrorLeft": imageContent = imageArrorLeft()
-        case "imageArrorRight": imageContent = imageArrorRight()
-        case "imageArrorDown": imageContent = imageArrorDown()
+        case "imageArrowLeft": imageContent = imageArrowLeft()
+        case "imageArrowRight": imageContent = imageArrowRight()
+        case "imageArrowDown": imageContent = imageArrowDown()
         case "imageLink": imageContent = imageLink()
         case "imageView": imageContent = imageView()
         case "imageAttachment": imageContent = imageAttachment()
@@ -55,15 +55,15 @@ struct ImageRoute: Routable {
         StaticString(stringLiteral: ##"<svg height="405.638" viewBox="0 0 405.705 405.638" width="405.705" xmlns="http://www.w3.org/2000/svg"><g fill="#787877" transform="translate(-344.21 -46.555)"><path d="m549.732 46.555c17.63.895 33.438 8.347 46.14 20.422l133.54 133.541c27.337 27.336 27.337 71.658 0 98.995l-132.178 132.177c-27.336 27.337-71.658 27.337-98.994 0l-133.541-133.54c-27.336-27.337-27.336-71.658 0-98.995l132.178-132.178c15.533-14.991 31.577-20.422 52.855-20.422zm-.419 31.744c-16.873-.703-32.425 5.67-44.581 17.226l-111.486 111.485c-23.057 23.058-23.057 60.441 0 83.498l112.635 112.635c23.058 23.057 60.441 23.057 83.498 0l111.486-111.486c23.057-23.057 23.057-60.44 0-83.497l-112.635-112.635c-11.152-11.063-23.535-15.753-38.917-17.226z"/><path d="m438.651 229.463h216.824v39.822h-216.824z"/></g></svg>"##)
     }
 
-    private func imageArrorLeft() -> StaticString {
+    private func imageArrowLeft() -> StaticString {
         StaticString(stringLiteral: ##"<svg height="401.636" viewBox="0 0 235.453 401.636" width="235.453" xmlns="http://www.w3.org/2000/svg"><g transform="translate(-577.297 -50.387)"><path d="m578.797 251.705s199.405 199.818 199.405 199.818 34.048-34.048 34.048-34.048-165.77-165.77-165.77-165.77 165.77-165.77 165.77-165.77-34.048-34.048-34.048-34.048-199.405 199.818-199.405 199.818z" fill="#787877"/><path d="m578.797 251.705s199.405 199.818 199.405 199.818 34.048-34.048 34.048-34.048-165.77-165.77-165.77-165.77 165.77-165.77 165.77-165.77-34.048-34.048-34.048-34.048-199.405 199.818-199.405 199.818z" fill="none" stroke="#000"/></g></svg>"##)
     }
 
-    private func imageArrorRight() -> StaticString {
+    private func imageArrowRight() -> StaticString {
         StaticString(stringLiteral: ##"<svg height="401.636" viewBox="0 0 235.66 401.636" width="235.66" xmlns="http://www.w3.org/2000/svg"><g transform="translate(-964.698 -50.387)"><path d="m966.198 417.475s34.048 34.048 34.048 34.048 199.612-199.61 199.612-199.61-199.612-200.026-199.612-200.026-34.048 34.048-34.048 34.048 165.77 165.77 165.77 165.77-165.77 165.77-165.77 165.77z" fill="#787877"/><path d="m966.198 417.475s34.048 34.048 34.048 34.048 199.612-199.61 199.612-199.61-199.612-200.026-199.612-200.026-34.048 34.048-34.048 34.048 165.77 165.77 165.77 165.77-165.77 165.77-165.77 165.77z" fill="none" stroke="#000"/></g></svg>"##)
     }
 
-    private func imageArrorDown() -> StaticString {
+    private func imageArrowDown() -> StaticString {
         StaticString(stringLiteral: ##"<svg width="402" height="236" xmlns="http://www.w3.org/2000/svg" xml:space="preserve" style="fill-rule:evenodd;clip-rule:evenodd"><path d="m966.198 417.475 34.052 34.048 199.61-199.61-199.61-200.026-34.052 34.048 165.772 165.77-165.772 165.77Z" style="fill:#787877;fill-rule:nonzero" transform="rotate(90 708.842 -255.836)"/><path d="m966.198 417.475 34.052 34.048 199.61-199.61-199.61-200.026-34.052 34.048 165.772 165.77-165.772 165.77Z" style="fill:none;fill-rule:nonzero;stroke:#000;stroke-width:1px" transform="rotate(90 708.842 -255.836)"/></svg>"##)
     }
     

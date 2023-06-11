@@ -75,6 +75,8 @@ struct ResultBundle: Codable {
         let commitMessage: String?
         let commitHash: String?
         let metadata: String?
+        let sourceBasePath: String?
+        let githubBaseUrl: String?
         let startDate: Date?
         let endDate: Date?
 
@@ -86,6 +88,9 @@ struct ResultBundle: Codable {
             commitMessage = try container.decodeIfPresent(String.self, forKey: .commitMessage)
             commitHash = try container.decodeIfPresent(String.self, forKey: .commitHash)
             metadata = try container.decodeIfPresent(String.self, forKey: .metadata)
+            
+            sourceBasePath = try container.decodeIfPresent(String.self, forKey: .sourceBasePath)
+            githubBaseUrl = try container.decodeIfPresent(String.self, forKey: .githubBaseUrl)
 
             startDate = try container.decodeIfPresent(Date.self, forKey: .startDate)
             endDate = try container.decodeIfPresent(Date.self, forKey: .endDate)
@@ -95,7 +100,9 @@ struct ResultBundle: Codable {
                commitHash == nil,
                metadata == nil,
                startDate == nil,
-               endDate == nil
+               endDate == nil,
+               sourceBasePath == nil,
+               githubBaseUrl == nil
             {
                 throw Error.empty
             }

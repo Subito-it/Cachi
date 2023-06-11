@@ -37,6 +37,8 @@ The following keys can be added to the Info.plist in the .xcresult bundle which 
 - `branchName`
 - `commitHash`
 - `commitMessage`
+- `githubBaseUrl`: used to generate links to specific code lines within GitHub repositories. This allows to easily navigate to specific code segments associated to test failures. Example: https://github.com/Subito-it/Cachi
+- `sourceBasePath`: used to cleanup file paths removing compilation base paths from source code locations. Example: /Users/someuser/path/to/repository will convert locations such as /Users/someuser/path/to/repository/modules/Somefile.swift into /modules/Somefile.swift.
 
 
 # Contributions

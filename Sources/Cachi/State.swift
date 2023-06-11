@@ -189,6 +189,15 @@ class State {
     func test(summaryIdentifier: String) -> ResultBundle.Test? {
         resultBundles.flatMap(\.tests).first { $0.summaryIdentifier == summaryIdentifier }
     }
+    
+    func testActionSummary(test: ResultBundle.Test?) -> ActionTestSummary? {
+        guard let test, let summaryIdentifier = test.summaryIdentifier else { return nil }
+
+        let cachi = CachiKit(url: test.xcresultUrl)
+        let testSummary = try? cachi.actionTestSummary(identifier: summaryIdentifier)
+
+        return testSummary
+    }
 
     func testActionActivitySummaries(summaryIdentifier: String) -> [ActionTestActivitySummary]? {
         guard let test = test(summaryIdentifier: summaryIdentifier) else {

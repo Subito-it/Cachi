@@ -35,10 +35,15 @@ struct TestRouteHTML: Routable {
 
         let actions = activitySummary?.activitySummaries ?? []
         var rowsData: [TableRowModel]
+        var failureSummaries = activitySummary?.failureSummaries ?? []
         if let firstTimestamp = actions.first(where: { $0.start != nil })?.start?.timeIntervalSince1970 {
-            rowsData = TableRowModel.makeModels(from: actions, currentTimestamp: firstTimestamp, failureSummaries: activitySummary?.failureSummaries, userInfo: resultBundle.userInfo)
+            rowsData = TableRowModel.makeModels(from: actions, currentTimestamp: firstTimestamp, failureSummaries: &failureSummaries, userInfo: resultBundle.userInfo)
         } else {
             rowsData = []
+        }
+        
+        for failureSummary in failureSummaries {
+            rowsData += TableRowModel.makeFailureModel(failureSummary, userInfo: resultBundle.userInfo, indentation: 0)
         }
         
         let source = queryItems.first(where: { $0.name == "source" })?.value
@@ -244,7 +249,7 @@ private struct TableRowModel {
     
     var isExternalLink: Bool { attachmentContentType == "text/html" }
     
-    static func makeModels(from actionSummaries: [ActionTestActivitySummary], currentTimestamp: Double, failureSummaries: [ActionTestFailureSummary]?, userInfo: ResultBundle.UserInfo?, indentation: Int = 1, lastScreenshotIdentifier: String = "", lastScreenshotContentType: String = "") -> [TableRowModel] {
+    static func makeModels(from actionSummaries: [ActionTestActivitySummary], currentTimestamp: Double, failureSummaries: inout [ActionTestFailureSummary], userInfo: ResultBundle.UserInfo?, indentation: Int = 1, lastScreenshotIdentifier: String = "", lastScreenshotContentType: String = "") -> [TableRowModel] {
         var data = [TableRowModel]()
 
         for summary in actionSummaries {
@@ -268,7 +273,7 @@ private struct TableRowModel {
             let isError = summary.activityType == "com.apple.dt.xctest.activity-type.testAssertionFailure"
 
             let actionTimestamp = summary.start?.timeIntervalSince1970 ?? currentTimestamp
-            subRowData += makeModels(from: summary.subactivities, currentTimestamp: currentTimestamp, failureSummaries: failureSummaries, userInfo: userInfo, indentation: indentation + 1, lastScreenshotIdentifier: screenshotIdentifier, lastScreenshotContentType: screenshotContentType)
+            subRowData += makeModels(from: summary.subactivities, currentTimestamp: currentTimestamp, failureSummaries: &failureSummaries, userInfo: userInfo, indentation: indentation + 1, lastScreenshotIdentifier: screenshotIdentifier, lastScreenshotContentType: screenshotContentType)
 
             title += currentTimestamp - actionTimestamp == 0 ? " (Start)" : " (\(String(format: "%.2f", actionTimestamp - currentTimestamp))s)"
 
@@ -276,30 +281,39 @@ private struct TableRowModel {
             
             if !summary.failureSummaryIDs.isEmpty {
                 for failureSummaryID in summary.failureSummaryIDs {
-                    guard let failure = failureSummaries?.first(where:  { $0.uuid == failureSummaryID }) else {
+                    guard let failureIndex = failureSummaries.firstIndex(where:  { $0.uuid == failureSummaryID }) else {
                         continue
                     }
-                    
-                    data.append(TableRowModel(indentation: indentation, title: failure.message ?? "Failure", attachmentImage: nil, attachmentIdentifier: "", attachmentContentType: "", hasChildren: !failure.attachments.isEmpty, isError: true, isKeyScreenshot: false, isScreenshot: false))
-                    if var fileName = failure.fileName, let lineNumber = failure.lineNumber {
-                        fileName = fileName.replacingOccurrences(of: userInfo?.sourceBasePath ?? "", with: "")
-                        var attachment: (url: String, width: Int)?
-                        if let githubBaseUrl = userInfo?.githubBaseUrl, let commitHash = userInfo?.commitHash {
-                            attachment = (url: "\(githubBaseUrl)/blob/\(commitHash)/\(fileName)#L\(lineNumber)", width: 15)
-                        }
-                        data.append(TableRowModel(indentation: indentation + 1, title: "\(fileName):\(lineNumber)", attachmentImage: attachment, attachmentIdentifier: "", attachmentContentType: "text/html", hasChildren: false, isError: false, isKeyScreenshot: false, isScreenshot: false))
-                    }
-                    
-                    for attachment in failure.attachments {
-                        let attachmentIdentifier = attachment.payloadRef?.id ?? ""
-                        let attachmentMetadata = attachmentMetadata(from: attachment)
-                        
-                        data.append(TableRowModel(indentation: indentation + 1, title: attachmentMetadata.title, attachmentImage: attachmentMetadata.image, attachmentIdentifier: attachmentIdentifier, attachmentContentType: attachmentMetadata.contentType, hasChildren: false, isError: false, isKeyScreenshot: true, isScreenshot: true))
-                    }
+
+                    data += makeFailureModel(failureSummaries[failureIndex], userInfo: userInfo, indentation: indentation)
+                    failureSummaries.remove(at: failureIndex)
                 }
             }
         }
 
+        return data
+    }
+    
+    static func makeFailureModel(_ failure: ActionTestFailureSummary, userInfo: ResultBundle.UserInfo?, indentation: Int) -> [TableRowModel] {
+        var data = [TableRowModel]()
+        
+        data.append(TableRowModel(indentation: indentation, title: failure.message ?? "Failure", attachmentImage: nil, attachmentIdentifier: "", attachmentContentType: "", hasChildren: !failure.attachments.isEmpty, isError: true, isKeyScreenshot: false, isScreenshot: false))
+        if var fileName = failure.fileName, let lineNumber = failure.lineNumber {
+            fileName = fileName.replacingOccurrences(of: userInfo?.sourceBasePath ?? "", with: "")
+            var attachment: (url: String, width: Int)?
+            if let githubBaseUrl = userInfo?.githubBaseUrl, let commitHash = userInfo?.commitHash {
+                attachment = (url: "\(githubBaseUrl)/blob/\(commitHash)/\(fileName)#L\(lineNumber)", width: 15)
+            }
+            data.append(TableRowModel(indentation: indentation + 1, title: "\(fileName):\(lineNumber)", attachmentImage: attachment, attachmentIdentifier: "", attachmentContentType: "text/html", hasChildren: false, isError: false, isKeyScreenshot: false, isScreenshot: false))
+        }
+        
+        for attachment in failure.attachments {
+            let attachmentIdentifier = attachment.payloadRef?.id ?? ""
+            let attachmentMetadata = attachmentMetadata(from: attachment)
+            
+            data.append(TableRowModel(indentation: indentation + 1, title: attachmentMetadata.title, attachmentImage: attachmentMetadata.image, attachmentIdentifier: attachmentIdentifier, attachmentContentType: attachmentMetadata.contentType, hasChildren: false, isError: false, isKeyScreenshot: true, isScreenshot: true))
+        }
+        
         return data
     }
     

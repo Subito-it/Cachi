@@ -10,17 +10,17 @@ import Vaux
 
 class RawHTML: HTML {
     private let rawContent: String
-    
+
     init(rawContent: String) {
         self.rawContent = rawContent.replacingOccurrences(of: "\n", with: "<br />\n").replacingOccurrences(of: "  ", with: "&nbsp;&nbsp;")
     }
-    
-    func renderAsHTML(into stream: HTMLOutputStream, attributes: [Attribute]) {
+
+    func renderAsHTML(into stream: HTMLOutputStream, attributes _: [Attribute]) {
         var output = stream.output
         output.write(rawContent)
     }
-    
+
     func getTag() -> String? {
-        return nil
+        nil
     }
 }

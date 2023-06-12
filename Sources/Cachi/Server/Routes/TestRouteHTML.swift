@@ -1,57 +1,49 @@
+import CachiKit
 import Foundation
 import HTTPKit
 import os
 import Vaux
-import CachiKit
-
-private struct RowData {
-    let indentation: Int
-    let title: String
-    let attachmentImage: (url: String, width: Int)?
-    let attachmentIdentifier: String
-    let attachmentContentType: String
-    let hasChildren: Bool
-    let isError: Bool
-    let isKeyScreenshot: Bool
-    let isScreenshot: Bool
-}
 
 struct TestRouteHTML: Routable {
     let path: String = "/html/test"
     let description: String = "Test details in html (pass identifier)"
-        
+
     func respond(to req: HTTPRequest, with promise: EventLoopPromise<HTTPResponse>) {
         os_log("HTML test stats request received", log: .default, type: .info)
-        
+
         guard let components = URLComponents(url: req.url, resolvingAgainstBaseURL: false),
               let queryItems = components.queryItems,
-              let testSummaryIdentifier = queryItems.first(where: { $0.name == "id" })?.value else {
+              let testSummaryIdentifier = queryItems.first(where: { $0.name == "id" })?.value
+        else {
             let res = HTTPResponse(status: .notFound, body: HTTPBody(staticString: "Not found..."))
             return promise.succeed(res)
         }
-                
+
         let benchId = benchmarkStart()
         defer { os_log("Test with summaryIdentifier '%@' fetched in %fms", log: .default, type: .info, testSummaryIdentifier, benchmarkStop(benchId)) }
-              
+
         let resultBundles = State.shared.resultBundles
-        
-        guard let resultBundle = resultBundles.first(where: { $0.tests.contains(where: { $0.summaryIdentifier == testSummaryIdentifier })}),
-              let test = resultBundle.tests.first(where: { $0.summaryIdentifier == testSummaryIdentifier }) else {
+
+        guard let resultBundle = resultBundles.first(where: { $0.tests.contains(where: { $0.summaryIdentifier == testSummaryIdentifier }) }),
+              let test = resultBundle.tests.first(where: { $0.summaryIdentifier == testSummaryIdentifier })
+        else {
             let res = HTTPResponse(status: .notFound, body: HTTPBody(staticString: "Not found..."))
             return promise.succeed(res)
-        }        
-         
-        let actions = State.shared.testActionSummaries(summaryIdentifier: test.summaryIdentifier!) ?? []
-        let rowsData: [RowData]
+        }
+        
+        let activitySummary = State.shared.testActionSummary(test: test)
+
+        let actions = activitySummary?.activitySummaries ?? []
+        var rowsData: [TableRowModel]
         if let firstTimestamp = actions.first(where: { $0.start != nil })?.start?.timeIntervalSince1970 {
-            rowsData = self.rowsData(from: actions, currentTimestamp: firstTimestamp)
+            rowsData = TableRowModel.makeModels(from: actions, currentTimestamp: firstTimestamp, failureSummaries: activitySummary?.failureSummaries, userInfo: resultBundle.userInfo)
         } else {
             rowsData = []
         }
         
         let source = queryItems.first(where: { $0.name == "source" })?.value
         let backUrl = queryItems.backUrl
-                
+
         let document = html {
             head {
                 title("Cachi - Test result")
@@ -66,14 +58,14 @@ struct TestRouteHTML: Routable {
                 }.class("main-container background")
             }
         }
-        
+
         return promise.succeed(document.httpResponse())
     }
-    
+
     private func floatingHeaderHTML(result: ResultBundle, test: ResultBundle.Test, source: String?, backUrl: String) -> HTML {
         let testTitle = test.name
         let testSubtitle = test.groupName
-        
+
         let testDuration = hoursMinutesSeconds(in: test.duration)
         let testDetail: String
         switch test.status {
@@ -82,15 +74,15 @@ struct TestRouteHTML: Routable {
         case .failure:
             testDetail = "Failed in \(testDuration)"
         }
-        
+
         let testDevice = "\(test.deviceModel) (\(test.deviceOs))"
-                
+
         var previousTest: ResultBundle.Test?
         var nextTest: ResultBundle.Test?
-        
+
         if test.status == .failure {
             let sortedTests = result.testsFailed.sorted(by: { "\($0.groupName)-\($0.name)-\($0.testStartDate.timeIntervalSince1970)" < "\($1.groupName)-\($1.name)-\($1.testStartDate.timeIntervalSince1970)" })
-            
+
             if let index = sortedTests.firstIndex(of: test) {
                 if index > 0 {
                     previousTest = sortedTests[index - 1]
@@ -100,16 +92,16 @@ struct TestRouteHTML: Routable {
                 }
             }
         }
-        
+
         let fromTestStats = source == "test_stats"
-        
+
         let sourceParam = source == nil ? "" : "&source=\(source!)"
 
         return div {
             div {
                 div {
                     link(url: backUrl) {
-                        image(url: "/image?imageArrorLeft")
+                        image(url: "/image?imageArrowLeft")
                             .iconStyleAttributes(width: 8)
                             .class("icon color-svg-text")
                     }
@@ -121,10 +113,10 @@ struct TestRouteHTML: Routable {
             }.class("row light-bordered-container indent1")
             div {
                 div {
-                    if let previousTest = previousTest {
+                    if let previousTest {
                         link(url: "/html/test?id=\(previousTest.summaryIdentifier ?? "")\(sourceParam)&type=stdouts&back_url=\(backUrl.hexadecimalRepresentation)") { "←" }.class("button")
                     }
-                    if let nextTest = nextTest {
+                    if let nextTest {
                         link(url: "/html/test?id=\(nextTest.summaryIdentifier ?? "")\(sourceParam)&type=stdouts&back_url=\(backUrl.hexadecimalRepresentation)") { "→" }.class("button")
                     }
                 }.floatRight()
@@ -138,9 +130,9 @@ struct TestRouteHTML: Routable {
             }.class("row indent2 background")
         }
     }
-    
-    private func resultsTableHTML(result: ResultBundle, test: ResultBundle.Test, rowsData: [RowData]) -> HTML {
-        return table {
+
+    private func resultsTableHTML(result: ResultBundle, test: ResultBundle.Test, rowsData: [TableRowModel]) -> HTML {
+        table {
             tableRow {
                 tableHeadData { "Steps" }.alignment(.left).scope(.column).class("row dark-bordered-container indent1")
                 tableHeadData { "Screenshot" }.alignment(.center).scope(.column).class("row dark-bordered-container")
@@ -148,12 +140,20 @@ struct TestRouteHTML: Routable {
 
             tableRow {
                 tableData {
-                    return table {
+                    table {
                         forEach(rowsData) { rowData in
+                            var rowClasses = ["light-bordered-container", "indent1"]
                             let row = tableRow {
                                 tableData {
                                     if let attachmentImage = rowData.attachmentImage {
-                                        if rowData.isScreenshot {
+                                        if rowData.isExternalLink {
+                                            return link(url: attachmentImage.url) {
+                                                div { rowData.title }.class("color-subtext").inlineBlock()
+                                                image(url: "/image?imageLink")
+                                                    .iconStyleAttributes(width: attachmentImage.width)
+                                                    .class("icon color-svg-subtext")
+                                            }
+                                        } else if rowData.isScreenshot {
                                             return HTMLBuilder.buildBlock(
                                                 div { rowData.title }.class("screenshot color-subtext").attr("attachment_identifier", rowData.attachmentIdentifier).inlineBlock(),
                                                 image(url: attachmentImage.url)
@@ -169,26 +169,35 @@ struct TestRouteHTML: Routable {
                                             }
                                         }
                                     } else {
-                                        return div { rowData.title }.class(rowData.isError ? "color-error" : "")
+                                        return div {
+                                            if rowData.hasChildren {
+                                                image(url: "/image?imageArrowDown")
+                                                    .iconStyleAttributes(width: 12)
+                                                    .class("icon color-svg-subtext")
+                                            }
+
+                                            div { rowData.title }.class(rowData.hasChildren ? "bold" : "").inlineBlock()
+                                        }
                                     }
-                                }.class("row")
-                                 .style([StyleAttribute(key: "padding-left", value: "\(20 * rowData.indentation)px")])
-                            }.class("light-bordered-container indent1")
-                             .attr("attachment_identifier", rowData.attachmentIdentifier)
-                            
+                                }.class(rowData.isError ? "row background-error" : "row")
+                                    .style([StyleAttribute(key: "padding-left", value: "\(20 * rowData.indentation)px")])
+                            }
+                                .attr("attachment_identifier", rowData.attachmentIdentifier)
+
                             let testSummaryIdentifier = test.summaryIdentifier ?? ""
-                            
-                            if rowData.isKeyScreenshot {
+
+                            if rowData.isKeyScreenshot || rowData.isScreenshot {
+                                if rowData.isKeyScreenshot {
+                                    rowClasses.append("screenshot-key")
+                                }
+                                
                                 return row
-                                    .class("screenshot-key")
-                                    .attr("onmouseenter", #"onMouseEnter(this, '\#(result.identifier)', '\#(testSummaryIdentifier)', '\#(rowData.attachmentIdentifier)', '\#(rowData.attachmentContentType)', '\#(rowData.attachmentContentType)')"#)
-                                    .attr("onclick", #"onMouseEnter(this, '\#(result.identifier)', '\#(testSummaryIdentifier)', '\#(rowData.attachmentIdentifier)', '\#(rowData.attachmentContentType)')"#)
-                            } else if rowData.isScreenshot {
-                                return row
+                                    .class(rowClasses.joined(separator: " "))
                                     .attr("onmouseenter", #"onMouseEnter(this, '\#(result.identifier)', '\#(testSummaryIdentifier)', '\#(rowData.attachmentIdentifier)', '\#(rowData.attachmentContentType)', '\#(rowData.attachmentContentType)')"#)
                                     .attr("onclick", #"onMouseEnter(this, '\#(result.identifier)', '\#(testSummaryIdentifier)', '\#(rowData.attachmentIdentifier)', '\#(rowData.attachmentContentType)')"#)
                             } else {
                                 return row
+                                    .class(rowClasses.joined(separator: " "))
                             }
                         }
                     }
@@ -210,70 +219,112 @@ struct TestRouteHTML: Routable {
             }
         }
     }
+
+    private func currentUrl(test: ResultBundle.Test, source: String?, backUrl: String) -> String {
+        var url = "\(path)?id=\(test.summaryIdentifier!)&back_url=\(backUrl.hexadecimalRepresentation)"
+        if let source {
+            url += "&source=\(source)"
+        }
+        return url
+    }
+}
+
+// MARK: - RowData
+
+private struct TableRowModel {
+    let indentation: Int
+    let title: String
+    let attachmentImage: (url: String, width: Int)?
+    let attachmentIdentifier: String
+    let attachmentContentType: String
+    let hasChildren: Bool
+    let isError: Bool
+    let isKeyScreenshot: Bool
+    let isScreenshot: Bool
     
-    private func rowsData(from actionSummaries: [ActionTestActivitySummary], currentTimestamp: Double, indentation: Int = 1, lastScreenshotIdentifier: String = "", lastScreenshotContentType: String = "") -> [RowData] {
-        var data = [RowData]()
-                
+    var isExternalLink: Bool { attachmentContentType == "text/html" }
+    
+    static func makeModels(from actionSummaries: [ActionTestActivitySummary], currentTimestamp: Double, failureSummaries: [ActionTestFailureSummary]?, userInfo: ResultBundle.UserInfo?, indentation: Int = 1, lastScreenshotIdentifier: String = "", lastScreenshotContentType: String = "") -> [TableRowModel] {
+        var data = [TableRowModel]()
+
         for summary in actionSummaries {
             guard var title = summary.title else {
                 continue
             }
             
-            var subRowData = [RowData]()
+            var subRowData = [TableRowModel]()
             for attachment in summary.attachments {
-                let attachmentContentType: String
-                let attachmentTitle: String
-                let attachmentImage: (url: String, width: Int)
                 let attachmentIdentifier = attachment.payloadRef?.id ?? ""
-                
-                switch attachment.uniformTypeIdentifier {
-                case "public.plain-text", "public.utf8-plain-text":
-                    attachmentContentType = "text/plain"
-                    attachmentTitle = "User plain text data"
-                    attachmentImage = ("/image?imageAttachment", 14)
-                case "public.jpeg":
-                    attachmentContentType = "image/jpeg"
-                    attachmentTitle = attachment.name == "kXCTAttachmentLegacyScreenImageData" ? "Automatic Screenshot" : "User image attachment"
-                    attachmentImage = ("/image?imageView", 18)
-                case "public.png":
-                    attachmentContentType = "image/png"
-                    attachmentTitle = attachment.name == "kXCTAttachmentLegacyScreenImageData" ? "Automatic Screenshot" : "User image attachment"
-                    attachmentImage = ("/image?imageView", 18)
-                case "public.data":
-                    attachmentContentType = "text/plain"
-                    attachmentTitle = "Other text data"
-                    attachmentImage = ("/image?imageAttachment", 14)
-                default:
-                    assertionFailure("Unhandled attachment uniformTypeIdentifier: \(attachment.uniformTypeIdentifier)")
-                    continue
-                }
-                
+                let attachmentMetadata = attachmentMetadata(from: attachment)
+
                 let isScreenshot = attachment.name == "kXCTAttachmentLegacyScreenImageData"
-                subRowData += [RowData(indentation: indentation + 1, title: attachmentTitle , attachmentImage: attachmentImage, attachmentIdentifier: attachmentIdentifier, attachmentContentType: attachmentContentType, hasChildren: false, isError: false, isKeyScreenshot: isScreenshot, isScreenshot: isScreenshot)]
+                subRowData += [TableRowModel(indentation: indentation + 1, title: attachmentMetadata.title, attachmentImage: attachmentMetadata.image, attachmentIdentifier: attachmentIdentifier, attachmentContentType: attachmentMetadata.contentType, hasChildren: false, isError: false, isKeyScreenshot: isScreenshot, isScreenshot: isScreenshot)]
             }
-            
+
             let lastScreenshotRow = (data + subRowData).reversed().first(where: { $0.isKeyScreenshot })
             let screenshotIdentifier = lastScreenshotRow?.attachmentIdentifier ?? lastScreenshotIdentifier
             let screenshotContentType = lastScreenshotRow?.attachmentContentType ?? lastScreenshotContentType
-                        
+
             let isError = summary.activityType == "com.apple.dt.xctest.activity-type.testAssertionFailure"
-            
+
             let actionTimestamp = summary.start?.timeIntervalSince1970 ?? currentTimestamp
-            subRowData += rowsData(from: summary.subactivities, currentTimestamp: currentTimestamp, indentation: indentation + 1, lastScreenshotIdentifier: screenshotIdentifier, lastScreenshotContentType: screenshotContentType)
+            subRowData += makeModels(from: summary.subactivities, currentTimestamp: currentTimestamp, failureSummaries: failureSummaries, userInfo: userInfo, indentation: indentation + 1, lastScreenshotIdentifier: screenshotIdentifier, lastScreenshotContentType: screenshotContentType)
 
             title += currentTimestamp - actionTimestamp == 0 ? " (Start)" : " (\(String(format: "%.2f", actionTimestamp - currentTimestamp))s)"
+
+            data += [TableRowModel(indentation: indentation, title: title, attachmentImage: nil, attachmentIdentifier: screenshotIdentifier, attachmentContentType: screenshotContentType, hasChildren: subRowData.count > 0, isError: isError, isKeyScreenshot: false, isScreenshot: screenshotIdentifier.count > 0)] + subRowData
             
-            data += [RowData(indentation: indentation, title: title, attachmentImage: nil, attachmentIdentifier: screenshotIdentifier, attachmentContentType: screenshotContentType, hasChildren: subRowData.count > 0, isError: isError, isKeyScreenshot: false, isScreenshot: screenshotIdentifier.count > 0)] + subRowData
+            if !summary.failureSummaryIDs.isEmpty {
+                for failureSummaryID in summary.failureSummaryIDs {
+                    guard let failure = failureSummaries?.first(where:  { $0.uuid == failureSummaryID }) else {
+                        continue
+                    }
+                    
+                    data.append(TableRowModel(indentation: indentation, title: failure.message ?? "Failure", attachmentImage: nil, attachmentIdentifier: "", attachmentContentType: "", hasChildren: !failure.attachments.isEmpty, isError: true, isKeyScreenshot: false, isScreenshot: false))
+                    if var fileName = failure.fileName, let lineNumber = failure.lineNumber {
+                        fileName = fileName.replacingOccurrences(of: userInfo?.sourceBasePath ?? "", with: "")
+                        var attachment: (url: String, width: Int)?
+                        if let githubBaseUrl = userInfo?.githubBaseUrl, let commitHash = userInfo?.commitHash {
+                            attachment = (url: "\(githubBaseUrl)/blob/\(commitHash)/\(fileName)#L\(lineNumber)", width: 15)
+                        }
+                        data.append(TableRowModel(indentation: indentation + 1, title: "\(fileName):\(lineNumber)", attachmentImage: attachment, attachmentIdentifier: "", attachmentContentType: "text/html", hasChildren: false, isError: false, isKeyScreenshot: false, isScreenshot: false))
+                    }
+                    
+                    for attachment in failure.attachments {
+                        let attachmentIdentifier = attachment.payloadRef?.id ?? ""
+                        let attachmentMetadata = attachmentMetadata(from: attachment)
+                        
+                        data.append(TableRowModel(indentation: indentation + 1, title: attachmentMetadata.title, attachmentImage: attachmentMetadata.image, attachmentIdentifier: attachmentIdentifier, attachmentContentType: attachmentMetadata.contentType, hasChildren: false, isError: false, isKeyScreenshot: true, isScreenshot: true))
+                    }
+                }
+            }
         }
-                
+
         return data
     }
     
-    private func currentUrl(test: ResultBundle.Test, source: String?, backUrl: String) -> String {
-        if let source = source {
-            return "\(self.path)?id=\(test.summaryIdentifier!)&source=\(source)&back_url=\(backUrl.hexadecimalRepresentation)"
-        } else {
-            return "\(self.path)?id=\(test.summaryIdentifier!)&back_url=\(backUrl.hexadecimalRepresentation)"
+    private static func attachmentMetadata(from attachment: ActionTestAttachment) -> (title: String, contentType: String, image: (url: String, width: Int)) {
+        switch attachment.uniformTypeIdentifier {
+        case "public.plain-text", "public.utf8-plain-text":
+            return ("User plain text data",
+                    "text/plain",
+                    ("/image?imageAttachment", 14))
+        case "public.jpeg":
+            return (attachment.name == "kXCTAttachmentLegacyScreenImageData" ? "Automatic Screenshot" : "User image attachment",
+                    "image/jpeg",
+                    ("/image?imageView", 18))
+        case "public.png":
+            return (attachment.name == "kXCTAttachmentLegacyScreenImageData" ? "Automatic Screenshot" : "User image attachment",
+                    "image/png",
+                    ("/image?imageView", 18))
+        case "public.data":
+            return ("Other text data",
+                    "text/plain",
+                    ("/image?imageAttachment", 14))
+        default:
+            assertionFailure("Unhandled attachment uniformTypeIdentifier: \(attachment.uniformTypeIdentifier)")
         }
+        
+        return ("", "", ("", 0))
     }
 }

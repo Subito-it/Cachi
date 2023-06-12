@@ -4,33 +4,34 @@ import os
 import Vaux
 import ZippyJSON
 
-struct ResultRouteHTML: Routable {    
+struct ResultRouteHTML: Routable {
     let path: String = "/html/result"
     let description: String = "Detail of result in html (pass identifier)"
-    
+
     private let baseUrl: URL
     private let depth: Int
     private let mergeResults: Bool
-    
+
     init(baseUrl: URL, depth: Int, mergeResults: Bool) {
         self.baseUrl = baseUrl
         self.depth = depth
         self.mergeResults = mergeResults
     }
-        
+
     func respond(to req: HTTPRequest, with promise: EventLoopPromise<HTTPResponse>) {
         os_log("HTML result request received", log: .default, type: .info)
-                
+
         guard let components = URLComponents(url: req.url, resolvingAgainstBaseURL: false),
               let queryItems = components.queryItems,
-              let resultIdentifier = queryItems.first(where: { $0.name == "id" })?.value else {
+              let resultIdentifier = queryItems.first(where: { $0.name == "id" })?.value
+        else {
             let res = HTTPResponse(status: .notFound, body: HTTPBody(staticString: "Not found..."))
             return promise.succeed(res)
         }
-                
+
         let benchId = benchmarkStart()
         defer { os_log("Result bundle with id '%@' fetched in %fms", log: .default, type: .info, resultIdentifier, benchmarkStop(benchId)) }
-                
+
         guard let result = State.shared.result(identifier: resultIdentifier) else {
             let pendingResultBundles = State.shared.pendingResultBundles(baseUrl: baseUrl, depth: depth, mergeResults: mergeResults)
             if pendingResultBundles.contains(where: { $0.identifier == resultIdentifier }) {
@@ -41,10 +42,10 @@ struct ResultRouteHTML: Routable {
                 return promise.succeed(res)
             }
         }
-        
+
         let state = RouteState(queryItems: queryItems)
         let backUrl = queryItems.backUrl
-        
+
         let document = html {
             head {
                 title("Cachi - Result \(result.identifier)")
@@ -53,27 +54,27 @@ struct ResultRouteHTML: Routable {
             }
             body {
                 div {
-                    div { floatingHeaderHTML(result: result, state:state, backUrl: backUrl) }.class("sticky-top").id("top-bar")
-                    div { resultsTableHTML(result: result, state:state, backUrl: backUrl) }
+                    div { floatingHeaderHTML(result: result, state: state, backUrl: backUrl) }.class("sticky-top").id("top-bar")
+                    div { resultsTableHTML(result: result, state: state, backUrl: backUrl) }
                 }.class("main-container background")
             }
         }
-        
+
         return promise.succeed(document.httpResponse())
     }
-    
+
     private func floatingHeaderHTML(result: ResultBundle, state: RouteState, backUrl: String) -> HTML {
         let resultTitle = result.htmlTitle()
         let resultSubtitle = result.htmlSubtitle()
         let resultDate = DateFormatter.fullDateFormatter.string(from: result.testStartDate)
-        
+
         let resultDevice = "\(result.tests.first!.deviceModel) (\(result.tests.first!.deviceOs))"
-                
+
         return div {
             div {
                 div {
                     link(url: backUrl) {
-                        image(url: "/image?imageArrorLeft")
+                        image(url: "/image?imageArrowLeft")
                             .iconStyleAttributes(width: 8)
                             .class("icon color-svg-text")
                     }
@@ -89,14 +90,14 @@ struct ResultRouteHTML: Routable {
                     case .all:
                         var testsCount = result.testsPassed.count + result.testsUniquelyFailed.count
                         var testsFailedCount = result.testsFailed.count
-                        
+
                         if state.showSystemFailures {
                             testsCount += result.testsFailedBySystem.count
                             testsFailedCount += result.testsFailedBySystem.count
                         }
-                        
+
                         var blocks = [HTML]()
-                        
+
                         blocks.append(div { "\(testsCount) tests" }.inlineBlock())
                         if testsFailedCount > 0 {
                             blocks += [div { " with \(testsFailedCount) failures" }.inlineBlock(),
@@ -112,21 +113,21 @@ struct ResultRouteHTML: Routable {
                         if state.showSystemFailures {
                             testsFailedCount += result.testsFailedBySystem.count
                         }
-                        
+
                         return div { "\(testsFailedCount) tests" }.inlineBlock()
                     case .retried:
                         return div { "\(result.testsFailedRetring.count) tests" }.inlineBlock()
                     }
                 }.class("button-padded color-subtext").floatRight()
-                
+
                 div {
                     var blocks = [HTML]()
-                    
+
                     var mState = state
                     let linkForState: (RouteState) -> HTML = { linkState in
-                        return link(url: currentUrl(result: result, state: linkState, backUrl: backUrl)) { linkState.showFilter.rawValue.capitalized }.class(state.showFilter == linkState.showFilter ? "button-selected" : "button")
+                        link(url: currentUrl(result: result, state: linkState, backUrl: backUrl)) { linkState.showFilter.rawValue.capitalized }.class(state.showFilter == linkState.showFilter ? "button-selected" : "button")
                     }
-                    
+
                     mState.showFilter = .all
                     blocks.append(linkForState(mState))
                     if result.testsPassed.count > 0 {
@@ -141,7 +142,7 @@ struct ResultRouteHTML: Routable {
                         mState.showFilter = .retried
                         blocks.append(linkForState(mState))
                     }
-                    
+
                     if result.testsFailed.count > 0 {
                         if state.showFilter != .passed {
                             var mState = state
@@ -150,7 +151,7 @@ struct ResultRouteHTML: Routable {
                             blocks.append(link(url: currentUrl(result: result, state: mState, backUrl: backUrl)) { "Show failure message" }.class(state.showFailureMessage ? "button-selected" : "button"))
                         }
                     }
-                    
+
                     if result.testsFailedBySystem.count > 0 {
                         if state.showFilter == .all || state.showFilter == .failed {
                             var mState = state
@@ -169,7 +170,7 @@ struct ResultRouteHTML: Routable {
             }.class("row light-bordered-container indent2")
         }
     }
-    
+
     private func resultsTableHTML(result: ResultBundle, state: RouteState, backUrl: String) -> HTML {
         var tests: [ResultBundle.Test]
         switch state.showFilter {
@@ -182,15 +183,15 @@ struct ResultRouteHTML: Routable {
         default:
             tests = result.tests
         }
-        
-        if state.showSystemFailures && state.showFilter != .retried {
+
+        if state.showSystemFailures, state.showFilter != .retried {
             tests += result.testsFailedBySystem
         }
-            
-        let groupNames = Set(tests.map({ $0.groupName })).sorted()
-        
+
+        let groupNames = Set(tests.map(\.groupName)).sorted()
+
         let testFailureMessages = state.showFailureMessage ? tests.failureMessages() : [:]
-                
+
         return table {
             columnGroup(styles: [TableColumnStyle(span: 1, styles: [StyleAttribute(key: "wrap-word", value: "break-word")]),
                                  TableColumnStyle(span: 1, styles: [StyleAttribute(key: "width", value: "100px")])])
@@ -200,19 +201,19 @@ struct ResultRouteHTML: Routable {
                 tableHeadData { "Duration" }.alignment(.left).scope(.column).class("row dark-bordered-container")
                 tableHeadData { "&nbsp;" }.scope(.column).class("row dark-bordered-container")
             }.id("table-header")
-            
+
             forEach(groupNames) { group in
                 let tests = tests.filter { $0.groupName == group }.sorted(by: { "\($0.name)-\($0.testStartDate.timeIntervalSince1970)" < "\($1.name)-\($1.testStartDate.timeIntervalSince1970)" })
                 let testsCount = tests.count
-                let testsFailedCount = tests.filter({ $0.status == .failure }).count
+                let testsFailedCount = tests.filter { $0.status == .failure }.count
                 let testsPassedCount = testsCount - testsFailedCount
-                
+
                 let testPassedString = testsPassedCount > 0 ? "\(testsPassedCount) passed (\(testsPassedCount.percentageString(total: testsCount, decimalDigits: 1)))" : ""
                 let testFailedString = testsFailedCount > 0 ? "\(testsFailedCount) failed (\(testsFailedCount.percentageString(total: testsCount, decimalDigits: 1)))" : ""
-                
-                let testDuration = hoursMinutesSeconds(in: tests.reduce(0, { $0 + $1.duration }))
+
+                let testDuration = hoursMinutesSeconds(in: tests.reduce(0) { $0 + $1.duration })
                 let testDurationString = "in \(testDuration)"
-                
+
                 return HTMLBuilder.buildBlock(
                     tableRow {
                         tableData {
@@ -225,7 +226,7 @@ struct ResultRouteHTML: Routable {
                         tableData { "&nbsp;" }
                     }.class("dark-bordered-container"),
                     forEach(tests) { test in
-                        return tableRow {
+                        tableRow {
                             tableData {
                                 link(url: resultDetailUrlString(result: result, test: test, state: state, backUrl: backUrl)) {
                                     image(url: result.htmlStatusImageUrl(for: test))
@@ -250,11 +251,11 @@ struct ResultRouteHTML: Routable {
             }
         }.style([StyleAttribute(key: "table-layout", value: "fixed")])
     }
-    
+
     private func currentUrl(result: ResultBundle, state: RouteState, backUrl: String) -> String {
-        "\(self.path)?id=\(result.identifier)\(state)&back_url=\(backUrl.hexadecimalRepresentation)"
+        "\(path)?id=\(result.identifier)\(state)&back_url=\(backUrl.hexadecimalRepresentation)"
     }
-    
+
     private func resultDetailUrlString(result: ResultBundle, test: ResultBundle.Test, state: RouteState, backUrl: String) -> String {
         "/html/test?id=\(test.summaryIdentifier!)&back_url=\(currentUrl(result: result, state: state, backUrl: backUrl).hexadecimalRepresentation)"
     }
@@ -262,28 +263,29 @@ struct ResultRouteHTML: Routable {
 
 private extension ResultBundle {
     func testsFailedExcludingRetries() -> [ResultBundle.Test] {
-        return testsFailed.filter { test in testsUniquelyFailed.contains(where: { test.matches($0) }) }
+        testsFailed.filter { test in testsUniquelyFailed.contains(where: { test.matches($0) }) }
     }
 }
 
 private extension ResultRouteHTML {
     struct RouteState: Codable, CustomStringConvertible {
         static let key = "state"
-        
+
         enum ShowFilter: String, Codable { case all, passed, failed, retried }
-        
+
         var showFilter: ShowFilter
         var showFailureMessage: Bool
         var showSystemFailures: Bool
-        
+
         init(queryItems: [URLQueryItem]?) {
-            self.init(hexadecimalRepresentation: queryItems?.first(where: { $0.name == Self.key})?.value)
+            self.init(hexadecimalRepresentation: queryItems?.first(where: { $0.name == Self.key })?.value)
         }
 
         init(hexadecimalRepresentation: String?) {
-            if let hexadecimalRepresentation = hexadecimalRepresentation,
+            if let hexadecimalRepresentation,
                let data = Data(hexadecimalRepresentation: hexadecimalRepresentation),
-               let state = try? ZippyJSONDecoder().decode(RouteState.self, from: data) {
+               let state = try? ZippyJSONDecoder().decode(RouteState.self, from: data)
+            {
                 showFilter = state.showFilter
                 showFailureMessage = state.showFailureMessage
                 showSystemFailures = state.showSystemFailures
@@ -293,13 +295,14 @@ private extension ResultRouteHTML {
                 showSystemFailures = false
             }
         }
-        
+
         var description: String {
             guard let data = try? JSONEncoder().encode(self),
-                  let hexRepresentation = data.hexadecimalRepresentation else {
+                  let hexRepresentation = data.hexadecimalRepresentation
+            else {
                 return ""
             }
-                        
+
             return "&\(Self.key)=" + hexRepresentation
         }
     }

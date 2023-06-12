@@ -5,57 +5,57 @@ import Vaux
 
 private extension ResultBundle.TestStatsType {
     func params() -> String {
-        return "&\(Self.queryName)=\(self.rawValue)"
+        "&\(Self.queryName)=\(rawValue)"
     }
-    
+
     static let queryName = "type"
 }
 
 struct ResultsStatRouteHTML: Routable {
     let path: String = "/html/results_stat"
     let description: String = "Stats of results in html"
-    
+
     func respond(to req: HTTPRequest, with promise: EventLoopPromise<HTTPResponse>) {
         os_log("HTML results request received", log: .default, type: .info)
-        
+
         guard let components = URLComponents(url: req.url, resolvingAgainstBaseURL: false) else {
             let res = HTTPResponse(status: .notFound, body: HTTPBody(staticString: "Not found..."))
             return promise.succeed(res)
         }
-        
+
         let allTargets = State.shared.allTargets()
-        
+
         guard allTargets.count > 0 else {
             let res = HTTPResponse(status: .notFound, body: HTTPBody(staticString: "No targets found..."))
             return promise.succeed(res)
         }
-        
+
         let queryItems = components.queryItems ?? []
         let typeFilter = ResultBundle.TestStatsType(rawValue: queryItems.first(where: { $0.name == ResultBundle.TestStatsType.queryName })?.value ?? "") ?? .flaky
         let selectedTarget = queryItems.first(where: { $0.name == "target" })?.value ?? allTargets.first!
         var rawSelectedDevice = queryItems.first(where: { $0.name == "device" })?.value
         let rawWindowSize = queryItems.first(where: { $0.name == "window_size" })?.value ?? ""
-        
+
         let backUrl = components.queryItems?.backUrl ?? ""
 
         let allDevices = State.shared.allDevices(in: selectedTarget)
-        
+
         guard allDevices.count > 0 else {
             let res = HTTPResponse(status: .notFound, body: HTTPBody(staticString: "No target or device found..."))
             return promise.succeed(res)
         }
-        
+
         if rawSelectedDevice == nil || !allDevices.map(\.description).contains(rawSelectedDevice!) {
             rawSelectedDevice = allDevices.first!.description
         }
-        
+
         guard let selectedDevice = State.Device(rawDescription: rawSelectedDevice) else {
             let res = HTTPResponse(status: .notFound, body: HTTPBody(staticString: "Empty selected device..."))
             return promise.succeed(res)
         }
 
         let windowSize = Int(rawWindowSize) ?? State.defaultStatWindowSize
-        
+
         let testStats = State.shared.resultsTestStats(target: selectedTarget, device: selectedDevice, type: typeFilter, windowSize: windowSize)
 
         let document = html {
@@ -72,16 +72,16 @@ struct ResultsStatRouteHTML: Routable {
                 script(filepath: Filepath(name: "/script?type=result-stat", path: ""))
             }
         }
-        
+
         return promise.succeed(document.httpResponse())
     }
-    
+
     private func floatingHeaderHTML(targets: [String], selectedTarget: String, devices: [String], selectedDevice: String, typeFilter: ResultBundle.TestStatsType, windowSize: Int, backUrl: String) -> HTML {
-        return div {
+        div {
             div {
                 div {
                     link(url: backUrl) {
-                        image(url: "/image?imageArrorLeft")
+                        image(url: "/image?imageArrowLeft")
                             .iconStyleAttributes(width: 8)
                             .class("icon color-svg-text")
                     }
@@ -101,7 +101,7 @@ struct ResultsStatRouteHTML: Routable {
                 }.id("device")
                 "&nbsp;&nbsp;"
                 span {
-                    span { "Window size" }.id("filter-placeholder");
+                    span { "Window size" }.id("filter-placeholder")
                     input().id("filter-input")
                         .attr("value", "\(windowSize)")
                         .style([.init(key: "width", value: "25px")])
@@ -116,25 +116,25 @@ struct ResultsStatRouteHTML: Routable {
             }.class("row light-bordered-container indent2")
         }
     }
-    
+
     private func resultsTableHTML(testStats: [ResultBundle.TestStats], selectedTarget: String, selectedDevice: String, statType: ResultBundle.TestStatsType, backUrl: String) -> HTML {
-        return table {
+        table {
             columnGroup(styles: [TableColumnStyle(span: 1, styles: [StyleAttribute(key: "wrap-word", value: "break-word")]),
                                  TableColumnStyle(span: 2, styles: [StyleAttribute(key: "width", value: "105px")]),
                                  TableColumnStyle(span: 1, styles: [StyleAttribute(key: "width", value: "80px")]),
                                  TableColumnStyle(span: 1, styles: [StyleAttribute(key: "width", value: "140px")])])
-            
+
             tableRow {
                 tableHeadData { "Test" }.alignment(.left).scope(.column).class("row dark-bordered-container indent1")
                 tableHeadData { "Success Min" }.alignment(.left).scope(.column).class("row dark-bordered-container")
                 tableHeadData { "Success Max" }.alignment(.left).scope(.column).class("row dark-bordered-container")
                 tableHeadData { "Avg" }.alignment(.left).scope(.column).class("row dark-bordered-container")
                 tableHeadData { "Success ratio" }.alignment(.left).scope(.column).class("row dark-bordered-container")
-                
+
             }.id("table-header")
-            
+
             forEach(testStats) { testStat in
-                return HTMLBuilder.buildBlock(
+                HTMLBuilder.buildBlock(
                     tableRow {
                         tableData {
                             link(url: "/html/teststats?id=\(testStat.first_summary_identifier)&show=all&back_url=\(currentUrl(selectedTarget: selectedTarget, selectedDevice: selectedDevice, statType: statType, backUrl: backUrl).hexadecimalRepresentation)") {
@@ -164,8 +164,8 @@ struct ResultsStatRouteHTML: Routable {
             }
         }.style([StyleAttribute(key: "table-layout", value: "fixed")])
     }
-    
+
     private func currentUrl(selectedTarget: String, selectedDevice: String, statType: ResultBundle.TestStatsType, backUrl: String) -> String {
-        "\(self.path)?target=\(selectedTarget)&device=\(selectedDevice)\(statType.params())&back_url=\(backUrl.hexadecimalRepresentation)"
+        "\(path)?target=\(selectedTarget)&device=\(selectedDevice)\(statType.params())&back_url=\(backUrl.hexadecimalRepresentation)"
     }
 }

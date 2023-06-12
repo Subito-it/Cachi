@@ -1,9 +1,9 @@
 import Foundation
 
 extension String {
-    private static var regexCacheQueue: DispatchQueue = DispatchQueue(label: "com.subito.cachi.regex.queue")
+    private static var regexCacheQueue: DispatchQueue = .init(label: "com.subito.cachi.regex.queue")
     private static var regexCache = [String: NSRegularExpression]()
-    
+
     func capturedGroups(regex: NSRegularExpression) -> [String] {
         var results = [String]()
 

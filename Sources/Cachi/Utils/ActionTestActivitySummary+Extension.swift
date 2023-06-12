@@ -1,7 +1,7 @@
-import Foundation
 import CachiKit
+import Foundation
 
-extension Collection where Element == ActionTestActivitySummary {
+extension Collection<ActionTestActivitySummary> {
     func flatten() -> [ActionTestActivitySummary] {
         var summaries = [ActionTestActivitySummary]()
         for summary in self {

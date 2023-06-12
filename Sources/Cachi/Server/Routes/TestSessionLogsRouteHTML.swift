@@ -1,8 +1,8 @@
+import CachiKit
 import Foundation
 import HTTPKit
 import os
 import Vaux
-import CachiKit
 
 private struct RowData {
     let indentation: Int
@@ -19,37 +19,40 @@ private struct RowData {
 struct TestSessionLogsRouteHTML: Routable {
     let path: String = "/html/session_logs"
     let description: String = "Test session logs in html (pass identifier)"
-        
+
     func respond(to req: HTTPRequest, with promise: EventLoopPromise<HTTPResponse>) {
         os_log("HTML test stats request received", log: .default, type: .info)
-        
+
         guard let components = URLComponents(url: req.url, resolvingAgainstBaseURL: false),
               let queryItems = components.queryItems,
               let testSummaryIdentifier = queryItems.first(where: { $0.name == "id" })?.value,
-              let sessionType = queryItems.first(where: { $0.name == "type" })?.value else {
+              let sessionType = queryItems.first(where: { $0.name == "type" })?.value
+        else {
             let res = HTTPResponse(status: .notFound, body: HTTPBody(staticString: "Not found..."))
             return promise.succeed(res)
         }
-                
+
         let benchId = benchmarkStart()
         defer { os_log("Test session logs with summaryIdentifier '%@' fetched in %fms", log: .default, type: .info, testSummaryIdentifier, benchmarkStop(benchId)) }
-              
+
         let resultBundles = State.shared.resultBundles
-        
-        guard let resultBundle = resultBundles.first(where: { $0.tests.contains(where: { $0.summaryIdentifier == testSummaryIdentifier })}),
-              let test = resultBundle.tests.first(where: { $0.summaryIdentifier == testSummaryIdentifier }) else {
+
+        guard let resultBundle = resultBundles.first(where: { $0.tests.contains(where: { $0.summaryIdentifier == testSummaryIdentifier }) }),
+              let test = resultBundle.tests.first(where: { $0.summaryIdentifier == testSummaryIdentifier })
+        else {
             let res = HTTPResponse(status: .notFound, body: HTTPBody(staticString: "Not found..."))
             return promise.succeed(res)
         }
-        
+
         guard let diagnosticsIdentifier = test.diagnosticsIdentifier,
-              let sessionLogs = State.shared.testSessionLogs(diagnosticsIdentifier: diagnosticsIdentifier) else {
+              let sessionLogs = State.shared.testSessionLogs(diagnosticsIdentifier: diagnosticsIdentifier)
+        else {
             let res = HTTPResponse(status: .notFound, body: HTTPBody(staticString: "Not diagnistics found..."))
             return promise.succeed(res)
         }
-        
+
         let backUrl = queryItems.backUrl
-                        
+
         let document = html {
             head {
                 title("Cachi - Test result")
@@ -66,19 +69,19 @@ struct TestSessionLogsRouteHTML: Routable {
                     case "session":
                         div { sessionLogsTableHTML(sessionLogs: sessionLogs) }
                     default:
-                        div { }
+                        div {}
                     }
                 }.class("main-container background")
             }
         }
-        
+
         return promise.succeed(document.httpResponse())
     }
-    
-    private func floatingHeaderHTML(result: ResultBundle, test: ResultBundle.Test, backUrl: String) -> HTML {
+
+    private func floatingHeaderHTML(result _: ResultBundle, test: ResultBundle.Test, backUrl: String) -> HTML {
         let testTitle = test.name
         let testSubtitle = test.groupName
-        
+
         let testDuration = hoursMinutesSeconds(in: test.duration)
         let testDetail: String
         switch test.status {
@@ -87,14 +90,14 @@ struct TestSessionLogsRouteHTML: Routable {
         case .failure:
             testDetail = "Failed in \(testDuration)"
         }
-        
+
         let testDevice = "\(test.deviceModel) (\(test.deviceOs))"
-                
+
         return div {
             div {
                 div {
                     link(url: backUrl) {
-                        image(url: "/image?imageArrorLeft")
+                        image(url: "/image?imageArrowLeft")
                             .iconStyleAttributes(width: 8)
                             .class("icon color-svg-text")
                     }
@@ -106,7 +109,7 @@ struct TestSessionLogsRouteHTML: Routable {
             }.class("row light-bordered-container indent1")
         }
     }
-    
+
     private func standardOutputsLogsTableHTML(sessionLogs: ResultBundle.Test.SessionLogs) -> HTML {
         let runnerLogs = sessionLogs.runerAppStandardOutput ?? "No data"
         let appLogs = sessionLogs.appStandardOutput ?? "No data"
@@ -127,13 +130,13 @@ struct TestSessionLogsRouteHTML: Routable {
             }
         }
     }
-    
+
     private func sessionLogsTableHTML(sessionLogs: ResultBundle.Test.SessionLogs) -> HTML {
         let sessionLogs = sessionLogs.sessionLogs ?? "No data"
 
         return table {
             tableHeadData { "Session Log" }.alignment(.left).scope(.column).class("row dark-bordered-container indent1")
-            
+
             tableRow {
                 tableData {
                     RawHTML(rawContent: sessionLogs)

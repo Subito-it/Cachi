@@ -88,7 +88,7 @@ struct ResultBundle: Codable {
             commitMessage = try container.decodeIfPresent(String.self, forKey: .commitMessage)
             commitHash = try container.decodeIfPresent(String.self, forKey: .commitHash)
             metadata = try container.decodeIfPresent(String.self, forKey: .metadata)
-            
+
             sourceBasePath = try container.decodeIfPresent(String.self, forKey: .sourceBasePath)
             githubBaseUrl = try container.decodeIfPresent(String.self, forKey: .githubBaseUrl)
 

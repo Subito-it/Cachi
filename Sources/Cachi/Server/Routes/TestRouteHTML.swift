@@ -30,7 +30,7 @@ struct TestRouteHTML: Routable {
             let res = HTTPResponse(status: .notFound, body: HTTPBody(staticString: "Not found..."))
             return promise.succeed(res)
         }
-        
+
         let activitySummary = State.shared.testActionSummary(test: test)
 
         let actions = activitySummary?.activitySummaries ?? []
@@ -41,11 +41,11 @@ struct TestRouteHTML: Routable {
         } else {
             rowsData = []
         }
-        
+
         for failureSummary in failureSummaries {
             rowsData += TableRowModel.makeFailureModel(failureSummary, userInfo: resultBundle.userInfo, indentation: 0)
         }
-        
+
         let source = queryItems.first(where: { $0.name == "source" })?.value
         let backUrl = queryItems.backUrl
 
@@ -187,7 +187,7 @@ struct TestRouteHTML: Routable {
                                 }.class(rowData.isError ? "row background-error" : "row")
                                     .style([StyleAttribute(key: "padding-left", value: "\(20 * rowData.indentation)px")])
                             }
-                                .attr("attachment_identifier", rowData.attachmentIdentifier)
+                            .attr("attachment_identifier", rowData.attachmentIdentifier)
 
                             let testSummaryIdentifier = test.summaryIdentifier ?? ""
 
@@ -195,7 +195,7 @@ struct TestRouteHTML: Routable {
                                 if rowData.isKeyScreenshot {
                                     rowClasses.append("screenshot-key")
                                 }
-                                
+
                                 return row
                                     .class(rowClasses.joined(separator: " "))
                                     .attr("onmouseenter", #"onMouseEnter(this, '\#(result.identifier)', '\#(testSummaryIdentifier)', '\#(rowData.attachmentIdentifier)', '\#(rowData.attachmentContentType)', '\#(rowData.attachmentContentType)')"#)
@@ -246,9 +246,9 @@ private struct TableRowModel {
     let isError: Bool
     let isKeyScreenshot: Bool
     let isScreenshot: Bool
-    
+
     var isExternalLink: Bool { attachmentContentType == "text/html" }
-    
+
     static func makeModels(from actionSummaries: [ActionTestActivitySummary], currentTimestamp: Double, failureSummaries: inout [ActionTestFailureSummary], userInfo: ResultBundle.UserInfo?, indentation: Int = 1, lastScreenshotIdentifier: String = "", lastScreenshotContentType: String = "") -> [TableRowModel] {
         var data = [TableRowModel]()
 
@@ -256,7 +256,7 @@ private struct TableRowModel {
             guard var title = summary.title else {
                 continue
             }
-            
+
             var subRowData = [TableRowModel]()
             for attachment in summary.attachments {
                 let attachmentIdentifier = attachment.payloadRef?.id ?? ""
@@ -278,10 +278,10 @@ private struct TableRowModel {
             title += currentTimestamp - actionTimestamp == 0 ? " (Start)" : " (\(String(format: "%.2f", actionTimestamp - currentTimestamp))s)"
 
             data += [TableRowModel(indentation: indentation, title: title, attachmentImage: nil, attachmentIdentifier: screenshotIdentifier, attachmentContentType: screenshotContentType, hasChildren: subRowData.count > 0, isError: isError, isKeyScreenshot: false, isScreenshot: screenshotIdentifier.count > 0)] + subRowData
-            
+
             if !summary.failureSummaryIDs.isEmpty {
                 for failureSummaryID in summary.failureSummaryIDs {
-                    guard let failureIndex = failureSummaries.firstIndex(where:  { $0.uuid == failureSummaryID }) else {
+                    guard let failureIndex = failureSummaries.firstIndex(where: { $0.uuid == failureSummaryID }) else {
                         continue
                     }
 
@@ -293,10 +293,10 @@ private struct TableRowModel {
 
         return data
     }
-    
+
     static func makeFailureModel(_ failure: ActionTestFailureSummary, userInfo: ResultBundle.UserInfo?, indentation: Int) -> [TableRowModel] {
         var data = [TableRowModel]()
-        
+
         data.append(TableRowModel(indentation: indentation, title: failure.message ?? "Failure", attachmentImage: nil, attachmentIdentifier: "", attachmentContentType: "", hasChildren: !failure.attachments.isEmpty, isError: true, isKeyScreenshot: false, isScreenshot: false))
         if var fileName = failure.fileName, let lineNumber = failure.lineNumber {
             fileName = fileName.replacingOccurrences(of: userInfo?.sourceBasePath ?? "", with: "")
@@ -306,17 +306,17 @@ private struct TableRowModel {
             }
             data.append(TableRowModel(indentation: indentation + 1, title: "\(fileName):\(lineNumber)", attachmentImage: attachment, attachmentIdentifier: "", attachmentContentType: "text/html", hasChildren: false, isError: false, isKeyScreenshot: false, isScreenshot: false))
         }
-        
+
         for attachment in failure.attachments {
             let attachmentIdentifier = attachment.payloadRef?.id ?? ""
             let attachmentMetadata = attachmentMetadata(from: attachment)
-            
+
             data.append(TableRowModel(indentation: indentation + 1, title: attachmentMetadata.title, attachmentImage: attachmentMetadata.image, attachmentIdentifier: attachmentIdentifier, attachmentContentType: attachmentMetadata.contentType, hasChildren: false, isError: false, isKeyScreenshot: true, isScreenshot: true))
         }
-        
+
         return data
     }
-    
+
     private static func attachmentMetadata(from attachment: ActionTestAttachment) -> (title: String, contentType: String, image: (url: String, width: Int)) {
         switch attachment.uniformTypeIdentifier {
         case "public.plain-text", "public.utf8-plain-text":
@@ -338,7 +338,7 @@ private struct TableRowModel {
         default:
             assertionFailure("Unhandled attachment uniformTypeIdentifier: \(attachment.uniformTypeIdentifier)")
         }
-        
+
         return ("", "", ("", 0))
     }
 }

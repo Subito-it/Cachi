@@ -189,7 +189,7 @@ class State {
     func test(summaryIdentifier: String) -> ResultBundle.Test? {
         resultBundles.flatMap(\.tests).first { $0.summaryIdentifier == summaryIdentifier }
     }
-    
+
     func testActionSummary(test: ResultBundle.Test?) -> ActionTestSummary? {
         guard let test, let summaryIdentifier = test.summaryIdentifier else { return nil }
 

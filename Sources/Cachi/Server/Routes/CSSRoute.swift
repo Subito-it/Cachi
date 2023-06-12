@@ -171,7 +171,7 @@ struct CSSRoute: Routable {
                         color: rgb(39,39,39);
                         background-color: rgb(255,255,255);
                     }
-        
+
                     .background-error {
                         background: rgb(248,233,231);
                     }
@@ -270,11 +270,11 @@ struct CSSRoute: Routable {
                         color: rgb(225,225,225);
                         background-color: rgb(39,39,39);
                     }
-        
+
                     .background-error {
                         background: rgb(105,42,42);
                     }
-        
+
                     .warning-container {
                         color: rgb(0,0,0);
                         background-color: rgb(255,127,0);
@@ -294,7 +294,7 @@ struct CSSRoute: Routable {
                     .color-text {
                         color: rgb(225,225,225);
                     }
-        
+
                     .color-subtext {
                         color: rgb(165,165,165);
                     }

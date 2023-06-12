@@ -142,6 +142,7 @@ struct TestRouteHTML: Routable {
                 tableData {
                     table {
                         forEach(rowsData) { rowData in
+                            var rowClasses = ["light-bordered-container", "indent1"]
                             let row = tableRow {
                                 tableData {
                                     if let attachmentImage = rowData.attachmentImage {
@@ -180,18 +181,23 @@ struct TestRouteHTML: Routable {
                                     }
                                 }.class(rowData.isError ? "row background-error" : "row")
                                     .style([StyleAttribute(key: "padding-left", value: "\(20 * rowData.indentation)px")])
-                            }.class("light-bordered-container indent1")
+                            }
                                 .attr("attachment_identifier", rowData.attachmentIdentifier)
 
                             let testSummaryIdentifier = test.summaryIdentifier ?? ""
 
                             if rowData.isKeyScreenshot || rowData.isScreenshot {
+                                if rowData.isKeyScreenshot {
+                                    rowClasses.append("screenshot-key")
+                                }
+                                
                                 return row
-                                    .class(rowData.isKeyScreenshot ? "screenshot-key" : "")
+                                    .class(rowClasses.joined(separator: " "))
                                     .attr("onmouseenter", #"onMouseEnter(this, '\#(result.identifier)', '\#(testSummaryIdentifier)', '\#(rowData.attachmentIdentifier)', '\#(rowData.attachmentContentType)', '\#(rowData.attachmentContentType)')"#)
                                     .attr("onclick", #"onMouseEnter(this, '\#(result.identifier)', '\#(testSummaryIdentifier)', '\#(rowData.attachmentIdentifier)', '\#(rowData.attachmentContentType)')"#)
                             } else {
                                 return row
+                                    .class(rowClasses.joined(separator: " "))
                             }
                         }
                     }

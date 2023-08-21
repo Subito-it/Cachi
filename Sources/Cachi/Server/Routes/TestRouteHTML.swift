@@ -144,7 +144,7 @@ struct TestRouteHTML: Routable {
         table {
             tableRow {
                 tableHeadData { "Steps" }.alignment(.left).scope(.column).class("row dark-bordered-container indent1")
-                tableHeadData { "Screenshot" }.alignment(.center).scope(.column).class("row dark-bordered-container")
+                tableHeadData { "&nbsp;" }.alignment(.center).scope(.column).class("row dark-bordered-container")
             }.id("table-header")
 
             tableRow {

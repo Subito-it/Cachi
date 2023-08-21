@@ -38,12 +38,16 @@ struct TestRouteHTML: Routable {
         var failureSummaries = activitySummary?.failureSummaries ?? []
         if let firstTimestamp = actions.first(where: { $0.start != nil })?.start?.timeIntervalSince1970 {
             rowsData = TableRowModel.makeModels(from: actions, currentTimestamp: firstTimestamp, failureSummaries: &failureSummaries, userInfo: resultBundle.userInfo)
+            for failureSummary in failureSummaries {
+                rowsData += TableRowModel.makeFailureModel(failureSummary, currentTimestamp: firstTimestamp, userInfo: resultBundle.userInfo, indentation: 0)
+            }
         } else {
             rowsData = []
-        }
-
-        for failureSummary in failureSummaries {
-            rowsData += TableRowModel.makeFailureModel(failureSummary, userInfo: resultBundle.userInfo, indentation: 0)
+            
+            let firstTimestamp = (failureSummaries.first?.timestamp ?? Date()).timeIntervalSince1970
+            for failureSummary in failureSummaries {
+                rowsData += TableRowModel.makeFailureModel(failureSummary, currentTimestamp: firstTimestamp, userInfo: resultBundle.userInfo, indentation: 0)
+            }
         }
 
         let source = queryItems.first(where: { $0.name == "source" })?.value
@@ -288,7 +292,7 @@ private struct TableRowModel {
                         continue
                     }
 
-                    data += makeFailureModel(failureSummaries[failureIndex], userInfo: userInfo, indentation: indentation)
+                    data += makeFailureModel(failureSummaries[failureIndex], currentTimestamp: currentTimestamp, userInfo: userInfo, indentation: indentation)
                     failureSummaries.remove(at: failureIndex)
                 }
             }
@@ -297,24 +301,26 @@ private struct TableRowModel {
         return data
     }
 
-    static func makeFailureModel(_ failure: ActionTestFailureSummary, userInfo: ResultBundle.UserInfo?, indentation: Int) -> [TableRowModel] {
+    static func makeFailureModel(_ failure: ActionTestFailureSummary, currentTimestamp: Double, userInfo: ResultBundle.UserInfo?, indentation: Int) -> [TableRowModel] {
         var data = [TableRowModel]()
-
-        data.append(TableRowModel(indentation: indentation, title: failure.message ?? "Failure", attachmentImage: nil, attachmentIdentifier: "", attachmentContentType: "", hasChildren: !failure.attachments.isEmpty, isError: true, isKeyScreenshot: false, isScreenshot: false))
+        
+        data.append(TableRowModel(indentation: indentation, title: failure.message ?? "Failure", attachmentImage: nil, attachmentIdentifier: "", attachmentContentType: "", attachmentFilename: "", hasChildren: !failure.attachments.isEmpty, isError: true, isKeyScreenshot: false, isScreenshot: false))
         if var fileName = failure.fileName, let lineNumber = failure.lineNumber {
             fileName = fileName.replacingOccurrences(of: userInfo?.sourceBasePath ?? "", with: "")
             var attachment: (url: String, width: Int)?
             if let githubBaseUrl = userInfo?.githubBaseUrl, let commitHash = userInfo?.commitHash {
                 attachment = (url: "\(githubBaseUrl)/blob/\(commitHash)/\(fileName)#L\(lineNumber)", width: 15)
             }
-            data.append(TableRowModel(indentation: indentation + 1, title: "\(fileName):\(lineNumber)", attachmentImage: attachment, attachmentIdentifier: "", attachmentContentType: "text/html", hasChildren: false, isError: false, isKeyScreenshot: false, isScreenshot: false))
+            data.append(TableRowModel(indentation: indentation + 1, title: "\(fileName):\(lineNumber)", attachmentImage: attachment, attachmentIdentifier: "", attachmentContentType: "text/html", attachmentFilename: "", hasChildren: false, isError: false, isKeyScreenshot: false, isScreenshot: false))
         }
 
         for attachment in failure.attachments {
             let attachmentIdentifier = attachment.payloadRef?.id ?? ""
             let attachmentMetadata = attachmentMetadata(from: attachment)
-
-            data.append(TableRowModel(indentation: indentation + 1, title: attachmentMetadata.title, attachmentImage: attachmentMetadata.image, attachmentIdentifier: attachmentIdentifier, attachmentContentType: attachmentMetadata.contentType, hasChildren: false, isError: false, isKeyScreenshot: true, isScreenshot: true))
+            
+            let isScreenshot = attachment.name == "kXCTAttachmentLegacyScreenImageData"
+            
+            data.append(TableRowModel(indentation: indentation + 1, title: attachmentMetadata.title, attachmentImage: attachmentMetadata.image, attachmentIdentifier: attachmentIdentifier, attachmentContentType: attachmentMetadata.contentType, attachmentFilename: attachment.filename ?? "", hasChildren: false, isError: false, isKeyScreenshot: isScreenshot, isScreenshot: isScreenshot))
         }
 
         return data

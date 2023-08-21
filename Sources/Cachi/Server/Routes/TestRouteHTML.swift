@@ -190,8 +190,11 @@ struct TestRouteHTML: Routable {
                             .attr("attachment_identifier", rowData.attachmentIdentifier)
 
                             let testSummaryIdentifier = test.summaryIdentifier ?? ""
-
-                            if rowData.isKeyScreenshot || rowData.isScreenshot {
+                            
+                            if rowData.title.isEmpty {
+                                return row
+                                    .style([.init(key: "visibility", value: "collapse")])
+                            } else if rowData.isKeyScreenshot || rowData.isScreenshot {
                                 if rowData.isKeyScreenshot {
                                     rowClasses.append("screenshot-key")
                                 }

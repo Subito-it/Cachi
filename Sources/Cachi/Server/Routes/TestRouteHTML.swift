@@ -184,7 +184,7 @@ struct TestRouteHTML: Routable {
                                                     .iconStyleAttributes(width: 12)
                                                     .class("icon color-svg-subtext")
                                             }
-
+                                            
                                             div { rowData.title }.class(rowData.hasChildren ? "bold" : "").inlineBlock()
                                         }
                                     }
@@ -249,42 +249,54 @@ private struct TableRowModel {
     let attachmentImage: (url: String, width: Int)?
     let attachmentIdentifier: String
     let attachmentContentType: String
+    let attachmentFilename: String
     let hasChildren: Bool
     let isError: Bool
     let isKeyScreenshot: Bool
     let isScreenshot: Bool
 
     var isExternalLink: Bool { attachmentContentType == "text/html" }
-
-    static func makeModels(from actionSummaries: [ActionTestActivitySummary], currentTimestamp: Double, failureSummaries: inout [ActionTestFailureSummary], userInfo: ResultBundle.UserInfo?, indentation: Int = 1, lastScreenshotIdentifier: String = "", lastScreenshotContentType: String = "") -> [TableRowModel] {
+    
+    static func makeModels(from actionSummaries: [ActionTestActivitySummary], currentTimestamp: Double, failureSummaries: inout [ActionTestFailureSummary], userInfo: ResultBundle.UserInfo?, indentation: Int = 1, lastScreenshotIdentifier: String = "", lastScreenshotContentType: String = "", lastAttachmentFilename: String = "") -> [TableRowModel] {
         var data = [TableRowModel]()
 
         for summary in actionSummaries {
             guard var title = summary.title else {
                 continue
             }
-
+            
             var subRowData = [TableRowModel]()
             for attachment in summary.attachments {
                 let attachmentIdentifier = attachment.payloadRef?.id ?? ""
                 let attachmentMetadata = attachmentMetadata(from: attachment)
-
+                             
                 let isScreenshot = attachment.name == "kXCTAttachmentLegacyScreenImageData"
-                subRowData += [TableRowModel(indentation: indentation + 1, title: attachmentMetadata.title, attachmentImage: attachmentMetadata.image, attachmentIdentifier: attachmentIdentifier, attachmentContentType: attachmentMetadata.contentType, hasChildren: false, isError: false, isKeyScreenshot: isScreenshot, isScreenshot: isScreenshot)]
+                
+                var filename = attachment.filename ?? ""
+                if attachment.name == "kXCTAttachmentScreenRecording" {
+                    let formatter = DateFormatter()
+                    formatter.dateFormat = "y-MM-dd HH.mm.ss"
+                    let date = formatter.string(from: attachment.timestamp!)
+                    
+                    filename = "Screen Recording \(date).mp4"
+                }
+                                 
+                subRowData += [TableRowModel(indentation: indentation + 1, title: attachmentMetadata.title, attachmentImage: attachmentMetadata.image, attachmentIdentifier: attachmentIdentifier, attachmentContentType: attachmentMetadata.contentType, attachmentFilename: filename, hasChildren: false, isError: false, isKeyScreenshot: isScreenshot, isScreenshot: isScreenshot)]
             }
 
             let lastScreenshotRow = (data + subRowData).reversed().first(where: { $0.isKeyScreenshot })
             let screenshotIdentifier = lastScreenshotRow?.attachmentIdentifier ?? lastScreenshotIdentifier
             let screenshotContentType = lastScreenshotRow?.attachmentContentType ?? lastScreenshotContentType
+            let attachmentFilename = lastScreenshotRow?.attachmentFilename ?? lastAttachmentFilename
 
             let isError = summary.activityType == "com.apple.dt.xctest.activity-type.testAssertionFailure"
+            
+            subRowData += makeModels(from: summary.subactivities, currentTimestamp: currentTimestamp, failureSummaries: &failureSummaries, userInfo: userInfo, indentation: indentation + 1, lastScreenshotIdentifier: screenshotIdentifier, lastScreenshotContentType: screenshotContentType, lastAttachmentFilename: attachmentFilename)
+            
+            let elapsedTime = (summary.start?.timeIntervalSince1970 ?? currentTimestamp) - currentTimestamp
+            title += elapsedTime == 0 ? " (Start)" : " (\(String(format: "%.2f", elapsedTime))s)"
 
-            let actionTimestamp = summary.start?.timeIntervalSince1970 ?? currentTimestamp
-            subRowData += makeModels(from: summary.subactivities, currentTimestamp: currentTimestamp, failureSummaries: &failureSummaries, userInfo: userInfo, indentation: indentation + 1, lastScreenshotIdentifier: screenshotIdentifier, lastScreenshotContentType: screenshotContentType)
-
-            title += currentTimestamp - actionTimestamp == 0 ? " (Start)" : " (\(String(format: "%.2f", actionTimestamp - currentTimestamp))s)"
-
-            data += [TableRowModel(indentation: indentation, title: title, attachmentImage: nil, attachmentIdentifier: screenshotIdentifier, attachmentContentType: screenshotContentType, hasChildren: subRowData.count > 0, isError: isError, isKeyScreenshot: false, isScreenshot: screenshotIdentifier.count > 0)] + subRowData
+            data += [TableRowModel(indentation: indentation, title: title, attachmentImage: nil, attachmentIdentifier: screenshotIdentifier, attachmentContentType: screenshotContentType, attachmentFilename: attachmentFilename, hasChildren: subRowData.count > 0, isError: isError, isKeyScreenshot: false, isScreenshot: screenshotIdentifier.count > 0)] + subRowData
 
             if !summary.failureSummaryIDs.isEmpty {
                 for failureSummaryID in summary.failureSummaryIDs {

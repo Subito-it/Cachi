@@ -47,8 +47,14 @@ struct AttachmentRoute: Routable {
             let res = HTTPResponse(status: .notFound, body: HTTPBody(staticString: "Not found..."))
             return promise.succeed(res)
         }
-
-        let res = HTTPResponse(headers: HTTPHeaders([("Content-Type", contentType)]), body: HTTPBody(data: fileData))
+        
+        var headers = HTTPHeaders([("Content-Type", contentType)])
+        
+        if let filename = queryItems.first(where: { $0.name == "filename" })?.value?.replacingOccurrences(of: " ", with: "%20") {
+            headers.add(name: "Content-Disposition", value: "attachment; filename=\(filename)")
+        }
+        
+        let res = HTTPResponse(headers: headers, body: HTTPBody(data: fileData))
         return promise.succeed(res)
     }
 }

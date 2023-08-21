@@ -334,6 +334,9 @@ private struct TableRowModel {
             return (attachment.name == "kXCTAttachmentLegacyScreenImageData" ? "Automatic Screenshot" : "User image attachment",
                     "image/png",
                     ("/image?imageView", 18))
+        case "com.apple.dt.xctest.element-snapshot":
+            // This is an unsupported key archived snapshot of the entire view hierarchy of the app
+            return ("", "", ("", 0))
         case "public.data":
             return ("Other text data",
                     "text/plain",

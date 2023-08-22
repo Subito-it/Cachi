@@ -16,8 +16,8 @@ struct ScriptRoute: Routable {
 
         var scriptContent: String?
         switch scriptType {
-        case "screenshot":
-            scriptContent = scriptScreenshot()
+        case "capture":
+            scriptContent = scriptCapture()
         case "coverage-files":
             let resultBundles = State.shared.resultBundles
 
@@ -47,33 +47,33 @@ struct ScriptRoute: Routable {
         return Response(headers: HTTPHeaders([("Content-Type", "application/javascript")]), body: Response.Body(string: scriptContent!))
     }
 
-    private func scriptScreenshot() -> String {
+    private func scriptCapture() -> String {
         """
             var topBarElementRect = null;
             var tableHeaderElementRect = null;
 
-            var screenshotImageElement = null;
-            var screenshotImageTopOffset = 10;
+            var captureImageElement = null;
+            var captureImageTopOffset = 10;
 
             window.onload = function() {
                 topBarElementRect = document.getElementById('top-bar').getBoundingClientRect();
                 tableHeaderElementRect = document.getElementById('table-header').getBoundingClientRect();
 
-                screenshotImageElement = document.getElementById('screen-capture')
+                captureImageElement = document.getElementById('screen-capture')
 
                 window.onscroll();
             }
 
             window.onscroll = function() {
-                if (screenshotImageElement == null) { return; }
+                if (captureImageElement == null) { return; }
 
                 if (window.pageYOffset != undefined) {
-                    if (pageYOffset <= screenshotImageTopOffset + tableHeaderElementRect.height) {
-                        screenshotImageElement.style.position = "absolute";
-                        screenshotImageElement.style.top = `${screenshotImageTopOffset + topBarElementRect.height + tableHeaderElementRect.height + screenshotImageTopOffset}px`;
+                    if (pageYOffset <= captureImageTopOffset + tableHeaderElementRect.height) {
+                        captureImageElement.style.position = "absolute";
+                        captureImageElement.style.top = `${captureImageTopOffset + topBarElementRect.height + tableHeaderElementRect.height + captureImageTopOffset}px`;
                     } else {
-                        screenshotImageElement.style.position = "fixed";
-                        screenshotImageElement.style.top = `${screenshotImageTopOffset + topBarElementRect.height}px`;
+                        captureImageElement.style.position = "fixed";
+                        captureImageElement.style.top = `${captureImageTopOffset + topBarElementRect.height}px`;
                     }
                 }
             }
@@ -93,7 +93,7 @@ struct ScriptRoute: Routable {
                             }, 50);
                         }
 
-                        Array.from(document.getElementsByClassName('screenshot')).forEach(
+                        Array.from(document.getElementsByClassName('capture')).forEach(
                             function(element, index, array) {
                                 if (element.getAttribute("attachment_identifier") === attachment_identifier) {
                                     element.classList.add('color-selected');

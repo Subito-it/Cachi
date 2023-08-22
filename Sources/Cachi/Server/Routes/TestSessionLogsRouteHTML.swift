@@ -44,7 +44,7 @@ struct TestSessionLogsRouteHTML: Routable {
                 title("Cachi - Test result")
                 meta().attr("charset", "utf-8")
                 linkStylesheet(url: "/css?main")
-                script(filepath: Filepath(name: "/script?type=screenshot", path: ""))
+                script(filepath: Filepath(name: "/script?type=capture", path: ""))
             }
             body {
                 div {

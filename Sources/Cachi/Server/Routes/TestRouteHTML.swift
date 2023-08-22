@@ -154,14 +154,14 @@ struct TestRouteHTML: Routable {
                                                     .iconStyleAttributes(width: attachmentImage.width)
                                                     .class("icon color-svg-subtext")
                                             }
-                                        } else if rowData.isScreenshot, !rowData.isVideo {
+                                        } else if rowData.isMediaAvailable, !rowData.isVideo {
                                             return HTMLBuilder.buildBlock(
                                                 div { rowData.title }.class("screenshot color-subtext").attr("attachment_identifier", rowData.attachmentIdentifier).inlineBlock(),
                                                 image(url: attachmentImage.url)
                                                     .iconStyleAttributes(width: attachmentImage.width)
                                                     .class("icon color-svg-subtext")
                                             )
-                                        } else if rowData.isScreenshot, rowData.isVideo {
+                                        } else if rowData.isMediaAvailable, rowData.isVideo {
                                             return link(url: "/video_capture?result_id=\(result.identifier)&id=\(rowData.attachmentIdentifier)&test_id=\(test.summaryIdentifier ?? "")&content_type=\(rowData.attachmentContentType)&filename=\(rowData.attachmentFilename)") {
                                                 div { rowData.title }.class("color-subtext").inlineBlock()
                                                 image(url: attachmentImage.url)
@@ -197,7 +197,7 @@ struct TestRouteHTML: Routable {
                             if rowData.title.isEmpty {
                                 return row
                                     .style([.init(key: "visibility", value: "collapse")])
-                            } else if rowData.isKeyScreenshot || rowData.isScreenshot || rowData.isVideo {
+                            } else if rowData.isKeyScreenshot || rowData.isMediaAvailable || rowData.isVideo {
                                 if rowData.isKeyScreenshot {
                                     rowClasses.append("screenshot-key")
                                 }
@@ -220,7 +220,7 @@ struct TestRouteHTML: Routable {
                                 video {
                                     source(mediaURL: "\(AttachmentRoute().path)?result_id=\(result.identifier)&test_id=\(testSummaryIdentifier)&id=\(rowData.attachmentIdentifier)&content_type=\(rowData.attachmentContentType)")
                                 }.id("screen-capture")
-                        } else if rowData.isScreenshot {
+                        } else if rowData.isMediaAvailable {
                             return
                                 div {
                                     image(url: "\(AttachmentRoute().path)?result_id=\(result.identifier)&test_id=\(testSummaryIdentifier)&id=\(rowData.attachmentIdentifier)&content_type=\(rowData.attachmentContentType)").id("screen-capture")
@@ -258,7 +258,7 @@ private struct TableRowModel {
     let hasChildren: Bool
     let isError: Bool
     let isKeyScreenshot: Bool
-    let isScreenshot: Bool
+    let isMediaAvailable: Bool
 
     var isExternalLink: Bool { attachmentContentType == "text/html" }
     var isVideo: Bool { attachmentContentType == "video/mp4" }
@@ -281,7 +281,7 @@ private struct TableRowModel {
 
                 let attachmentStartDate = attachment.timestamp ?? summary.start ?? Date()
 
-                let isScreenshot = attachment.name == "kXCTAttachmentLegacyScreenImageData"
+                let isMediaAvailable = attachment.name == "kXCTAttachmentLegacyScreenImageData"
 
                 var isVideo = false
                 var filename = attachment.filename ?? ""
@@ -294,7 +294,7 @@ private struct TableRowModel {
 
                 let timestamp = (attachment.timestamp?.timeIntervalSince1970 ?? currentTimestamp) - currentTimestamp
 
-                subRowData += [TableRowModel(indentation: indentation + 1, title: attachmentMetadata.title, timestamp: timestamp, attachmentImage: attachmentMetadata.image, attachmentIdentifier: attachmentIdentifier, attachmentContentType: attachmentMetadata.contentType, attachmentFilename: filename, hasChildren: false, isError: false, isKeyScreenshot: isScreenshot || isVideo, isScreenshot: isScreenshot || isVideo)]
+                subRowData += [TableRowModel(indentation: indentation + 1, title: attachmentMetadata.title, timestamp: timestamp, attachmentImage: attachmentMetadata.image, attachmentIdentifier: attachmentIdentifier, attachmentContentType: attachmentMetadata.contentType, attachmentFilename: filename, hasChildren: false, isError: false, isKeyScreenshot: isMediaAvailable || isVideo, isMediaAvailable: isMediaAvailable || isVideo)]
             }
 
             let lastScreenshotRow = (data + subRowData).reversed().first(where: { $0.isKeyScreenshot })
@@ -309,7 +309,7 @@ private struct TableRowModel {
             let timestamp = (summary.start?.timeIntervalSince1970 ?? currentTimestamp) - currentTimestamp
             title += timestamp == 0 ? " (Start)" : " (\(String(format: "%.2f", timestamp))s)"
 
-            data += [TableRowModel(indentation: indentation, title: title, timestamp: timestamp, attachmentImage: nil, attachmentIdentifier: screenshotIdentifier, attachmentContentType: screenshotContentType, attachmentFilename: attachmentFilename, hasChildren: subRowData.count > 0, isError: isError, isKeyScreenshot: false, isScreenshot: screenshotIdentifier.count > 0)] + subRowData
+            data += [TableRowModel(indentation: indentation, title: title, timestamp: timestamp, attachmentImage: nil, attachmentIdentifier: screenshotIdentifier, attachmentContentType: screenshotContentType, attachmentFilename: attachmentFilename, hasChildren: subRowData.count > 0, isError: isError, isKeyScreenshot: false, isMediaAvailable: screenshotIdentifier.count > 0)] + subRowData
 
             if !summary.failureSummaryIDs.isEmpty {
                 for failureSummaryID in summary.failureSummaryIDs {
@@ -329,25 +329,25 @@ private struct TableRowModel {
     static func makeFailureModel(_ failure: ActionTestFailureSummary, currentTimestamp: Double, userInfo: ResultBundle.UserInfo?, indentation: Int) -> [TableRowModel] {
         var data = [TableRowModel]()
 
-        data.append(TableRowModel(indentation: indentation, title: failure.message ?? "Failure", timestamp: currentTimestamp, attachmentImage: nil, attachmentIdentifier: "", attachmentContentType: "", attachmentFilename: "", hasChildren: !failure.attachments.isEmpty, isError: true, isKeyScreenshot: false, isScreenshot: false))
+        data.append(TableRowModel(indentation: indentation, title: failure.message ?? "Failure", timestamp: currentTimestamp, attachmentImage: nil, attachmentIdentifier: "", attachmentContentType: "", attachmentFilename: "", hasChildren: !failure.attachments.isEmpty, isError: true, isKeyScreenshot: false, isMediaAvailable: false))
         if var fileName = failure.fileName, let lineNumber = failure.lineNumber {
             fileName = fileName.replacingOccurrences(of: userInfo?.sourceBasePath ?? "", with: "")
             var attachment: (url: String, width: Int)?
             if let githubBaseUrl = userInfo?.githubBaseUrl, let commitHash = userInfo?.commitHash {
                 attachment = (url: "\(githubBaseUrl)/blob/\(commitHash)/\(fileName)#L\(lineNumber)", width: 15)
             }
-            data.append(TableRowModel(indentation: indentation + 1, title: "\(fileName):\(lineNumber)", timestamp: currentTimestamp, attachmentImage: attachment, attachmentIdentifier: "", attachmentContentType: "text/html", attachmentFilename: "", hasChildren: false, isError: false, isKeyScreenshot: false, isScreenshot: false))
+            data.append(TableRowModel(indentation: indentation + 1, title: "\(fileName):\(lineNumber)", timestamp: currentTimestamp, attachmentImage: attachment, attachmentIdentifier: "", attachmentContentType: "text/html", attachmentFilename: "", hasChildren: false, isError: false, isKeyScreenshot: false, isMediaAvailable: false))
         }
 
         for attachment in failure.attachments {
             let attachmentIdentifier = attachment.payloadRef?.id ?? ""
             let attachmentMetadata = attachmentMetadata(from: attachment)
 
-            let isScreenshot = attachment.name == "kXCTAttachmentLegacyScreenImageData"
+            let isMediaAvailable = attachment.name == "kXCTAttachmentLegacyScreenImageData"
 
             let timestamp = (attachment.timestamp?.timeIntervalSince1970 ?? currentTimestamp) - currentTimestamp
 
-            data.append(TableRowModel(indentation: indentation + 1, title: attachmentMetadata.title, timestamp: timestamp, attachmentImage: attachmentMetadata.image, attachmentIdentifier: attachmentIdentifier, attachmentContentType: attachmentMetadata.contentType, attachmentFilename: attachment.filename ?? "", hasChildren: false, isError: false, isKeyScreenshot: isScreenshot, isScreenshot: isScreenshot))
+            data.append(TableRowModel(indentation: indentation + 1, title: attachmentMetadata.title, timestamp: timestamp, attachmentImage: attachmentMetadata.image, attachmentIdentifier: attachmentIdentifier, attachmentContentType: attachmentMetadata.contentType, attachmentFilename: attachment.filename ?? "", hasChildren: false, isError: false, isKeyScreenshot: isMediaAvailable, isMediaAvailable: isMediaAvailable))
         }
 
         return data

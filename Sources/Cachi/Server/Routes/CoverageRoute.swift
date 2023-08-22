@@ -1,39 +1,36 @@
 import Foundation
-import HTTPKit
 import os
+import Vapor
 import ZippyJSON
 
 struct CoverageRoute: Routable {
+    let method = HTTPMethod.GET
     let path = "/coverage"
     let description = "Coverage. Pass `id` parameter with result identifier, `kind` [files/paths] (Default: files), `q` query string to filter results paths"
 
-    func respond(to req: HTTPRequest, with promise: EventLoopPromise<HTTPResponse>) {
+    func respond(to req: Request) throws -> Response {
         os_log("Coverage request received", log: .default, type: .info)
 
         let resultBundles = State.shared.resultBundles
 
-        guard let components = URLComponents(url: req.url, resolvingAgainstBaseURL: false),
+        guard let components = req.urlComponents(),
               let queryItems = components.queryItems,
               let resultIdentifier = queryItems.first(where: { $0.name == "id" })?.value,
               let resultBundle = resultBundles.first(where: { $0.identifier == resultIdentifier }),
               var pathCoverages = pathCoveragesForResult(resultBundle, for: Kind(queryItems: queryItems))
         else {
-            let res = HTTPResponse(status: .notFound, body: HTTPBody(staticString: "Not found..."))
-            return promise.succeed(res)
+            return Response(status: .notFound, body: Response.Body(stringLiteral: "Not found..."))
         }
 
         if let queryString = queryItems.first(where: { $0.name == "q" })?.value {
             pathCoverages = pathCoverages.filter { $0.path.contains(queryString) }
         }
 
-        let res: HTTPResponse
         if let bodyData = resultData(pathCoverages, resultIdentifier: resultIdentifier, for: Kind(queryItems: queryItems)) {
-            res = HTTPResponse(body: HTTPBody(data: bodyData))
-        } else {
-            res = HTTPResponse(status: .internalServerError, body: HTTPBody(staticString: "Ouch..."))
+            return Response(body: Response.Body(data: bodyData))
         }
 
-        return promise.succeed(res)
+        return Response(status: .internalServerError, body: Response.Body(stringLiteral: "Ouch..."))
     }
 
     private func pathCoveragesForResult(_ result: ResultBundle, for kind: Kind?) -> [PathCoverage]? {

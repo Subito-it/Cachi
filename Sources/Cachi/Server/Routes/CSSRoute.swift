@@ -1,17 +1,17 @@
 import Foundation
-import HTTPKit
 import os
+import Vapor
 
 struct CSSRoute: Routable {
+    let method = HTTPMethod.GET
     let path = "/css"
     let description = "CSS route, used for html rendering"
 
-    func respond(to req: HTTPRequest, with promise: EventLoopPromise<HTTPResponse>) {
+    func respond(to req: Request) throws -> Response {
         os_log("CSS request received", log: .default, type: .info)
 
         guard let imageIdentifier = req.url.query else {
-            let res = HTTPResponse(status: .notFound, body: HTTPBody(staticString: "Not found..."))
-            return promise.succeed(res)
+            return Response(status: .notFound, body: Response.Body(stringLiteral: "Not found..."))
         }
 
         let cssContent: String?
@@ -21,12 +21,10 @@ struct CSSRoute: Routable {
         }
 
         guard cssContent != nil else {
-            let res = HTTPResponse(status: .notFound, body: HTTPBody(staticString: "Not found..."))
-            return promise.succeed(res)
+            return Response(status: .notFound, body: Response.Body(stringLiteral: "Not found..."))
         }
 
-        let res = HTTPResponse(headers: HTTPHeaders([("Content-Type", "text/css")]), body: HTTPBody(string: cssContent!))
-        return promise.succeed(res)
+        return Response(headers: HTTPHeaders([("Content-Type", "text/css")]), body: Response.Body(string: cssContent!))
     }
 
     private func mainCSS() -> String {

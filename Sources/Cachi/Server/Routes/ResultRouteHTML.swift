@@ -1,10 +1,11 @@
 import Foundation
-import HTTPKit
 import os
+import Vapor
 import Vaux
 import ZippyJSON
 
 struct ResultRouteHTML: Routable {
+    let method = HTTPMethod.GET
     let path: String = "/html/result"
     let description: String = "Detail of result in html (pass identifier)"
 
@@ -18,15 +19,14 @@ struct ResultRouteHTML: Routable {
         self.mergeResults = mergeResults
     }
 
-    func respond(to req: HTTPRequest, with promise: EventLoopPromise<HTTPResponse>) {
+    func respond(to req: Request) throws -> Response {
         os_log("HTML result request received", log: .default, type: .info)
 
-        guard let components = URLComponents(url: req.url, resolvingAgainstBaseURL: false),
+        guard let components = req.urlComponents(),
               let queryItems = components.queryItems,
               let resultIdentifier = queryItems.first(where: { $0.name == "id" })?.value
         else {
-            let res = HTTPResponse(status: .notFound, body: HTTPBody(staticString: "Not found..."))
-            return promise.succeed(res)
+            return Response(status: .notFound, body: Response.Body(stringLiteral: "Not found..."))
         }
 
         let benchId = benchmarkStart()
@@ -35,11 +35,9 @@ struct ResultRouteHTML: Routable {
         guard let result = State.shared.result(identifier: resultIdentifier) else {
             let pendingResultBundles = State.shared.pendingResultBundles(baseUrl: baseUrl, depth: depth, mergeResults: mergeResults)
             if pendingResultBundles.contains(where: { $0.identifier == resultIdentifier }) {
-                let res = HTTPResponse(status: .notFound, body: HTTPBody(staticString: "Result is being parsed, please wait..."))
-                return promise.succeed(res)
+                return Response(status: .notFound, body: Response.Body(stringLiteral: "Result is being parsed, please wait..."))
             } else {
-                let res = HTTPResponse(status: .notFound, body: HTTPBody(staticString: "Not found..."))
-                return promise.succeed(res)
+                return Response(status: .notFound, body: Response.Body(stringLiteral: "Not found..."))
             }
         }
 
@@ -60,7 +58,7 @@ struct ResultRouteHTML: Routable {
             }
         }
 
-        return promise.succeed(document.httpResponse())
+        return document.httpResponse()
     }
 
     private func floatingHeaderHTML(result: ResultBundle, state: RouteState, backUrl: String) -> HTML {

@@ -1,17 +1,17 @@
 import Foundation
-import HTTPKit
 import os
+import Vapor
 
 struct ImageRoute: Routable {
+    let method = HTTPMethod.GET
     let path = "/image"
     let description = "Image route, used for html rendering"
 
-    func respond(to req: HTTPRequest, with promise: EventLoopPromise<HTTPResponse>) {
+    func respond(to req: Request) throws -> Response {
         os_log("Image request received", log: .default, type: .info)
 
         guard let imageIdentifier = req.url.query else {
-            let res = HTTPResponse(status: .notFound, body: HTTPBody(staticString: "Not found..."))
-            return promise.succeed(res)
+            return Response(status: .notFound, body: Response.Body(stringLiteral: "Not found..."))
         }
 
         let imageContent: StaticString?
@@ -30,13 +30,11 @@ struct ImageRoute: Routable {
         default: imageContent = nil
         }
 
-        guard imageContent != nil else {
-            let res = HTTPResponse(status: .notFound, body: HTTPBody(staticString: "Not found..."))
-            return promise.succeed(res)
+        if let imageContent {
+            return Response(headers: HTTPHeaders([("Content-Type", "image/svg+xml")]), body: Response.Body(staticString: imageContent))
         }
 
-        let res = HTTPResponse(headers: HTTPHeaders([("Content-Type", "image/svg+xml")]), body: HTTPBody(staticString: imageContent!))
-        return promise.succeed(res)
+        return Response(status: .notFound, body: Response.Body(stringLiteral: "Not found..."))
     }
 
     private func imageTestPass() -> StaticString {

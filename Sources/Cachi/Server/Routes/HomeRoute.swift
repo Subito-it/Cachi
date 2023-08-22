@@ -1,14 +1,15 @@
 import Foundation
-import HTTPKit
 import os
+import Vapor
 
 struct HomeRoute: Routable {
+    let method = HTTPMethod.GET
     let path = "/"
     let description = "Home"
 
-    func respond(to req: HTTPRequest, with promise: EventLoopPromise<HTTPResponse>) {
+    func respond(to req: Request) throws -> Response {
         os_log("Home request received", log: .default, type: .info)
 
-        return ResultsRouteHTML().respond(to: req, with: promise)
+        return try ResultsRouteHTML().respond(to: req)
     }
 }

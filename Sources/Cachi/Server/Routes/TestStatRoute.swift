@@ -1,17 +1,17 @@
 import Foundation
-import HTTPKit
 import os
+import Vapor
 
 struct TestStatRoute: Routable {
+    let method = HTTPMethod.GET
     let path = "/v1/teststats"
     let description = #"Test execution statistics (pass MD5({test.targetName}-{test.suite}-{test.name}-{device.model}-{device.os}). Example: MD5('SomeUITestTarget-TestLogins-testHappyPath()-iPhone 8-13.0')"#
 
-    func respond(to req: HTTPRequest, with promise: EventLoopPromise<HTTPResponse>) {
+    func respond(to req: Request) throws -> Response {
         os_log("Test stats request received", log: .default, type: .info)
 
         guard let md5Identifier = req.url.query else {
-            let res = HTTPResponse(status: .notFound, body: HTTPBody(staticString: "Not found..."))
-            return promise.succeed(res)
+            return Response(status: .notFound, body: Response.Body(stringLiteral: "Not found..."))
         }
 
         let benchId = benchmarkStart()
@@ -19,13 +19,10 @@ struct TestStatRoute: Routable {
 
         let stats = State.shared.testStats(md5Identifier: md5Identifier)
 
-        let res: HTTPResponse
         if let bodyData = try? JSONEncoder().encode(stats) {
-            res = HTTPResponse(body: HTTPBody(data: bodyData))
+            return Response(body: Response.Body(data: bodyData))
         } else {
-            res = HTTPResponse(status: .internalServerError, body: HTTPBody(staticString: "Ouch..."))
+            return Response(status: .internalServerError, body: Response.Body(stringLiteral: "Ouch..."))
         }
-
-        return promise.succeed(res)
     }
 }

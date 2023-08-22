@@ -1,30 +1,9 @@
 import Foundation
-import HTTPKit
 import os
-
-struct ResultInfo: Codable {
-    let target_name: String
-    let identifier: String
-    let url: String
-    let coverage_url: String?
-    let html_url: String
-    let start_time: Date
-    let end_time: Date
-    let test_start_time: Date
-    let test_end_time: Date
-    let success_count: Int
-    let failure_count: Int
-    let failure_by_system_count: Int
-    let count: Int
-    let has_crashes: Bool
-    let destinations: String
-    let branch: String?
-    let commit_hash: String?
-    let commit_message: String?
-    let metadata: String?
-}
+import Vapor
 
 struct ResultsRoute: Routable {
+    let method = HTTPMethod.GET
     let path: String = "/v1/results"
     let description: String = "List of results"
 
@@ -38,7 +17,7 @@ struct ResultsRoute: Routable {
         self.mergeResults = mergeResults
     }
 
-    func respond(to _: HTTPRequest, with promise: EventLoopPromise<HTTPResponse>) {
+    func respond(to _: Request) throws -> Response {
         os_log("Results request received", log: .default, type: .info)
 
         let results = State.shared.resultBundles
@@ -69,13 +48,32 @@ struct ResultsRoute: Routable {
             resultInfos.append(info)
         }
 
-        let res: HTTPResponse
         if let bodyData = try? JSONEncoder().encode(resultInfos) {
-            res = HTTPResponse(body: HTTPBody(data: bodyData))
+            return Response(body: Response.Body(data: bodyData))
         } else {
-            res = HTTPResponse(status: .internalServerError, body: HTTPBody(staticString: "Ouch..."))
+            return Response(status: .internalServerError, body: Response.Body(stringLiteral: "Ouch..."))
         }
-
-        return promise.succeed(res)
     }
+}
+
+private struct ResultInfo: Codable {
+    let target_name: String
+    let identifier: String
+    let url: String
+    let coverage_url: String?
+    let html_url: String
+    let start_time: Date
+    let end_time: Date
+    let test_start_time: Date
+    let test_end_time: Date
+    let success_count: Int
+    let failure_count: Int
+    let failure_by_system_count: Int
+    let count: Int
+    let has_crashes: Bool
+    let destinations: String
+    let branch: String?
+    let commit_hash: String?
+    let commit_message: String?
+    let metadata: String?
 }

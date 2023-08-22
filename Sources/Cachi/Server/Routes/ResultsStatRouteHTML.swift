@@ -1,33 +1,24 @@
 import Foundation
-import HTTPKit
 import os
+import Vapor
 import Vaux
 
-private extension ResultBundle.TestStatsType {
-    func params() -> String {
-        "&\(Self.queryName)=\(rawValue)"
-    }
-
-    static let queryName = "type"
-}
-
 struct ResultsStatRouteHTML: Routable {
+    let method = HTTPMethod.GET
     let path: String = "/html/results_stat"
     let description: String = "Stats of results in html"
 
-    func respond(to req: HTTPRequest, with promise: EventLoopPromise<HTTPResponse>) {
+    func respond(to req: Request) throws -> Response {
         os_log("HTML results request received", log: .default, type: .info)
 
-        guard let components = URLComponents(url: req.url, resolvingAgainstBaseURL: false) else {
-            let res = HTTPResponse(status: .notFound, body: HTTPBody(staticString: "Not found..."))
-            return promise.succeed(res)
+        guard let components = req.urlComponents() else {
+            return Response(status: .notFound, body: Response.Body(stringLiteral: "Not found..."))
         }
 
         let allTargets = State.shared.allTargets()
 
         guard allTargets.count > 0 else {
-            let res = HTTPResponse(status: .notFound, body: HTTPBody(staticString: "No targets found..."))
-            return promise.succeed(res)
+            return Response(status: .notFound, body: Response.Body(stringLiteral: "No targets found..."))
         }
 
         let queryItems = components.queryItems ?? []
@@ -41,8 +32,7 @@ struct ResultsStatRouteHTML: Routable {
         let allDevices = State.shared.allDevices(in: selectedTarget)
 
         guard allDevices.count > 0 else {
-            let res = HTTPResponse(status: .notFound, body: HTTPBody(staticString: "No target or device found..."))
-            return promise.succeed(res)
+            return Response(status: .notFound, body: Response.Body(stringLiteral: "No target or device found..."))
         }
 
         if rawSelectedDevice == nil || !allDevices.map(\.description).contains(rawSelectedDevice!) {
@@ -50,8 +40,7 @@ struct ResultsStatRouteHTML: Routable {
         }
 
         guard let selectedDevice = State.Device(rawDescription: rawSelectedDevice) else {
-            let res = HTTPResponse(status: .notFound, body: HTTPBody(staticString: "Empty selected device..."))
-            return promise.succeed(res)
+            return Response(status: .notFound, body: Response.Body(stringLiteral: "Empty selected device..."))
         }
 
         let windowSize = Int(rawWindowSize) ?? State.defaultStatWindowSize
@@ -73,7 +62,7 @@ struct ResultsStatRouteHTML: Routable {
             }
         }
 
-        return promise.succeed(document.httpResponse())
+        return document.httpResponse()
     }
 
     private func floatingHeaderHTML(targets: [String], selectedTarget: String, devices: [String], selectedDevice: String, typeFilter: ResultBundle.TestStatsType, windowSize: Int, backUrl: String) -> HTML {
@@ -168,4 +157,12 @@ struct ResultsStatRouteHTML: Routable {
     private func currentUrl(selectedTarget: String, selectedDevice: String, statType: ResultBundle.TestStatsType, backUrl: String) -> String {
         "\(path)?target=\(selectedTarget)&device=\(selectedDevice)\(statType.params())&back_url=\(backUrl.hexadecimalRepresentation)"
     }
+}
+
+private extension ResultBundle.TestStatsType {
+    func params() -> String {
+        "&\(Self.queryName)=\(rawValue)"
+    }
+
+    static let queryName = "type"
 }

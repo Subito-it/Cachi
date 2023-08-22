@@ -1,8 +1,9 @@
 import Foundation
-import HTTPKit
 import os
+import Vapor
 
 struct ParseRoute: Routable {
+    let method = HTTPMethod.GET
     let path = "/v1/parse"
     let description = "Parse new results"
 
@@ -16,21 +17,17 @@ struct ParseRoute: Routable {
         self.mergeResults = mergeResults
     }
 
-    func respond(to _: HTTPRequest, with promise: EventLoopPromise<HTTPResponse>) {
+    func respond(to _: Request) throws -> Response {
         os_log("Parsing request received", log: .default, type: .info)
-
-        let res: HTTPResponse
 
         switch State.shared.state {
         case let .parsing(progress):
-            res = HTTPResponse(body: HTTPBody(string: #"{ "status": "parsing \#(Int(progress * 100))% done" }"#))
+            return Response(body: Response.Body(string: #"{ "status": "parsing \#(Int(progress * 100))% done" }"#))
         default:
             DispatchQueue.global(qos: .userInteractive).async {
                 State.shared.parse(baseUrl: baseUrl, depth: depth, mergeResults: mergeResults)
             }
-            res = HTTPResponse(body: HTTPBody(staticString: #"{ "status": "ready" }"#))
+            return Response(body: Response.Body(stringLiteral: #"{ "status": "ready" }"#))
         }
-
-        return promise.succeed(res)
     }
 }

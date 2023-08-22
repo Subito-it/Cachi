@@ -1,21 +1,19 @@
 import Foundation
-import HTTPKit
 import os
+import Vapor
 
 struct HelpRoute: Routable {
     let path = "/v1/help"
     let description = "List available commands"
 
-    private let futureRoutes: () -> [AnyRoutable]
+    let routes: [Routable]
 
-    init(futureRoutes: @escaping () -> [AnyRoutable]) {
-        self.futureRoutes = futureRoutes
+    init(routes: [Routable]) {
+        self.routes = routes
     }
 
-    func respond(to _: HTTPRequest, with promise: EventLoopPromise<HTTPResponse>) {
+    func respond(to _: Request) throws -> Response {
         os_log("Reset request received", log: .default, type: .info)
-
-        let routes = futureRoutes()
 
         var result = [String: String]()
         for route in routes {
@@ -23,13 +21,10 @@ struct HelpRoute: Routable {
             result[route.path] = route.description
         }
 
-        let res: HTTPResponse
         if let bodyData = try? JSONEncoder().encode(result) {
-            res = HTTPResponse(body: HTTPBody(data: bodyData))
+            return Response(body: Response.Body(data: bodyData))
         } else {
-            res = HTTPResponse(status: .internalServerError, body: HTTPBody(staticString: "Ouch..."))
+            return Response(status: .internalServerError, body: Response.Body(stringLiteral: "Ouch..."))
         }
-
-        return promise.succeed(res)
     }
 }

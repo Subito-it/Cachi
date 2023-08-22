@@ -1,22 +1,9 @@
-import HTTPKit
+import Vapor
 
-protocol Routable: CustomStringConvertible {
+protocol Routable {
     var path: String { get }
+    var description: String { get }
+    var method: HTTPMethod { get }
 
-    func respond(to req: HTTPRequest, with promise: EventLoopPromise<HTTPResponse>)
-}
-
-struct AnyRoutable: Routable {
-    private let box: Routable
-
-    var path: String { box.path }
-    var description: String { box.description }
-
-    init(_ routable: Routable) {
-        box = routable
-    }
-
-    func respond(to req: HTTPRequest, with promise: EventLoopPromise<HTTPResponse>) {
-        box.respond(to: req, with: promise)
-    }
+    func respond(to request: Request) throws -> Response
 }

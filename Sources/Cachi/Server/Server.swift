@@ -1,35 +1,66 @@
 import Foundation
-import HTTPKit
 import os
+import Vapor
 
 struct Server {
     private let port: Int
     private let hostname = "0.0.0.0"
-
-    private let responder: RequestRouter
+    private let routes: [Routable]
 
     init(port: Int, baseUrl: URL, parseDepth: Int, mergeResults: Bool) {
         self.port = port
-        responder = RequestRouter(baseUrl: baseUrl, parseDepth: parseDepth, mergeResults: mergeResults)
+
+        var routes: [Routable] = [
+            AttachmentRoute(),
+            CoverageFileRouteHTML(),
+            CoverageRoute(),
+            CoverageRouteHTML(),
+            CSSRoute(),
+            HomeRoute(),
+            ImageRoute(),
+            KillRoute(),
+            ParseRoute(baseUrl: baseUrl, depth: parseDepth, mergeResults: mergeResults),
+            ResetRoute(baseUrl: baseUrl, depth: parseDepth, mergeResults: mergeResults),
+            ResultRoute(),
+            ResultRouteHTML(baseUrl: baseUrl, depth: parseDepth, mergeResults: mergeResults),
+            ResultsIdentifiersRoute(baseUrl: baseUrl, depth: parseDepth, mergeResults: mergeResults),
+            ResultsRoute(baseUrl: baseUrl, depth: parseDepth, mergeResults: mergeResults),
+            ResultsRouteHTML(),
+            ResultsStatRoute(),
+            ResultsStatRouteHTML(),
+            ScriptRoute(),
+            TestRoute(),
+            TestRouteHTML(),
+            TestSessionLogsRouteHTML(),
+            TestStatRoute(),
+            TestStatRouteHTML(baseUrl: baseUrl, depth: parseDepth),
+            VersionRoute(),
+            VideoCaptureRoute(),
+        ]
+
+        routes.append(HelpRoute(routes: routes))
+
+        self.routes = routes
     }
 
     func listen() throws {
-        let elg = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount)
-        defer { try? elg.syncShutdownGracefully() }
+        var env = Environment(name: "cachi", arguments: ["env=prod"])
+        try LoggingSystem.bootstrap(from: &env)
 
-        let server = HTTPServer(
-            configuration: .init(
-                hostname: hostname,
-                port: port,
-                supportCompression: true,
-                supportVersions: [.one]
-            ),
-            on: elg
-        )
+        let app = Application(env)
+        defer { app.shutdown() }
 
-        try server.start(delegate: responder).wait()
+        app.http.server.configuration.port = port
+        app.http.server.configuration.hostname = hostname
+        app.http.server.configuration.supportVersions = [.one]
+        app.http.server.configuration.responseCompression = .enabled
 
-        os_log("Server starting on http://%@:%ld", log: .default, type: .info, hostname, port)
-        try server.onClose.wait()
+        for route in routes {
+            app.on(route.method, route.path.pathComponents, use: route.respond)
+        }
+
+        app.middleware.use(NotFoundMiddleware(), at: .beginning)
+
+        try app.run()
     }
 }

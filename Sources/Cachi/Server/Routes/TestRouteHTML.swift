@@ -197,7 +197,7 @@ struct TestRouteHTML: Routable {
                             if rowData.title.isEmpty {
                                 return row
                                     .style([.init(key: "visibility", value: "collapse")])
-                            } else if rowData.isKeyScreenshot || rowData.isMediaAvailable || rowData.isVideo {
+                            } else if rowData.isMediaAvailable {
                                 if rowData.isKeyScreenshot {
                                     rowClasses.append("screenshot-key")
                                 }
@@ -281,20 +281,17 @@ private struct TableRowModel {
 
                 let attachmentStartDate = attachment.timestamp ?? summary.start ?? Date()
 
-                let isMediaAvailable = attachment.name == "kXCTAttachmentLegacyScreenImageData"
+                let isMediaAvailable = ["kXCTAttachmentLegacyScreenImageData", "kXCTAttachmentScreenRecording"].contains(attachment.name)
 
-                var isVideo = false
                 var filename = attachment.filename ?? ""
                 if attachment.name == "kXCTAttachmentScreenRecording" {
-                    isVideo = true
-
                     let filenameDate = attachmentDateFormatter.string(from: attachmentStartDate)
                     filename = "Screen Recording \(filenameDate).mp4"
                 }
 
                 let timestamp = (attachment.timestamp?.timeIntervalSince1970 ?? currentTimestamp) - currentTimestamp
 
-                subRowData += [TableRowModel(indentation: indentation + 1, title: attachmentMetadata.title, timestamp: timestamp, attachmentImage: attachmentMetadata.image, attachmentIdentifier: attachmentIdentifier, attachmentContentType: attachmentMetadata.contentType, attachmentFilename: filename, hasChildren: false, isError: false, isKeyScreenshot: isMediaAvailable || isVideo, isMediaAvailable: isMediaAvailable || isVideo)]
+                subRowData += [TableRowModel(indentation: indentation + 1, title: attachmentMetadata.title, timestamp: timestamp, attachmentImage: attachmentMetadata.image, attachmentIdentifier: attachmentIdentifier, attachmentContentType: attachmentMetadata.contentType, attachmentFilename: filename, hasChildren: false, isError: false, isKeyScreenshot: isMediaAvailable, isMediaAvailable: isMediaAvailable)]
             }
 
             let lastScreenshotRow = (data + subRowData).reversed().first(where: { $0.isKeyScreenshot })

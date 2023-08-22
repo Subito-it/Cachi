@@ -6,7 +6,7 @@ import PackageDescription
 let package = Package(
     name: "Cachi",
     platforms: [
-        .macOS(.v10_15),
+        .macOS(.v12),
     ],
     dependencies: [
         .package(url: "https://github.com/Subito-it/CachiKit", branch: "master"),

@@ -41,6 +41,7 @@ struct RequestRouter: HTTPServerDelegate {
             TestStatRoute(),
             TestStatRouteHTML(baseUrl: baseUrl, depth: parseDepth),
             VersionRoute(),
+            VideoCaptureRoute()
         ]
 
         self.routes = routes

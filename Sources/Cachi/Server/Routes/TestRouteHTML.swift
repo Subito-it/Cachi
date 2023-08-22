@@ -231,11 +231,11 @@ struct TestRouteHTML: Routable {
                             return
                                 video {
                                     source(mediaURL: "\(AttachmentRoute().path)?result_id=\(result.identifier)&test_id=\(testSummaryIdentifier)&id=\(rowData.attachmentIdentifier)&content_type=\(rowData.attachmentContentType)")
-                                }.id("screenshot-image")
+                                }.id("screen-capture")
                         } else if rowData.isScreenshot {
                             return
                                 div {
-                                    image(url: "\(AttachmentRoute().path)?result_id=\(result.identifier)&test_id=\(testSummaryIdentifier)&id=\(rowData.attachmentIdentifier)&content_type=\(rowData.attachmentContentType)").id("screenshot-image")
+                                    image(url: "\(AttachmentRoute().path)?result_id=\(result.identifier)&test_id=\(testSummaryIdentifier)&id=\(rowData.attachmentIdentifier)&content_type=\(rowData.attachmentContentType)").id("screen-capture")
                                 }
                         } else {
                             return image(url: "\(ImageRoute().path)?imageEmpty")
@@ -243,7 +243,7 @@ struct TestRouteHTML: Routable {
                     } else {
                         return ""
                     }
-                }.id("screenshot-column")
+                }.id("capture-column")
             }
         }
     }

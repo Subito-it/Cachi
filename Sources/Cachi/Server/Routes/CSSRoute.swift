@@ -67,11 +67,11 @@ struct CSSRoute: Routable {
                     z-index: 999;
                 }
 
-                #screenshot-column {
+                #capture-column {
                     width: 35%;
                 }
 
-                #screenshot-image {
+                #screen-capture {
                     top: 0px;
                     right: 2.5%;
                     width: 30%;

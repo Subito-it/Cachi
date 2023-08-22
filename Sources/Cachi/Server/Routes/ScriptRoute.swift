@@ -59,7 +59,7 @@ struct ScriptRoute: Routable {
                 topBarElementRect = document.getElementById('top-bar').getBoundingClientRect();
                 tableHeaderElementRect = document.getElementById('table-header').getBoundingClientRect();
 
-                screenshotImageElement = document.getElementById('screenshot-image')
+                screenshotImageElement = document.getElementById('screen-capture')
 
                 window.onscroll();
             }
@@ -81,15 +81,15 @@ struct ScriptRoute: Routable {
             function onMouseEnter(source_element, result_identifier, test_identifier, attachment_identifier, content_type, user_info) {
                 switch (content_type) {
                     case 'video/mp4':
-                        var video = document.getElementById('screenshot-image');
+                        var video = document.getElementById('screen-capture');
                         video.currentTime = user_info['position'];                        
                         break;
                     default:
                         var destination_src = `\(AttachmentRoute().path)?result_id=${result_identifier}&test_id=${test_identifier}&id=${attachment_identifier}&content_type=${content_type}`;
-                        if (!document.getElementById('screenshot-image').src.includes(destination_src)) {
-                            document.getElementById('screenshot-image').src = '';
+                        if (!document.getElementById('screen-capture').src.includes(destination_src)) {
+                            document.getElementById('screen-capture').src = '';
                             setTimeout(function () {
-                                document.getElementById('screenshot-image').src = destination_src;
+                                document.getElementById('screen-capture').src = destination_src;
                             }, 50);
                         }
 

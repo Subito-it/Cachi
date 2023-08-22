@@ -56,16 +56,20 @@ struct VideoCaptureRoute: Routable {
             makeVideoCaptureWithSubtitles(destinationUrl: videoCaptureUrl, videoUrl: videoUrl, subtitleUrl: vttUrl)
         }
 
-        guard let fileData = try? Data(contentsOf: videoCaptureUrl) else {
-            return Response(status: .notFound, body: Response.Body(stringLiteral: "Failed generating video capture file..."))
-        }
-
-        var headers = HTTPHeaders([("Content-Type", contentType)])
+        var headers = [
+            ("Content-Type", contentType),
+            ("Accept-Ranges", "bytes"),
+        ]
         if let filename = queryItems.first(where: { $0.name == "filename" })?.value?.replacingOccurrences(of: " ", with: "%20") {
-            headers.add(name: "Content-Disposition", value: "attachment; filename=\(filename)")
+            headers.append(("Content-Disposition", value: "attachment; filename=\(filename)"))
         }
 
-        return Response(headers: headers, body: Response.Body(data: fileData))
+        let response = req.fileio.streamFile(at: videoCaptureUrl.path(percentEncoded: false))
+        for header in headers {
+            response.headers.add(name: header.0, value: header.1)
+        }
+
+        return response
     }
 }
 

@@ -154,14 +154,14 @@ struct TestRouteHTML: Routable {
                                                     .iconStyleAttributes(width: attachmentImage.width)
                                                     .class("icon color-svg-subtext")
                                             }
-                                        } else if rowData.media.available, !rowData.isVideo {
+                                        } else if rowData.captureMedia.available, !rowData.isVideo {
                                             return HTMLBuilder.buildBlock(
                                                 div { rowData.title }.class("capture color-subtext").attr("attachment_identifier", rowData.attachmentIdentifier).inlineBlock(),
                                                 image(url: attachmentImage.url)
                                                     .iconStyleAttributes(width: attachmentImage.width)
                                                     .class("icon color-svg-subtext")
                                             )
-                                        } else if rowData.media.available, rowData.isVideo {
+                                        } else if rowData.captureMedia.available, rowData.isVideo {
                                             return link(url: "/video_capture?result_id=\(result.identifier)&id=\(rowData.attachmentIdentifier)&test_id=\(test.summaryIdentifier ?? "")&content_type=\(rowData.attachmentContentType)&filename=\(rowData.attachmentFilename)") {
                                                 div { rowData.title }.class("color-subtext").inlineBlock()
                                                 image(url: attachmentImage.url)
@@ -197,8 +197,8 @@ struct TestRouteHTML: Routable {
                             if rowData.title.isEmpty {
                                 return row
                                     .style([.init(key: "visibility", value: "collapse")])
-                            } else if rowData.media.available || rowData.isVideo { // When a video capture is available we want all rows to have set the timestamp position
-                                if rowData.media == .firstInGroup {
+                            } else if rowData.captureMedia.available || rowData.isVideo { // When a video capture is available we want all rows to have set the timestamp position
+                                if rowData.captureMedia == .firstInGroup {
                                     rowClasses.append("capture-key")
                                 }
 
@@ -220,7 +220,7 @@ struct TestRouteHTML: Routable {
                                 video {
                                     source(mediaURL: "\(AttachmentRoute().path)?result_id=\(result.identifier)&test_id=\(testSummaryIdentifier)&id=\(rowData.attachmentIdentifier)&content_type=\(rowData.attachmentContentType)")
                                 }.id("screen-capture")
-                        } else if rowData.media.available {
+                        } else if rowData.captureMedia.available {
                             return
                                 div {
                                     image(url: "\(AttachmentRoute().path)?result_id=\(result.identifier)&test_id=\(testSummaryIdentifier)&id=\(rowData.attachmentIdentifier)&content_type=\(rowData.attachmentContentType)").id("screen-capture")

@@ -3,7 +3,7 @@ import Foundation
 
 extension TestRouteHTML {
     struct TableRowModel {
-        enum Media {
+        enum CaptureMedia {
             case none
             case child
             case firstInGroup
@@ -25,7 +25,7 @@ extension TestRouteHTML {
         let attachmentFilename: String
         let hasChildren: Bool
         let isError: Bool
-        let media: Media
+        let captureMedia: CaptureMedia
 
         var isExternalLink: Bool { attachmentContentType == "text/html" }
         var isVideo: Bool { attachmentContentType == "video/mp4" }
@@ -60,10 +60,10 @@ extension TestRouteHTML {
 
                     let timestamp = (attachment.timestamp?.timeIntervalSince1970 ?? currentTimestamp) - currentTimestamp
 
-                    subRowData += [TableRowModel(indentation: indentation + 1, title: attachmentMetadata.title, timestamp: timestamp, attachmentImage: attachmentMetadata.image, attachmentIdentifier: attachmentIdentifier, attachmentContentType: attachmentMetadata.contentType, attachmentFilename: filename, hasChildren: false, isError: false, media: hasMedia ? .firstInGroup : .none)]
+                    subRowData += [TableRowModel(indentation: indentation + 1, title: attachmentMetadata.title, timestamp: timestamp, attachmentImage: attachmentMetadata.image, attachmentIdentifier: attachmentIdentifier, attachmentContentType: attachmentMetadata.contentType, attachmentFilename: filename, hasChildren: false, isError: false, captureMedia: hasMedia ? .firstInGroup : .none)]
                 }
 
-                let lastCaptureRow = (data + subRowData).reversed().first(where: { $0.media == .firstInGroup })
+                let lastCaptureRow = (data + subRowData).reversed().first(where: { $0.captureMedia == .firstInGroup })
                 let captureIdentifier = lastCaptureRow?.attachmentIdentifier ?? lastCaptureIdentifier
                 let captureContentType = lastCaptureRow?.attachmentContentType ?? lastCaptureContentType
                 let attachmentFilename = lastCaptureRow?.attachmentFilename ?? lastAttachmentFilename
@@ -75,7 +75,7 @@ extension TestRouteHTML {
                 let timestamp = (summary.start?.timeIntervalSince1970 ?? currentTimestamp) - currentTimestamp
                 title += timestamp == 0 ? " (Start)" : " (\(String(format: "%.2f", timestamp))s)"
 
-                data += [TableRowModel(indentation: indentation, title: title, timestamp: timestamp, attachmentImage: nil, attachmentIdentifier: captureIdentifier, attachmentContentType: captureContentType, attachmentFilename: attachmentFilename, hasChildren: subRowData.count > 0, isError: isError, media: captureIdentifier.count > 0 ? .child : .none)] + subRowData
+                data += [TableRowModel(indentation: indentation, title: title, timestamp: timestamp, attachmentImage: nil, attachmentIdentifier: captureIdentifier, attachmentContentType: captureContentType, attachmentFilename: attachmentFilename, hasChildren: subRowData.count > 0, isError: isError, captureMedia: captureIdentifier.count > 0 ? .child : .none)] + subRowData
 
                 if !summary.failureSummaryIDs.isEmpty {
                     for failureSummaryID in summary.failureSummaryIDs {
@@ -95,14 +95,14 @@ extension TestRouteHTML {
         static func makeFailureModel(_ failure: ActionTestFailureSummary, currentTimestamp: Double, userInfo: ResultBundle.UserInfo?, indentation: Int) -> [TableRowModel] {
             var data = [TableRowModel]()
 
-            data.append(TableRowModel(indentation: indentation, title: failure.message ?? "Failure", timestamp: currentTimestamp, attachmentImage: nil, attachmentIdentifier: "", attachmentContentType: "", attachmentFilename: "", hasChildren: !failure.attachments.isEmpty, isError: true, media: .none))
+            data.append(TableRowModel(indentation: indentation, title: failure.message ?? "Failure", timestamp: currentTimestamp, attachmentImage: nil, attachmentIdentifier: "", attachmentContentType: "", attachmentFilename: "", hasChildren: !failure.attachments.isEmpty, isError: true, captureMedia: .none))
             if var fileName = failure.fileName, let lineNumber = failure.lineNumber {
                 fileName = fileName.replacingOccurrences(of: userInfo?.sourceBasePath ?? "", with: "")
                 var attachment: (url: String, width: Int)?
                 if let githubBaseUrl = userInfo?.githubBaseUrl, let commitHash = userInfo?.commitHash {
                     attachment = (url: "\(githubBaseUrl)/blob/\(commitHash)/\(fileName)#L\(lineNumber)", width: 15)
                 }
-                data.append(TableRowModel(indentation: indentation + 1, title: "\(fileName):\(lineNumber)", timestamp: currentTimestamp, attachmentImage: attachment, attachmentIdentifier: "", attachmentContentType: "text/html", attachmentFilename: "", hasChildren: false, isError: false, media: .none))
+                data.append(TableRowModel(indentation: indentation + 1, title: "\(fileName):\(lineNumber)", timestamp: currentTimestamp, attachmentImage: attachment, attachmentIdentifier: "", attachmentContentType: "text/html", attachmentFilename: "", hasChildren: false, isError: false, captureMedia: .none))
             }
 
             for attachment in failure.attachments {
@@ -113,7 +113,7 @@ extension TestRouteHTML {
 
                 let timestamp = (attachment.timestamp?.timeIntervalSince1970 ?? currentTimestamp) - currentTimestamp
 
-                data.append(TableRowModel(indentation: indentation + 1, title: attachmentMetadata.title, timestamp: timestamp, attachmentImage: attachmentMetadata.image, attachmentIdentifier: attachmentIdentifier, attachmentContentType: attachmentMetadata.contentType, attachmentFilename: attachment.filename ?? "", hasChildren: false, isError: false, media: hasMedia ? .firstInGroup : .none))
+                data.append(TableRowModel(indentation: indentation + 1, title: attachmentMetadata.title, timestamp: timestamp, attachmentImage: attachmentMetadata.image, attachmentIdentifier: attachmentIdentifier, attachmentContentType: attachmentMetadata.contentType, attachmentFilename: attachment.filename ?? "", hasChildren: false, isError: false, captureMedia: hasMedia ? .firstInGroup : .none))
             }
 
             return data

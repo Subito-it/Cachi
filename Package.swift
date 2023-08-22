@@ -1,4 +1,4 @@
-// swift-tools-version:5.6
+// swift-tools-version:5.8
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
@@ -6,19 +6,19 @@ import PackageDescription
 let package = Package(
     name: "Cachi",
     platforms: [
-        .macOS(.v12),
+        .macOS(.v13),
     ],
     dependencies: [
         .package(url: "https://github.com/Subito-it/CachiKit", branch: "master"),
         .package(url: "https://github.com/Subito-it/Bariloche", branch: "master"),
-        .package(url: "https://github.com/tcamin/http.git", branch: "master"),
         .package(url: "https://github.com/tcamin/Vaux", branch: "cachi"),
         .package(url: "https://github.com/michaeleisel/ZippyJSON", branch: "master"),
+        .package(url: "https://github.com/vapor/vapor.git", from: "4.77.1"),
     ],
     targets: [
         .executableTarget(
             name: "Cachi",
-            dependencies: [.product(name: "HTTPKit", package: "http"), "CachiKit", "Bariloche", "Vaux", "ZippyJSON"]
+            dependencies: ["CachiKit", "Bariloche", "Vaux", "ZippyJSON", .product(name: "Vapor", package: "vapor")]
         ),
         .testTarget(
             name: "CachiTests",

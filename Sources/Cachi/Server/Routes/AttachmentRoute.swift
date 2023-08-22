@@ -30,13 +30,12 @@ struct AttachmentRoute: Routable {
             return promise.succeed(res)
         }
 
-        let cachi = CachiKit(url: test.xcresultUrl)
-
-        let destinationUrl = Cachi.temporaryFolderUrl.appendingPathComponent("result-\(resultIdentifier)").appendingPathComponent(attachmentIdentifier.md5Value)
+        let destinationUrl = Cachi.temporaryFolderUrl.appendingPathComponent(resultIdentifier).appendingPathComponent(attachmentIdentifier.md5Value)
         let destinationPath = destinationUrl.path
         let filemanager = FileManager.default
 
         if !filemanager.fileExists(atPath: destinationPath) {
+            let cachi = CachiKit(url: test.xcresultUrl)
             try? filemanager.createDirectory(at: destinationUrl.deletingLastPathComponent(), withIntermediateDirectories: true, attributes: nil)
             try? cachi.export(identifier: attachmentIdentifier, destinationPath: destinationPath)
         }

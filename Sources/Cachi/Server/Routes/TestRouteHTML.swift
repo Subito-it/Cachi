@@ -138,6 +138,8 @@ struct TestRouteHTML: Routable {
                 tableHeadData { "Steps" }.alignment(.left).scope(.column).class("row dark-bordered-container indent1")
                 tableHeadData { "&nbsp;" }.alignment(.center).scope(.column).class("row dark-bordered-container")
             }.id("table-header")
+            
+            let isVideo = rowsData.contains(where: { $0.captureMedia != .none && $0.attachmentContentType == "video/mp4" })
 
             tableRow {
                 tableData {
@@ -154,14 +156,14 @@ struct TestRouteHTML: Routable {
                                                     .iconStyleAttributes(width: attachmentImage.width)
                                                     .class("icon color-svg-subtext")
                                             }
-                                        } else if rowData.captureMedia.available, !rowData.isVideo {
+                                        } else if rowData.captureMedia.available, !isVideo {
                                             return HTMLBuilder.buildBlock(
                                                 div { rowData.title }.class("capture color-subtext").attr("attachment_identifier", rowData.attachmentIdentifier).inlineBlock(),
                                                 image(url: attachmentImage.url)
                                                     .iconStyleAttributes(width: attachmentImage.width)
                                                     .class("icon color-svg-subtext")
                                             )
-                                        } else if rowData.captureMedia.available, rowData.isVideo {
+                                        } else if rowData.captureMedia.available, isVideo {
                                             return link(url: "/video_capture?result_id=\(result.identifier)&id=\(rowData.attachmentIdentifier)&test_id=\(test.summaryIdentifier ?? "")&content_type=\(rowData.attachmentContentType)&filename=\(rowData.attachmentFilename)") {
                                                 div { rowData.title }.class("color-subtext").inlineBlock()
                                                 image(url: attachmentImage.url)
@@ -197,7 +199,7 @@ struct TestRouteHTML: Routable {
                             if rowData.title.isEmpty {
                                 return row
                                     .style([.init(key: "visibility", value: "collapse")])
-                            } else if rowData.captureMedia.available || rowData.isVideo { // When a video capture is available we want all rows to have set the timestamp position
+                            } else if rowData.captureMedia.available || isVideo { // When a video capture is available we want all rows to have set the timestamp position
                                 if rowData.captureMedia == .firstInGroup {
                                     rowClasses.append("capture-key")
                                 }
@@ -215,7 +217,7 @@ struct TestRouteHTML: Routable {
                 }
                 tableData {
                     if let rowData = rowsData.first, let testSummaryIdentifier = test.summaryIdentifier {
-                        if rowData.isVideo {
+                        if isVideo {
                             return
                                 video {
                                     source(mediaURL: "\(AttachmentRoute().path)?result_id=\(result.identifier)&test_id=\(testSummaryIdentifier)&id=\(rowData.attachmentIdentifier)&content_type=\(rowData.attachmentContentType)")

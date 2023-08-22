@@ -29,12 +29,15 @@ extension TestRouteHTML {
 
         var isExternalLink: Bool { attachmentContentType == "text/html" }
         var isVideo: Bool { attachmentContentType == "video/mp4" }
+        
+        private static let captureFilenameDateFormatter: DateFormatter = {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "y-MM-dd HH.mm.ss"
+            return formatter
+        }()
 
         static func makeModels(from actionSummaries: [ActionTestActivitySummary], currentTimestamp: Double, failureSummaries: inout [ActionTestFailureSummary], userInfo: ResultBundle.UserInfo?, indentation: Int = 1, lastCaptureIdentifier: String = "", lastCaptureContentType: String = "", lastAttachmentFilename: String = "") -> [TableRowModel] {
             var data = [TableRowModel]()
-
-            let attachmentDateFormatter = DateFormatter()
-            attachmentDateFormatter.dateFormat = "y-MM-dd HH.mm.ss"
 
             for summary in actionSummaries {
                 guard var title = summary.title else {
@@ -49,7 +52,7 @@ extension TestRouteHTML {
                     let attachmentStartDate = attachment.timestamp ?? summary.start ?? Date()
                     var filename = attachment.filename ?? ""
                     if attachment.name == "kXCTAttachmentScreenRecording" {
-                        let filenameDate = attachmentDateFormatter.string(from: attachmentStartDate)
+                        let filenameDate = captureFilenameDateFormatter.string(from: attachmentStartDate)
                         filename = "Screen Recording \(filenameDate).mp4"
                     }
                     

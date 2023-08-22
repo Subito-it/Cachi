@@ -33,17 +33,10 @@ struct TestRouteHTML: Routable {
         let activitySummary = State.shared.testActionSummary(test: test)
 
         let actions = activitySummary?.activitySummaries ?? []
-        var rowsData: [TableRowModel]
+        var rowsData = [TableRowModel]()
         var failureSummaries = activitySummary?.failureSummaries ?? []
-        if let firstTimestamp = actions.first(where: { $0.start != nil })?.start?.timeIntervalSince1970 {
+        if let firstTimestamp = (actions.first(where: { $0.start != nil })?.start ?? failureSummaries.first(where: { $0.timestamp != nil })?.timestamp)?.timeIntervalSince1970 {
             rowsData = TableRowModel.makeModels(from: actions, currentTimestamp: firstTimestamp, failureSummaries: &failureSummaries, userInfo: resultBundle.userInfo)
-            for failureSummary in failureSummaries {
-                rowsData += TableRowModel.makeFailureModel(failureSummary, currentTimestamp: firstTimestamp, userInfo: resultBundle.userInfo, indentation: 0)
-            }
-        } else {
-            rowsData = []
-
-            let firstTimestamp = (failureSummaries.first?.timestamp ?? Date()).timeIntervalSince1970
             for failureSummary in failureSummaries {
                 rowsData += TableRowModel.makeFailureModel(failureSummary, currentTimestamp: firstTimestamp, userInfo: resultBundle.userInfo, indentation: 0)
             }
@@ -204,20 +197,15 @@ struct TestRouteHTML: Routable {
                             if rowData.title.isEmpty {
                                 return row
                                     .style([.init(key: "visibility", value: "collapse")])
-                            } else if rowData.isVideo {
-                                return row
-                                    .class(rowClasses.joined(separator: " "))
-                                    .attr("onmouseenter", #"onMouseEnter(this, '\#(result.identifier)', '\#(testSummaryIdentifier)', '\#(rowData.attachmentIdentifier)', '\#(rowData.attachmentContentType)', { position: \#(rowData.timestamp) })"#)
-                                    .attr("onclick", #"onMouseEnter(this, '\#(result.identifier)', '\#(testSummaryIdentifier)', '\#(rowData.attachmentIdentifier)', '\#(rowData.attachmentContentType)', { position: \#(rowData.timestamp) })"#)
-                            } else if rowData.isKeyScreenshot || rowData.isScreenshot {
+                            } else if rowData.isKeyScreenshot || rowData.isScreenshot || rowData.isVideo {
                                 if rowData.isKeyScreenshot {
                                     rowClasses.append("screenshot-key")
                                 }
 
                                 return row
                                     .class(rowClasses.joined(separator: " "))
-                                    .attr("onmouseenter", #"onMouseEnter(this, '\#(result.identifier)', '\#(testSummaryIdentifier)', '\#(rowData.attachmentIdentifier)', '\#(rowData.attachmentContentType)', null)"#)
-                                    .attr("onclick", #"onMouseEnter(this, '\#(result.identifier)', '\#(testSummaryIdentifier)', '\#(rowData.attachmentIdentifier)', '\#(rowData.attachmentContentType)', null)"#)
+                                    .attr("onmouseenter", #"onMouseEnter(this, '\#(result.identifier)', '\#(testSummaryIdentifier)', '\#(rowData.attachmentIdentifier)', '\#(rowData.attachmentContentType)', { position: \#(rowData.timestamp) })"#)
+                                    .attr("onclick", #"onMouseEnter(this, '\#(result.identifier)', '\#(testSummaryIdentifier)', '\#(rowData.attachmentIdentifier)', '\#(rowData.attachmentContentType)', { position: \#(rowData.timestamp) })"#)
                             } else {
                                 return row
                                     .class(rowClasses.joined(separator: " "))
@@ -277,7 +265,7 @@ private struct TableRowModel {
 
     static func makeModels(from actionSummaries: [ActionTestActivitySummary], currentTimestamp: Double, failureSummaries: inout [ActionTestFailureSummary], userInfo: ResultBundle.UserInfo?, indentation: Int = 1, lastScreenshotIdentifier: String = "", lastScreenshotContentType: String = "", lastAttachmentFilename: String = "") -> [TableRowModel] {
         var data = [TableRowModel]()
-        
+
         let attachmentDateFormatter = DateFormatter()
         attachmentDateFormatter.dateFormat = "y-MM-dd HH.mm.ss"
 
@@ -290,7 +278,7 @@ private struct TableRowModel {
             for attachment in summary.attachments {
                 let attachmentIdentifier = attachment.payloadRef?.id ?? ""
                 let attachmentMetadata = attachmentMetadata(from: attachment)
-                
+
                 let attachmentStartDate = attachment.timestamp ?? summary.start ?? Date()
 
                 let isScreenshot = attachment.name == "kXCTAttachmentLegacyScreenImageData"
@@ -299,11 +287,11 @@ private struct TableRowModel {
                 var filename = attachment.filename ?? ""
                 if attachment.name == "kXCTAttachmentScreenRecording" {
                     isVideo = true
-                                        
+
                     let filenameDate = attachmentDateFormatter.string(from: attachmentStartDate)
                     filename = "Screen Recording \(filenameDate).mp4"
                 }
-                
+
                 let timestamp = (attachment.timestamp?.timeIntervalSince1970 ?? currentTimestamp) - currentTimestamp
 
                 subRowData += [TableRowModel(indentation: indentation + 1, title: attachmentMetadata.title, timestamp: timestamp, attachmentImage: attachmentMetadata.image, attachmentIdentifier: attachmentIdentifier, attachmentContentType: attachmentMetadata.contentType, attachmentFilename: filename, hasChildren: false, isError: false, isKeyScreenshot: isScreenshot || isVideo, isScreenshot: isScreenshot || isVideo)]
@@ -356,7 +344,7 @@ private struct TableRowModel {
             let attachmentMetadata = attachmentMetadata(from: attachment)
 
             let isScreenshot = attachment.name == "kXCTAttachmentLegacyScreenImageData"
-            
+
             let timestamp = (attachment.timestamp?.timeIntervalSince1970 ?? currentTimestamp) - currentTimestamp
 
             data.append(TableRowModel(indentation: indentation + 1, title: attachmentMetadata.title, timestamp: timestamp, attachmentImage: attachmentMetadata.image, attachmentIdentifier: attachmentIdentifier, attachmentContentType: attachmentMetadata.contentType, attachmentFilename: attachment.filename ?? "", hasChildren: false, isError: false, isKeyScreenshot: isScreenshot, isScreenshot: isScreenshot))

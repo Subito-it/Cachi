@@ -1,21 +1,21 @@
 import Foundation
-import HTTPKit
 import os
+import Vapor
 import Vaux
 import ZippyJSON
 
 struct ResultsRouteHTML: Routable {
+    let method = HTTPMethod.GET
     let path: String = "/html/results"
     let description: String = "List of results in html"
 
-    func respond(to req: HTTPRequest, with promise: EventLoopPromise<HTTPResponse>) {
+    func respond(to req: Request) throws -> Response {
         os_log("HTML results request received", log: .default, type: .info)
 
         let results = State.shared.resultBundles
 
-        guard let components = URLComponents(url: req.url, resolvingAgainstBaseURL: false) else {
-            let res = HTTPResponse(status: .notFound, body: HTTPBody(staticString: "Not found..."))
-            return promise.succeed(res)
+        guard let components = req.urlComponents() else {
+            return Response(status: .notFound, body: Response.Body(stringLiteral: "Not found..."))
         }
 
         let state = RouteState(queryItems: components.queryItems)
@@ -34,7 +34,7 @@ struct ResultsRouteHTML: Routable {
             }
         }
 
-        return promise.succeed(document.httpResponse())
+        return document.httpResponse()
     }
 
     private func floatingHeaderHTML(results: [ResultBundle], state: RouteState) -> HTML {

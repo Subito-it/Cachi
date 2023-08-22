@@ -1,10 +1,11 @@
 import CachiKit
 import Foundation
-import HTTPKit
 import os
+import Vapor
 import Vaux
 
 struct TestStatRouteHTML: Routable {
+    let method = HTTPMethod.GET
     let path = "/html/teststats"
     let description: String = "Test execution statistics (pass identifier)"
 
@@ -16,15 +17,14 @@ struct TestStatRouteHTML: Routable {
         self.depth = depth
     }
 
-    func respond(to req: HTTPRequest, with promise: EventLoopPromise<HTTPResponse>) {
+    func respond(to req: Request) throws -> Response {
         os_log("HTML test stat request received", log: .default, type: .info)
 
-        guard let components = URLComponents(url: req.url, resolvingAgainstBaseURL: false),
+        guard let components = req.urlComponents(),
               let queryItems = components.queryItems,
               let testSummaryIdentifier = queryItems.first(where: { $0.name == "id" })?.value
         else {
-            let res = HTTPResponse(status: .notFound, body: HTTPBody(staticString: "Not found..."))
-            return promise.succeed(res)
+            return Response(status: .notFound, body: Response.Body(stringLiteral: "Not found..."))
         }
 
         let benchId = benchmarkStart()
@@ -35,8 +35,7 @@ struct TestStatRouteHTML: Routable {
         guard let resultBundle = resultBundles.first(where: { $0.tests.contains(where: { $0.summaryIdentifier == testSummaryIdentifier }) }),
               let test = resultBundle.tests.first(where: { $0.summaryIdentifier == testSummaryIdentifier })
         else {
-            let res = HTTPResponse(status: .notFound, body: HTTPBody(staticString: "Not found..."))
-            return promise.succeed(res)
+            return Response(status: .notFound, body: Response.Body(stringLiteral: "Not found..."))
         }
 
         var matchingResults = [(resultBundle: ResultBundle, tests: [ResultBundle.Test])]()
@@ -50,8 +49,7 @@ struct TestStatRouteHTML: Routable {
         }
 
         guard matchingResults.count > 0 else {
-            let res = HTTPResponse(status: .notFound, body: HTTPBody(staticString: "Something went really wrong..."))
-            return promise.succeed(res)
+            return Response(status: .notFound, body: Response.Body(stringLiteral: "Something went really wrong..."))
         }
 
         matchingResults = matchingResults.sorted(by: { $0.resultBundle.testStartDate > $1.resultBundle.testStartDate })
@@ -118,7 +116,7 @@ struct TestStatRouteHTML: Routable {
             }
         }
 
-        return promise.succeed(document.httpResponse())
+        return document.httpResponse()
     }
 
     private func floatingHeaderHTML(test: ResultBundle.Test, testDetail: String, source _: String?, backUrl: String) -> HTML {

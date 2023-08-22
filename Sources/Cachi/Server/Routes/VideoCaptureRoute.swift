@@ -1,17 +1,18 @@
 import AVFoundation
 import CachiKit
 import Foundation
-import HTTPKit
 import os
+import Vapor
 
 struct VideoCaptureRoute: Routable {
+    let method = HTTPMethod.GET
     let path = "/video_capture"
     let description = "Download video capture (Xcode 15 and newer)"
-    
-    func respond(to req: HTTPRequest, with promise: EventLoopPromise<HTTPResponse>) {
+
+    func respond(to req: Request) throws -> Response {
         os_log("Video Capture request received", log: .default, type: .info)
 
-        guard let components = URLComponents(url: req.url, resolvingAgainstBaseURL: false),
+        guard let components = req.urlComponents(),
               let queryItems = components.queryItems,
               let resultIdentifier = queryItems.first(where: { $0.name == "result_id" })?.value,
               let testSummaryIdentifier = queryItems.first(where: { $0.name == "test_id" })?.value,
@@ -19,23 +20,21 @@ struct VideoCaptureRoute: Routable {
               let contentType = queryItems.first(where: { $0.name == "content_type" })?.value,
               resultIdentifier.count > 0, attachmentIdentifier.count > 0
         else {
-            let res = HTTPResponse(status: .notFound, body: HTTPBody(staticString: "Not found..."))
-            return promise.succeed(res)
+            return Response(status: .notFound, body: Response.Body(stringLiteral: "Not found..."))
         }
 
         let benchId = benchmarkStart()
         defer { os_log("Video Capture with id '%@' in result bundle '%@' fetched in %fms", log: .default, type: .info, attachmentIdentifier, resultIdentifier, benchmarkStop(benchId)) }
 
         guard let test = State.shared.test(summaryIdentifier: testSummaryIdentifier) else {
-            let res = HTTPResponse(status: .notFound, body: HTTPBody(staticString: "Not found..."))
-            return promise.succeed(res)
+            return Response(status: .notFound, body: Response.Body(stringLiteral: "Not found..."))
         }
-       
+
         let videoCaptureUrl = Cachi.temporaryFolderUrl.appendingPathComponent(resultIdentifier).appendingPathComponent("vc-\(attachmentIdentifier.md5Value).mp4")
-            
+
         let filemanager = FileManager.default
         try? filemanager.createDirectory(at: videoCaptureUrl.deletingLastPathComponent(), withIntermediateDirectories: true, attributes: nil)
-        
+
         if !filemanager.fileExists(atPath: videoCaptureUrl.path) {
             let videoUrl = Cachi.temporaryFolderUrl.appendingPathComponent(resultIdentifier).appendingPathComponent("\(attachmentIdentifier.md5Value).mp4")
             if !filemanager.fileExists(atPath: videoUrl.path) {
@@ -44,32 +43,29 @@ struct VideoCaptureRoute: Routable {
             }
 
             let activitySummary = State.shared.testActionSummary(test: test)
-            
+
             let steps = testSteps(for: activitySummary?.activitySummaries ?? [])
             aggregateSteps(steps, depth: 2)
-        
+
             let vttUrl = Cachi.temporaryFolderUrl.appendingPathComponent(resultIdentifier).appendingPathComponent("\(attachmentIdentifier.md5Value).vtt")
             makeVttFile(for: steps, destinationUrl: vttUrl)
             guard filemanager.fileExists(atPath: vttUrl.path) else {
-                let res = HTTPResponse(status: .notFound, body: HTTPBody(staticString: "Failed generating video capture subtitles..."))
-                return promise.succeed(res)
+                return Response(status: .notFound, body: Response.Body(stringLiteral: "Failed generating video capture subtitles..."))
             }
-            
+
             makeVideoCaptureWithSubtitles(destinationUrl: videoCaptureUrl, videoUrl: videoUrl, subtitleUrl: vttUrl)
         }
-        
+
         guard let fileData = try? Data(contentsOf: videoCaptureUrl) else {
-            let res = HTTPResponse(status: .notFound, body: HTTPBody(staticString: "Failed generating video capture file..."))
-            return promise.succeed(res)
+            return Response(status: .notFound, body: Response.Body(stringLiteral: "Failed generating video capture file..."))
         }
-        
+
         var headers = HTTPHeaders([("Content-Type", contentType)])
         if let filename = queryItems.first(where: { $0.name == "filename" })?.value?.replacingOccurrences(of: " ", with: "%20") {
             headers.add(name: "Content-Disposition", value: "attachment; filename=\(filename)")
         }
-        
-        let res = HTTPResponse(headers: headers, body: HTTPBody(data: fileData))
-        return promise.succeed(res)
+
+        return Response(headers: headers, body: Response.Body(data: fileData))
     }
 }
 

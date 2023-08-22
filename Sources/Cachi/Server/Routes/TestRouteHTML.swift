@@ -1,22 +1,22 @@
 import CachiKit
 import Foundation
-import HTTPKit
 import os
+import Vapor
 import Vaux
 
 struct TestRouteHTML: Routable {
+    let method = HTTPMethod.GET
     let path: String = "/html/test"
     let description: String = "Test details in html (pass identifier)"
 
-    func respond(to req: HTTPRequest, with promise: EventLoopPromise<HTTPResponse>) {
+    func respond(to req: Request) throws -> Response {
         os_log("HTML test stats request received", log: .default, type: .info)
 
-        guard let components = URLComponents(url: req.url, resolvingAgainstBaseURL: false),
+        guard let components = req.urlComponents(),
               let queryItems = components.queryItems,
               let testSummaryIdentifier = queryItems.first(where: { $0.name == "id" })?.value
         else {
-            let res = HTTPResponse(status: .notFound, body: HTTPBody(staticString: "Not found..."))
-            return promise.succeed(res)
+            return Response(status: .notFound, body: Response.Body(stringLiteral: "Not found..."))
         }
 
         let benchId = benchmarkStart()
@@ -27,8 +27,7 @@ struct TestRouteHTML: Routable {
         guard let resultBundle = resultBundles.first(where: { $0.tests.contains(where: { $0.summaryIdentifier == testSummaryIdentifier }) }),
               let test = resultBundle.tests.first(where: { $0.summaryIdentifier == testSummaryIdentifier })
         else {
-            let res = HTTPResponse(status: .notFound, body: HTTPBody(staticString: "Not found..."))
-            return promise.succeed(res)
+            return Response(status: .notFound, body: Response.Body(stringLiteral: "Not found..."))
         }
 
         let activitySummary = State.shared.testActionSummary(test: test)
@@ -43,7 +42,7 @@ struct TestRouteHTML: Routable {
             }
         } else {
             rowsData = []
-            
+
             let firstTimestamp = (failureSummaries.first?.timestamp ?? Date()).timeIntervalSince1970
             for failureSummary in failureSummaries {
                 rowsData += TableRowModel.makeFailureModel(failureSummary, currentTimestamp: firstTimestamp, userInfo: resultBundle.userInfo, indentation: 0)
@@ -68,7 +67,7 @@ struct TestRouteHTML: Routable {
             }
         }
 
-        return promise.succeed(document.httpResponse())
+        return document.httpResponse()
     }
 
     private func floatingHeaderHTML(result: ResultBundle, test: ResultBundle.Test, source: String?, backUrl: String) -> HTML {

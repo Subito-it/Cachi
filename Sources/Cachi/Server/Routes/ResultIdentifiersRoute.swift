@@ -1,8 +1,9 @@
 import Foundation
-import HTTPKit
 import os
+import Vapor
 
 struct ResultsIdentifiersRoute: Routable {
+    let method = HTTPMethod.GET
     let path = "/v1/results_identifiers"
     let description = "Return results identifiers (even before parsing has completed)"
 
@@ -16,18 +17,15 @@ struct ResultsIdentifiersRoute: Routable {
         self.mergeResults = mergeResults
     }
 
-    func respond(to _: HTTPRequest, with promise: EventLoopPromise<HTTPResponse>) {
+    func respond(to _: Request) throws -> Response {
         os_log("Results identifiers request received", log: .default, type: .info)
 
         let pendingResultBundles = State.shared.pendingResultBundles(baseUrl: baseUrl, depth: depth, mergeResults: mergeResults)
 
-        let res: HTTPResponse
         if let bodyData = try? JSONEncoder().encode(pendingResultBundles) {
-            res = HTTPResponse(body: HTTPBody(data: bodyData))
-        } else {
-            res = HTTPResponse(status: .internalServerError, body: HTTPBody(staticString: "Ouch..."))
+            return Response(body: Response.Body(data: bodyData))
         }
 
-        return promise.succeed(res)
+        return Response(status: .internalServerError, body: Response.Body(stringLiteral: "Ouch..."))
     }
 }

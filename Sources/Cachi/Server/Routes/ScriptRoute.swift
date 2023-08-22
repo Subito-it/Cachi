@@ -1,15 +1,16 @@
 import Foundation
-import HTTPKit
 import os
+import Vapor
 
 struct ScriptRoute: Routable {
+    let method = HTTPMethod.GET
     let path = "/script"
     let description = "Script route, used for html rendering"
 
-    func respond(to req: HTTPRequest, with promise: EventLoopPromise<HTTPResponse>) {
+    func respond(to req: Request) throws -> Response {
         os_log("Script request received", log: .default, type: .info)
 
-        let components = URLComponents(url: req.url, resolvingAgainstBaseURL: false)
+        let components = req.urlComponents()
         let queryItems = components?.queryItems ?? []
         let scriptType = queryItems.first(where: { $0.name == "type" })?.value ?? ""
 
@@ -40,12 +41,10 @@ struct ScriptRoute: Routable {
         }
 
         guard scriptContent != nil else {
-            let res = HTTPResponse(status: .notFound, body: HTTPBody(staticString: "Not found..."))
-            return promise.succeed(res)
+            return Response(status: .notFound, body: Response.Body(stringLiteral: "Not found..."))
         }
 
-        let res = HTTPResponse(headers: HTTPHeaders([("Content-Type", "application/javascript")]), body: HTTPBody(string: scriptContent!))
-        return promise.succeed(res)
+        return Response(headers: HTTPHeaders([("Content-Type", "application/javascript")]), body: Response.Body(string: scriptContent!))
     }
 
     private func scriptScreenshot() -> String {

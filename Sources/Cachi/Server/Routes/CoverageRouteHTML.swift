@@ -1,36 +1,26 @@
 import CachiKit
 import Foundation
-import HTTPKit
 import os
+import Vapor
 import Vaux
 import ZippyJSON
 
-private enum CoverageShowFilter: String, CaseIterable {
-    case files, folders
-
-    func params() -> String {
-        "&\(Self.queryName)=\(rawValue)"
-    }
-
-    static let queryName = "coverage_show"
-}
-
 struct CoverageRouteHTML: Routable {
+    let method = HTTPMethod.GET
     let path: String = "/html/coverage"
     let description: String = "Coverage in html (pass identifier)"
 
-    func respond(to req: HTTPRequest, with promise: EventLoopPromise<HTTPResponse>) {
+    func respond(to req: Request) throws -> Response {
         os_log("HTML coverage request received", log: .default, type: .info)
 
         let resultBundles = State.shared.resultBundles
 
-        guard let components = URLComponents(url: req.url, resolvingAgainstBaseURL: false),
+        guard let components = req.urlComponents(),
               let queryItems = components.queryItems,
               let resultIdentifier = queryItems.first(where: { $0.name == "id" })?.value,
               let resultBundle = resultBundles.first(where: { $0.identifier == resultIdentifier })
         else {
-            let res = HTTPResponse(status: .notFound, body: HTTPBody(staticString: "Not found..."))
-            return promise.succeed(res)
+            return Response(status: .notFound, body: Response.Body(stringLiteral: "Not found..."))
         }
 
         let state = RouteState(queryItems: queryItems)
@@ -57,7 +47,7 @@ struct CoverageRouteHTML: Routable {
             }
         }
 
-        return promise.succeed(document.httpResponse())
+        return document.httpResponse()
     }
 
     private func floatingHeaderHTML(result: ResultBundle, state: RouteState, backUrl: String) -> HTML {
@@ -150,4 +140,14 @@ private extension CoverageRouteHTML {
             return "&\(Self.key)=" + hexRepresentation
         }
     }
+}
+
+private enum CoverageShowFilter: String, CaseIterable {
+    case files, folders
+
+    func params() -> String {
+        "&\(Self.queryName)=\(rawValue)"
+    }
+
+    static let queryName = "coverage_show"
 }

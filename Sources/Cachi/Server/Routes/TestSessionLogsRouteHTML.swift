@@ -1,35 +1,23 @@
 import CachiKit
 import Foundation
-import HTTPKit
 import os
+import Vapor
 import Vaux
 
-private struct RowData {
-    let indentation: Int
-    let title: String
-    let attachmentImage: (url: String, width: Int)?
-    let attachmentIdentifier: String
-    let attachmentContentType: String
-    let hasChildren: Bool
-    let isError: Bool
-    let isKeyScreenshot: Bool
-    let isScreenshot: Bool
-}
-
 struct TestSessionLogsRouteHTML: Routable {
+    let method = HTTPMethod.GET
     let path: String = "/html/session_logs"
     let description: String = "Test session logs in html (pass identifier)"
 
-    func respond(to req: HTTPRequest, with promise: EventLoopPromise<HTTPResponse>) {
+    func respond(to req: Request) throws -> Response {
         os_log("HTML test stats request received", log: .default, type: .info)
 
-        guard let components = URLComponents(url: req.url, resolvingAgainstBaseURL: false),
+        guard let components = req.urlComponents(),
               let queryItems = components.queryItems,
               let testSummaryIdentifier = queryItems.first(where: { $0.name == "id" })?.value,
               let sessionType = queryItems.first(where: { $0.name == "type" })?.value
         else {
-            let res = HTTPResponse(status: .notFound, body: HTTPBody(staticString: "Not found..."))
-            return promise.succeed(res)
+            return Response(status: .notFound, body: Response.Body(stringLiteral: "Not found..."))
         }
 
         let benchId = benchmarkStart()
@@ -40,15 +28,13 @@ struct TestSessionLogsRouteHTML: Routable {
         guard let resultBundle = resultBundles.first(where: { $0.tests.contains(where: { $0.summaryIdentifier == testSummaryIdentifier }) }),
               let test = resultBundle.tests.first(where: { $0.summaryIdentifier == testSummaryIdentifier })
         else {
-            let res = HTTPResponse(status: .notFound, body: HTTPBody(staticString: "Not found..."))
-            return promise.succeed(res)
+            return Response(status: .notFound, body: Response.Body(stringLiteral: "Not found..."))
         }
 
         guard let diagnosticsIdentifier = test.diagnosticsIdentifier,
               let sessionLogs = State.shared.testSessionLogs(diagnosticsIdentifier: diagnosticsIdentifier)
         else {
-            let res = HTTPResponse(status: .notFound, body: HTTPBody(staticString: "Not diagnistics found..."))
-            return promise.succeed(res)
+            return Response(status: .notFound, body: Response.Body(stringLiteral: "Not diagnistics found..."))
         }
 
         let backUrl = queryItems.backUrl
@@ -75,7 +61,7 @@ struct TestSessionLogsRouteHTML: Routable {
             }
         }
 
-        return promise.succeed(document.httpResponse())
+        return document.httpResponse()
     }
 
     private func floatingHeaderHTML(result _: ResultBundle, test: ResultBundle.Test, backUrl: String) -> HTML {
@@ -144,4 +130,16 @@ struct TestSessionLogsRouteHTML: Routable {
             }
         }
     }
+}
+
+private struct RowData {
+    let indentation: Int
+    let title: String
+    let attachmentImage: (url: String, width: Int)?
+    let attachmentIdentifier: String
+    let attachmentContentType: String
+    let hasChildren: Bool
+    let isError: Bool
+    let isKeyScreenshot: Bool
+    let isScreenshot: Bool
 }

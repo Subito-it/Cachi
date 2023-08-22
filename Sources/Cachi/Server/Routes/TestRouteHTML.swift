@@ -197,7 +197,7 @@ struct TestRouteHTML: Routable {
                             if rowData.title.isEmpty {
                                 return row
                                     .style([.init(key: "visibility", value: "collapse")])
-                            } else if rowData.isMediaAvailable {
+                            } else if rowData.isMediaAvailable || rowData.isVideo { // When a video capture is available we want all rows to have set the timestamp position
                                 if rowData.isKeyCapture {
                                     rowClasses.append("capture-key")
                                 }

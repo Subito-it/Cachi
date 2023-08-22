@@ -131,15 +131,3 @@ struct TestSessionLogsRouteHTML: Routable {
         }
     }
 }
-
-private struct RowData {
-    let indentation: Int
-    let title: String
-    let attachmentImage: (url: String, width: Int)?
-    let attachmentIdentifier: String
-    let attachmentContentType: String
-    let hasChildren: Bool
-    let isError: Bool
-    let isKeyScreenshot: Bool
-    let isScreenshot: Bool
-}

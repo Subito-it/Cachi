@@ -162,13 +162,20 @@ struct TestRouteHTML: Routable {
                                                     .iconStyleAttributes(width: attachmentImage.width)
                                                     .class("icon color-svg-subtext")
                                             }
-                                        } else if rowData.isScreenshot {
+                                        } else if rowData.isScreenshot, !rowData.isVideo {
                                             return HTMLBuilder.buildBlock(
                                                 div { rowData.title }.class("screenshot color-subtext").attr("attachment_identifier", rowData.attachmentIdentifier).inlineBlock(),
                                                 image(url: attachmentImage.url)
                                                     .iconStyleAttributes(width: attachmentImage.width)
                                                     .class("icon color-svg-subtext")
                                             )
+                                        } else if rowData.isScreenshot, rowData.isVideo {
+                                            return link(url: "/video_capture?result_id=\(result.identifier)&id=\(rowData.attachmentIdentifier)&test_id=\(test.summaryIdentifier ?? "")&content_type=\(rowData.attachmentContentType)&filename=\(rowData.attachmentFilename)") {
+                                                div { rowData.title }.class("color-subtext").inlineBlock()
+                                                image(url: attachmentImage.url)
+                                                    .iconStyleAttributes(width: attachmentImage.width)
+                                                    .class("icon color-svg-subtext")
+                                            }
                                         } else {
                                             return link(url: "/attachment?result_id=\(result.identifier)&id=\(rowData.attachmentIdentifier)&test_id=\(test.summaryIdentifier ?? "")&content_type=\(rowData.attachmentContentType)") {
                                                 div { rowData.title }.class("color-subtext").inlineBlock()
@@ -184,7 +191,7 @@ struct TestRouteHTML: Routable {
                                                     .iconStyleAttributes(width: 12)
                                                     .class("icon color-svg-subtext")
                                             }
-                                            
+
                                             div { rowData.title }.class(rowData.hasChildren ? "bold" : "").inlineBlock()
                                         }
                                     }
@@ -194,10 +201,15 @@ struct TestRouteHTML: Routable {
                             .attr("attachment_identifier", rowData.attachmentIdentifier)
 
                             let testSummaryIdentifier = test.summaryIdentifier ?? ""
-                            
+
                             if rowData.title.isEmpty {
                                 return row
                                     .style([.init(key: "visibility", value: "collapse")])
+                            } else if rowData.isVideo {
+                                return row
+                                    .class(rowClasses.joined(separator: " "))
+                                    .attr("onmouseenter", #"onMouseEnter(this, '\#(result.identifier)', '\#(testSummaryIdentifier)', '\#(rowData.attachmentIdentifier)', '\#(rowData.attachmentContentType)', { "position": 0.0 })"#)
+                                    .attr("onclick", #"onMouseEnter(this, '\#(result.identifier)', '\#(testSummaryIdentifier)', '\#(rowData.attachmentIdentifier)', '\#(rowData.attachmentContentType)', { "position": 0.0 })"#)
                             } else if rowData.isKeyScreenshot || rowData.isScreenshot {
                                 if rowData.isKeyScreenshot {
                                     rowClasses.append("screenshot-key")
@@ -205,8 +217,8 @@ struct TestRouteHTML: Routable {
 
                                 return row
                                     .class(rowClasses.joined(separator: " "))
-                                    .attr("onmouseenter", #"onMouseEnter(this, '\#(result.identifier)', '\#(testSummaryIdentifier)', '\#(rowData.attachmentIdentifier)', '\#(rowData.attachmentContentType)')"#)
-                                    .attr("onclick", #"onMouseEnter(this, '\#(result.identifier)', '\#(testSummaryIdentifier)', '\#(rowData.attachmentIdentifier)', '\#(rowData.attachmentContentType)')"#)
+                                    .attr("onmouseenter", #"onMouseEnter(this, '\#(result.identifier)', '\#(testSummaryIdentifier)', '\#(rowData.attachmentIdentifier)', '\#(rowData.attachmentContentType)', null)"#)
+                                    .attr("onclick", #"onMouseEnter(this, '\#(result.identifier)', '\#(testSummaryIdentifier)', '\#(rowData.attachmentIdentifier)', '\#(rowData.attachmentContentType)', null)"#)
                             } else {
                                 return row
                                     .class(rowClasses.joined(separator: " "))
@@ -216,7 +228,12 @@ struct TestRouteHTML: Routable {
                 }
                 tableData {
                     if let rowData = rowsData.first, let testSummaryIdentifier = test.summaryIdentifier {
-                        if rowData.isScreenshot {
+                        if rowData.isVideo {
+                            return
+                                video {
+                                    source(mediaURL: "\(AttachmentRoute().path)?result_id=\(result.identifier)&test_id=\(testSummaryIdentifier)&id=\(rowData.attachmentIdentifier)&content_type=\(rowData.attachmentContentType)")
+                                }.id("screenshot-image")
+                        } else if rowData.isScreenshot {
                             return
                                 div {
                                     image(url: "\(AttachmentRoute().path)?result_id=\(result.identifier)&test_id=\(testSummaryIdentifier)&id=\(rowData.attachmentIdentifier)&content_type=\(rowData.attachmentContentType)").id("screenshot-image")
@@ -256,7 +273,8 @@ private struct TableRowModel {
     let isScreenshot: Bool
 
     var isExternalLink: Bool { attachmentContentType == "text/html" }
-    
+    var isVideo: Bool { attachmentContentType == "video/mp4" }
+
     static func makeModels(from actionSummaries: [ActionTestActivitySummary], currentTimestamp: Double, failureSummaries: inout [ActionTestFailureSummary], userInfo: ResultBundle.UserInfo?, indentation: Int = 1, lastScreenshotIdentifier: String = "", lastScreenshotContentType: String = "", lastAttachmentFilename: String = "") -> [TableRowModel] {
         var data = [TableRowModel]()
 
@@ -264,24 +282,27 @@ private struct TableRowModel {
             guard var title = summary.title else {
                 continue
             }
-            
+
             var subRowData = [TableRowModel]()
             for attachment in summary.attachments {
                 let attachmentIdentifier = attachment.payloadRef?.id ?? ""
                 let attachmentMetadata = attachmentMetadata(from: attachment)
-                             
+
                 let isScreenshot = attachment.name == "kXCTAttachmentLegacyScreenImageData"
-                
+
+                var isVideo = false
                 var filename = attachment.filename ?? ""
                 if attachment.name == "kXCTAttachmentScreenRecording" {
+                    isVideo = true
+
                     let formatter = DateFormatter()
                     formatter.dateFormat = "y-MM-dd HH.mm.ss"
                     let date = formatter.string(from: attachment.timestamp!)
-                    
+
                     filename = "Screen Recording \(date).mp4"
                 }
-                                 
-                subRowData += [TableRowModel(indentation: indentation + 1, title: attachmentMetadata.title, attachmentImage: attachmentMetadata.image, attachmentIdentifier: attachmentIdentifier, attachmentContentType: attachmentMetadata.contentType, attachmentFilename: filename, hasChildren: false, isError: false, isKeyScreenshot: isScreenshot, isScreenshot: isScreenshot)]
+
+                subRowData += [TableRowModel(indentation: indentation + 1, title: attachmentMetadata.title, attachmentImage: attachmentMetadata.image, attachmentIdentifier: attachmentIdentifier, attachmentContentType: attachmentMetadata.contentType, attachmentFilename: filename, hasChildren: false, isError: false, isKeyScreenshot: isScreenshot || isVideo, isScreenshot: isScreenshot || isVideo)]
             }
 
             let lastScreenshotRow = (data + subRowData).reversed().first(where: { $0.isKeyScreenshot })
@@ -290,9 +311,9 @@ private struct TableRowModel {
             let attachmentFilename = lastScreenshotRow?.attachmentFilename ?? lastAttachmentFilename
 
             let isError = summary.activityType == "com.apple.dt.xctest.activity-type.testAssertionFailure"
-            
+
             subRowData += makeModels(from: summary.subactivities, currentTimestamp: currentTimestamp, failureSummaries: &failureSummaries, userInfo: userInfo, indentation: indentation + 1, lastScreenshotIdentifier: screenshotIdentifier, lastScreenshotContentType: screenshotContentType, lastAttachmentFilename: attachmentFilename)
-            
+
             let elapsedTime = (summary.start?.timeIntervalSince1970 ?? currentTimestamp) - currentTimestamp
             title += elapsedTime == 0 ? " (Start)" : " (\(String(format: "%.2f", elapsedTime))s)"
 
@@ -313,9 +334,9 @@ private struct TableRowModel {
         return data
     }
 
-    static func makeFailureModel(_ failure: ActionTestFailureSummary, currentTimestamp: Double, userInfo: ResultBundle.UserInfo?, indentation: Int) -> [TableRowModel] {
+    static func makeFailureModel(_ failure: ActionTestFailureSummary, currentTimestamp _: Double, userInfo: ResultBundle.UserInfo?, indentation: Int) -> [TableRowModel] {
         var data = [TableRowModel]()
-        
+
         data.append(TableRowModel(indentation: indentation, title: failure.message ?? "Failure", attachmentImage: nil, attachmentIdentifier: "", attachmentContentType: "", attachmentFilename: "", hasChildren: !failure.attachments.isEmpty, isError: true, isKeyScreenshot: false, isScreenshot: false))
         if var fileName = failure.fileName, let lineNumber = failure.lineNumber {
             fileName = fileName.replacingOccurrences(of: userInfo?.sourceBasePath ?? "", with: "")
@@ -329,9 +350,9 @@ private struct TableRowModel {
         for attachment in failure.attachments {
             let attachmentIdentifier = attachment.payloadRef?.id ?? ""
             let attachmentMetadata = attachmentMetadata(from: attachment)
-            
+
             let isScreenshot = attachment.name == "kXCTAttachmentLegacyScreenImageData"
-            
+
             data.append(TableRowModel(indentation: indentation + 1, title: attachmentMetadata.title, attachmentImage: attachmentMetadata.image, attachmentIdentifier: attachmentIdentifier, attachmentContentType: attachmentMetadata.contentType, attachmentFilename: attachment.filename ?? "", hasChildren: false, isError: false, isKeyScreenshot: isScreenshot, isScreenshot: isScreenshot))
         }
 
@@ -358,6 +379,10 @@ private struct TableRowModel {
         case "public.data":
             return ("Other text data",
                     "text/plain",
+                    ("/image?imageAttachment", 14))
+        case "public.mpeg-4" where attachment.timestamp != nil:
+            return ("Screen recording.mp4",
+                    "video/mp4",
                     ("/image?imageAttachment", 14))
         default:
             assertionFailure("Unhandled attachment uniformTypeIdentifier: \(attachment.uniformTypeIdentifier)")

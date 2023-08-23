@@ -2,6 +2,8 @@
 
 Cachi is a swift tool to parse and visualize test results contained in Xcode's .xcresult files on a web interface. It additionally offers a set of APIs that can be queried to extract information in json format from previously parsed test results.
 
+Automatic screen recording (Xcode 15) and screenshot based xcresults are supported.
+
 <img src="Documentation/main_screenshot.png" width="840">
 
 

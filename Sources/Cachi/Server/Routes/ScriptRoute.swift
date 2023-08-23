@@ -78,31 +78,29 @@ struct ScriptRoute: Routable {
                 }
             }
 
-            function onMouseEnter(source_element, result_identifier, test_identifier, attachment_identifier, content_type, user_info) {
-                switch (content_type) {
-                    case 'video/mp4':
-                        var video = document.getElementById('screen-capture');
-                        video.currentTime = user_info['position'];                        
-                        break;
-                    default:
-                        var destination_src = `\(AttachmentRoute().path)?result_id=${result_identifier}&test_id=${test_identifier}&id=${attachment_identifier}&content_type=${content_type}`;
-                        if (!document.getElementById('screen-capture').src.includes(destination_src)) {
-                            document.getElementById('screen-capture').src = '';
-                            setTimeout(function () {
-                                document.getElementById('screen-capture').src = destination_src;
-                            }, 50);
-                        }
+            function updateScreenCapturePosition(source_element, position) {
+                var video = document.getElementById('screen-capture');
+                video.currentTime = position;
+            }
 
-                        Array.from(document.getElementsByClassName('capture')).forEach(
-                            function(element, index, array) {
-                                if (element.getAttribute("attachment_identifier") === attachment_identifier) {
-                                    element.classList.add('color-selected');
-                                } else {
-                                    element.classList.remove('color-selected');
-                                }
-                            }
-                        );
+            function updateScreenCapture(source_element, result_identifier, test_identifier, attachment_identifier, content_type) {
+                var destination_src = `\(AttachmentRoute().path)?result_id=${result_identifier}&test_id=${test_identifier}&id=${attachment_identifier}&content_type=${content_type}`;
+                if (!document.getElementById('screen-capture').src.includes(destination_src)) {
+                    document.getElementById('screen-capture').src = '';
+                    setTimeout(function () {
+                        document.getElementById('screen-capture').src = destination_src;
+                    }, 50);
                 }
+
+                Array.from(document.getElementsByClassName('capture')).forEach(
+                    function(element, index, array) {
+                        if (element.getAttribute("attachment_identifier") === attachment_identifier) {
+                            element.classList.add('color-selected');
+                        } else {
+                            element.classList.remove('color-selected');
+                        }
+                    }
+                );
             }
         """
     }

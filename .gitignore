@@ -73,4 +73,7 @@ fastlane/test_output
 Cachi.xcodeproj
 
 *.xcscheme
-HOW TO BUILD.txt
+
+# Deploy
+cachi
+deploy.sh

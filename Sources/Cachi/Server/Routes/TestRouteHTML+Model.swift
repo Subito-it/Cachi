@@ -3,40 +3,15 @@ import Foundation
 
 extension TestRouteHTML {
     struct TableRowModel {
-        enum CaptureMedia {
-            case none
-            case child
-            case firstInGroup
-            
-            var available: Bool {
-                switch self {
-                case .none: return false
-                case .child, .firstInGroup: return true
-                }
-            }
-        }
-        
-        let indentation: Int
+        let uuid: String
         let title: String
         let timestamp: Double
-        let attachmentImage: (url: String, width: Int)?
-        let attachmentIdentifier: String
-        let attachmentContentType: String
-        let attachmentFilename: String
+        let attachment: Attachment?
         let hasChildren: Bool
         let isError: Bool
-        let captureMedia: CaptureMedia
+        let indentation: Int
 
-        var isExternalLink: Bool { attachmentContentType == "text/html" }
-        var isVideo: Bool { attachmentContentType == "video/mp4" }
-        
-        private static let captureFilenameDateFormatter: DateFormatter = {
-            let formatter = DateFormatter()
-            formatter.dateFormat = "y-MM-dd HH.mm.ss"
-            return formatter
-        }()
-
-        static func makeModels(from actionSummaries: [ActionTestActivitySummary], currentTimestamp: Double, failureSummaries: inout [ActionTestFailureSummary], userInfo: ResultBundle.UserInfo?, indentation: Int = 1, lastCaptureIdentifier: String = "", lastCaptureContentType: String = "", lastAttachmentFilename: String = "") -> [TableRowModel] {
+        static func makeModels(from actionSummaries: [ActionTestActivitySummary], initialTimestamp: Double, failureSummaries: [ActionTestFailureSummary], userInfo: ResultBundle.UserInfo?, indentation: Int = 1) -> [TableRowModel] {
             var data = [TableRowModel]()
 
             for summary in actionSummaries {
@@ -45,110 +20,166 @@ extension TestRouteHTML {
                 }
 
                 var subRowData = [TableRowModel]()
-                for attachment in summary.attachments {
-                    let attachmentIdentifier = attachment.payloadRef?.id ?? ""
-                    let attachmentMetadata = attachmentMetadata(from: attachment)
+                for summaryAttachment in summary.attachments {
+                    guard let attachment = Attachment(from: summaryAttachment) else { continue }
 
-                    let attachmentStartDate = attachment.timestamp ?? summary.start ?? Date()
-                    var filename = attachment.filename ?? ""
-                    if attachment.name == "kXCTAttachmentScreenRecording" {
-                        let filenameDate = captureFilenameDateFormatter.string(from: attachmentStartDate)
-                        filename = "Screen Recording \(filenameDate).mp4"
-                    }
-                    
-                    let hasMedia = ["kXCTAttachmentLegacyScreenImageData", "kXCTAttachmentScreenRecording"].contains(attachment.name)
+                    let timestamp = (attachment.timestamp ?? initialTimestamp) - initialTimestamp
 
-                    let timestamp = (attachment.timestamp?.timeIntervalSince1970 ?? currentTimestamp) - currentTimestamp
-
-                    subRowData += [TableRowModel(indentation: indentation + 1, title: attachmentMetadata.title, timestamp: timestamp, attachmentImage: attachmentMetadata.image, attachmentIdentifier: attachmentIdentifier, attachmentContentType: attachmentMetadata.contentType, attachmentFilename: filename, hasChildren: false, isError: false, captureMedia: hasMedia ? .firstInGroup : .none)]
+                    subRowData += [TableRowModel(uuid: attachment.identifier, title: attachment.title, timestamp: timestamp, attachment: attachment, hasChildren: false, isError: false, indentation: indentation + 1)]
                 }
 
-                let lastCaptureRow = (data + subRowData).reversed().first(where: { $0.captureMedia == .firstInGroup })
-                let captureIdentifier = lastCaptureRow?.attachmentIdentifier ?? lastCaptureIdentifier
-                let captureContentType = lastCaptureRow?.attachmentContentType ?? lastCaptureContentType
-                let attachmentFilename = lastCaptureRow?.attachmentFilename ?? lastAttachmentFilename
+                subRowData += makeModels(from: summary.subactivities, initialTimestamp: initialTimestamp, failureSummaries: failureSummaries, userInfo: userInfo, indentation: indentation + 1)
 
-                let isError = summary.activityType == "com.apple.dt.xctest.activity-type.testAssertionFailure"
-
-                subRowData += makeModels(from: summary.subactivities, currentTimestamp: currentTimestamp, failureSummaries: &failureSummaries, userInfo: userInfo, indentation: indentation + 1, lastCaptureIdentifier: captureIdentifier, lastCaptureContentType: captureContentType, lastAttachmentFilename: attachmentFilename)
-
-                let timestamp = (summary.start?.timeIntervalSince1970 ?? currentTimestamp) - currentTimestamp
+                let timestamp = (summary.start?.timeIntervalSince1970 ?? initialTimestamp) - initialTimestamp
                 title += timestamp == 0 ? " (Start)" : " (\(String(format: "%.2f", timestamp))s)"
 
-                data += [TableRowModel(indentation: indentation, title: title, timestamp: timestamp, attachmentImage: nil, attachmentIdentifier: captureIdentifier, attachmentContentType: captureContentType, attachmentFilename: attachmentFilename, hasChildren: subRowData.count > 0, isError: isError, captureMedia: captureIdentifier.count > 0 ? .child : .none)] + subRowData
+                let isError = summary.activityType == "com.apple.dt.xctest.activity-type.testAssertionFailure"
+                data += [TableRowModel(uuid: summary.uuid, title: title, timestamp: timestamp, attachment: nil, hasChildren: subRowData.count > 0, isError: isError, indentation: indentation)] + subRowData
 
-                if !summary.failureSummaryIDs.isEmpty {
-                    for failureSummaryID in summary.failureSummaryIDs {
-                        guard let failureIndex = failureSummaries.firstIndex(where: { $0.uuid == failureSummaryID }) else {
-                            continue
-                        }
-
-                        data += makeFailureModel(failureSummaries[failureIndex], currentTimestamp: currentTimestamp, userInfo: userInfo, indentation: indentation)
-                        failureSummaries.remove(at: failureIndex)
+                for failureSummaryID in summary.failureSummaryIDs {
+                    guard let failureSummary = failureSummaries.first(where: { $0.uuid == failureSummaryID }) else {
+                        continue
                     }
+
+                    data += makeFailureModel(failureSummary, initialTimestamp: initialTimestamp, userInfo: userInfo, indentation: indentation)
                 }
             }
 
             return data
         }
 
-        static func makeFailureModel(_ failure: ActionTestFailureSummary, currentTimestamp: Double, userInfo: ResultBundle.UserInfo?, indentation: Int) -> [TableRowModel] {
+        static func makeFailureModel(_ failure: ActionTestFailureSummary, initialTimestamp: Double, userInfo: ResultBundle.UserInfo?, indentation: Int) -> [TableRowModel] {
             var data = [TableRowModel]()
 
-            data.append(TableRowModel(indentation: indentation, title: failure.message ?? "Failure", timestamp: currentTimestamp, attachmentImage: nil, attachmentIdentifier: "", attachmentContentType: "", attachmentFilename: "", hasChildren: !failure.attachments.isEmpty, isError: true, captureMedia: .none))
+            data.append(TableRowModel(uuid: failure.uuid, title: failure.message ?? "Failure", timestamp: initialTimestamp, attachment: nil, hasChildren: !failure.attachments.isEmpty, isError: true, indentation: indentation))
             if var fileName = failure.fileName, let lineNumber = failure.lineNumber {
-                fileName = fileName.replacingOccurrences(of: userInfo?.sourceBasePath ?? "", with: "")
-                var attachment: (url: String, width: Int)?
+                var attachment: Attachment?
                 if let githubBaseUrl = userInfo?.githubBaseUrl, let commitHash = userInfo?.commitHash {
-                    attachment = (url: "\(githubBaseUrl)/blob/\(commitHash)/\(fileName)#L\(lineNumber)", width: 15)
+                    fileName = fileName.replacingOccurrences(of: userInfo?.sourceBasePath ?? "", with: "")
+                    attachment = Attachment(
+                        identifier: "",
+                        title: "\(fileName):\(lineNumber)",
+                        url: "\(githubBaseUrl)/blob/\(commitHash)/\(fileName)#L\(lineNumber)",
+                        width: 15,
+                        filename: fileName,
+                        contentType: "text/html",
+                        captureMedia: .none,
+                        timestamp: initialTimestamp
+                    )
                 }
-                data.append(TableRowModel(indentation: indentation + 1, title: "\(fileName):\(lineNumber)", timestamp: currentTimestamp, attachmentImage: attachment, attachmentIdentifier: "", attachmentContentType: "text/html", attachmentFilename: "", hasChildren: false, isError: false, captureMedia: .none))
+
+                data.append(TableRowModel(uuid: failure.uuid, title: "\(fileName):\(lineNumber)", timestamp: initialTimestamp, attachment: attachment, hasChildren: false, isError: false, indentation: indentation + 1))
             }
 
-            for attachment in failure.attachments {
-                let attachmentIdentifier = attachment.payloadRef?.id ?? ""
-                let attachmentMetadata = attachmentMetadata(from: attachment)
+            for failureAttachment in failure.attachments {
+                guard let attachment = Attachment(from: failureAttachment) else { continue }
 
-                let hasMedia = ["kXCTAttachmentLegacyScreenImageData", "kXCTAttachmentScreenRecording"].contains(attachment.name)
+                let timestamp = (attachment.timestamp ?? initialTimestamp) - initialTimestamp
 
-                let timestamp = (attachment.timestamp?.timeIntervalSince1970 ?? currentTimestamp) - currentTimestamp
-
-                data.append(TableRowModel(indentation: indentation + 1, title: attachmentMetadata.title, timestamp: timestamp, attachmentImage: attachmentMetadata.image, attachmentIdentifier: attachmentIdentifier, attachmentContentType: attachmentMetadata.contentType, attachmentFilename: attachment.filename ?? "", hasChildren: false, isError: false, captureMedia: hasMedia ? .firstInGroup : .none))
+                data.append(TableRowModel(uuid: attachment.identifier, title: attachment.title, timestamp: timestamp, attachment: attachment, hasChildren: false, isError: false, indentation: indentation + 1))
             }
 
             return data
         }
+    }
+}
 
-        private static func attachmentMetadata(from attachment: ActionTestAttachment) -> (title: String, contentType: String, image: (url: String, width: Int)) {
-            switch attachment.uniformTypeIdentifier {
-            case "public.plain-text", "public.utf8-plain-text":
-                return ("User plain text data",
-                        "text/plain",
-                        ("/image?imageAttachment", 14))
-            case "public.jpeg":
-                return (attachment.name == "kXCTAttachmentLegacyScreenImageData" ? "Automatic Screenshot" : "User image attachment",
-                        "image/jpeg",
-                        ("/image?imageView", 18))
-            case "public.png":
-                return (attachment.name == "kXCTAttachmentLegacyScreenImageData" ? "Automatic Screenshot" : "User image attachment",
-                        "image/png",
-                        ("/image?imageView", 18))
-            case "com.apple.dt.xctest.element-snapshot":
-                // This is an unsupported key archived snapshot of the entire view hierarchy of the app
-                return ("", "", ("", 0))
-            case "public.data":
-                return ("Other text data",
-                        "text/plain",
-                        ("/image?imageAttachment", 14))
-            case "public.mpeg-4" where attachment.timestamp != nil:
-                return ("Screen recording.mp4",
-                        "video/mp4",
-                        ("/image?imageAttachment", 14))
-            default:
-                assertionFailure("Unhandled attachment uniformTypeIdentifier: \(attachment.uniformTypeIdentifier)")
+// MARK: - Attachment
+
+extension TestRouteHTML.TableRowModel {
+    struct Attachment {
+        enum CaptureMedia {
+            case none
+            case child
+            case firstInGroup
+
+            var available: Bool {
+                switch self {
+                case .none: return false
+                case .child, .firstInGroup: return true
+                }
+            }
+        }
+
+        let identifier: String
+        let title: String
+        let url: String
+        let width: Int
+        let filename: String
+        let contentType: String
+        let captureMedia: CaptureMedia
+        let timestamp: Double?
+
+        var isExternalLink: Bool { contentType == "text/html" }
+
+        private static let filenameDateFormatter: DateFormatter = {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "y-MM-dd HH.mm.ss"
+            return formatter
+        }()
+
+        init(identifier: String, title: String, url: String, width: Int, filename: String, contentType: String, captureMedia: CaptureMedia, timestamp: Double?) {
+            self.identifier = identifier
+            self.title = title
+            self.url = url
+            self.width = width
+            self.filename = filename
+            self.contentType = contentType
+            self.timestamp = timestamp
+            self.captureMedia = captureMedia
+        }
+
+        init?(from attachment: ActionTestAttachment) {
+            guard let identifier = attachment.payloadRef?.id else { return nil }
+            self.identifier = identifier
+            captureMedia = ["kXCTAttachmentLegacyScreenImageData", "kXCTAttachmentScreenRecording"].contains(attachment.name) ? .firstInGroup : .none
+            timestamp = attachment.timestamp?.timeIntervalSince1970
+
+            var timestampString = ""
+            if let timestamp = attachment.timestamp {
+                timestampString = " " + Self.filenameDateFormatter.string(from: timestamp)
             }
 
-            return ("", "", ("", 0))
+            switch attachment.uniformTypeIdentifier {
+            case "public.plain-text", "public.utf8-plain-text":
+                title = "User plain text data"
+                filename = "Plain data\(timestampString).txt"
+                contentType = "text/plain"
+                url = "/image?imageAttachment"
+                width = 14
+            case "public.jpeg":
+                let title = attachment.name == "kXCTAttachmentLegacyScreenImageData" ? "Automatic Screenshot" : "User image attachment"
+                self.title = title
+                filename = "\(title)\(timestampString).jpg"
+                contentType = "image/jpeg"
+                url = "/image?imageView"
+                width = 18
+            case "public.png":
+                let title = attachment.name == "kXCTAttachmentLegacyScreenImageData" ? "Automatic Screenshot" : "User image attachment"
+                self.title = title
+                filename = "\(title)\(timestampString).png"
+                contentType = "image/png"
+                url = "/image?imageView"
+                width = 18
+            case "public.data":
+                title = "Other text data"
+                filename = "Data\(timestampString).bin"
+                contentType = "text/plain"
+                url = "/image?imageAttachment"
+                width = 14
+            case "public.mpeg-4" where attachment.name == "kXCTAttachmentScreenRecording":
+                let title = "Screen recording"
+                self.title = "\(title).mp4"
+                filename = "\(title)\(timestampString).mp4"
+                contentType = "video/mp4"
+                url = "/image?imageAttachment"
+                width = 14
+            case "com.apple.dt.xctest.element-snapshot":
+                // This is an unsupported key archived snapshot of the entire view hierarchy of the app
+                return nil
+            default:
+                return nil
+            }
         }
     }
 }

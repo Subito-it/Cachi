@@ -32,13 +32,16 @@ struct TestRouteHTML: Routable {
 
         let activitySummary = State.shared.testActionSummary(test: test)
 
-        let actions = activitySummary?.activitySummaries ?? []
         var rowsData = [TableRowModel]()
-        var failureSummaries = activitySummary?.failureSummaries ?? []
-        if let firstTimestamp = (actions.first(where: { $0.start != nil })?.start ?? failureSummaries.first(where: { $0.timestamp != nil })?.timestamp)?.timeIntervalSince1970 {
-            rowsData = TableRowModel.makeModels(from: actions, currentTimestamp: firstTimestamp, failureSummaries: &failureSummaries, userInfo: resultBundle.userInfo)
-            for failureSummary in failureSummaries {
-                rowsData += TableRowModel.makeFailureModel(failureSummary, currentTimestamp: firstTimestamp, userInfo: resultBundle.userInfo, indentation: 0)
+        let actions = activitySummary?.activitySummaries ?? []
+        let failureSummaries = activitySummary?.failureSummaries ?? []
+
+        if let initialTimestamp = (actions.compactMap(\.start).first ?? failureSummaries.compactMap(\.timestamp).first)?.timeIntervalSince1970 {
+            rowsData = TableRowModel.makeModels(from: actions, initialTimestamp: initialTimestamp, failureSummaries: failureSummaries, userInfo: resultBundle.userInfo)
+
+            let processedUUIDs = rowsData.map(\.uuid)
+            for failureSummary in failureSummaries.filter({ !processedUUIDs.contains($0.uuid) }) {
+                rowsData += TableRowModel.makeFailureModel(failureSummary, initialTimestamp: initialTimestamp, userInfo: resultBundle.userInfo, indentation: 1)
             }
         }
 
@@ -138,8 +141,10 @@ struct TestRouteHTML: Routable {
                 tableHeadData { "Steps" }.alignment(.left).scope(.column).class("row dark-bordered-container indent1")
                 tableHeadData { "&nbsp;" }.alignment(.center).scope(.column).class("row dark-bordered-container")
             }.id("table-header")
-            
-            let isVideo = rowsData.contains(where: { $0.captureMedia != .none && $0.attachmentContentType == "video/mp4" })
+
+            let testSummaryIdentifier = test.summaryIdentifier ?? ""
+            let videoCapture = rowsData.first(where: { $0.attachment?.captureMedia != TableRowModel.Attachment.CaptureMedia.none && $0.attachment?.contentType == "video/mp4" })
+            var lastCaptureMediaAttachment: TableRowModel.Attachment?
 
             tableRow {
                 tableData {
@@ -148,33 +153,37 @@ struct TestRouteHTML: Routable {
                             var rowClasses = ["light-bordered-container", "indent1"]
                             let row = tableRow {
                                 tableData {
-                                    if let attachmentImage = rowData.attachmentImage {
-                                        if rowData.isExternalLink {
-                                            return link(url: attachmentImage.url) {
+                                    if let attachment = rowData.attachment {
+                                        if attachment.isExternalLink {
+                                            return link(url: attachment.url) {
                                                 div { rowData.title }.class("color-subtext").inlineBlock()
                                                 image(url: "/image?imageLink")
-                                                    .iconStyleAttributes(width: attachmentImage.width)
+                                                    .iconStyleAttributes(width: attachment.width)
                                                     .class("icon color-svg-subtext")
                                             }
-                                        } else if rowData.captureMedia.available, !isVideo {
-                                            return HTMLBuilder.buildBlock(
-                                                div { rowData.title }.class("capture color-subtext").attr("attachment_identifier", rowData.attachmentIdentifier).inlineBlock(),
-                                                image(url: attachmentImage.url)
-                                                    .iconStyleAttributes(width: attachmentImage.width)
-                                                    .class("icon color-svg-subtext")
-                                            )
-                                        } else if rowData.captureMedia.available, isVideo {
-                                            return link(url: "/video_capture?result_id=\(result.identifier)&id=\(rowData.attachmentIdentifier)&test_id=\(test.summaryIdentifier ?? "")&content_type=\(rowData.attachmentContentType)&filename=\(rowData.attachmentFilename)") {
-                                                div { rowData.title }.class("color-subtext").inlineBlock()
-                                                image(url: attachmentImage.url)
-                                                    .iconStyleAttributes(width: attachmentImage.width)
-                                                    .class("icon color-svg-subtext")
+                                        } else if attachment.captureMedia.available {
+                                            lastCaptureMediaAttachment = attachment
+
+                                            if videoCapture == nil {
+                                                return HTMLBuilder.buildBlock(
+                                                    div { rowData.title }.class("capture color-subtext").attr("attachment_identifier", attachment.identifier).inlineBlock(),
+                                                    image(url: attachment.url)
+                                                        .iconStyleAttributes(width: attachment.width)
+                                                        .class("icon color-svg-subtext")
+                                                )
+                                            } else {
+                                                return link(url: "/video_capture?result_id=\(result.identifier)&id=\(attachment.identifier)&test_id=\(testSummaryIdentifier)&content_type=\(attachment.contentType)&filename=\(attachment.filename)") {
+                                                    div { rowData.title }.class("color-subtext").inlineBlock()
+                                                    image(url: attachment.url)
+                                                        .iconStyleAttributes(width: attachment.width)
+                                                        .class("icon color-svg-subtext")
+                                                }
                                             }
                                         } else {
-                                            return link(url: "/attachment?result_id=\(result.identifier)&id=\(rowData.attachmentIdentifier)&test_id=\(test.summaryIdentifier ?? "")&content_type=\(rowData.attachmentContentType)") {
+                                            return link(url: "/attachment?result_id=\(result.identifier)&id=\(attachment.identifier)&test_id=\(testSummaryIdentifier)&content_type=\(attachment.contentType)") {
                                                 div { rowData.title }.class("color-subtext").inlineBlock()
-                                                image(url: attachmentImage.url)
-                                                    .iconStyleAttributes(width: attachmentImage.width)
+                                                image(url: attachment.url)
+                                                    .iconStyleAttributes(width: attachment.width)
                                                     .class("icon color-svg-subtext")
                                             }
                                         }
@@ -192,17 +201,15 @@ struct TestRouteHTML: Routable {
                                 }.class(rowData.isError ? "row background-error" : "row")
                                     .style([StyleAttribute(key: "padding-left", value: "\(20 * rowData.indentation)px")])
                             }
-                            .attr("attachment_identifier", rowData.attachmentIdentifier)
+                            .attr("attachment_identifier", rowData.attachment?.identifier ?? "")
 
-                            let testSummaryIdentifier = test.summaryIdentifier ?? ""
-
-                            if rowData.title.isEmpty {
+                            if videoCapture != nil {
                                 return row
-                                    .style([.init(key: "visibility", value: "collapse")])
-                            } else if rowData.captureMedia.available || isVideo { // When a video capture is available we want all rows to have set the timestamp position
-                                if rowData.captureMedia == .firstInGroup {
+                                    .class(rowClasses.joined(separator: " "))
                                     .attr("onmouseenter", #"updateScreenCapturePosition(this, \#(rowData.timestamp))"#)
                                     .attr("onclick", #"updateScreenCapturePosition(this, \#(rowData.timestamp))"#)
+                            } else if let attachment = rowData.attachment ?? lastCaptureMediaAttachment, attachment.captureMedia.available {
+                                if attachment.captureMedia == .firstInGroup {
                                     rowClasses.append("capture-key")
                                 }
 
@@ -210,6 +217,10 @@ struct TestRouteHTML: Routable {
                                     .class(rowClasses.joined(separator: " "))
                                     .attr("onmouseenter", #"updateScreenCapture(this, '\#(result.identifier)', '\#(testSummaryIdentifier)', '\#(attachment.identifier)', '\#(attachment.contentType)')"#)
                                     .attr("onclick", #"updateScreenCapture(this, '\#(result.identifier)', '\#(testSummaryIdentifier)', '\#(attachment.identifier)', '\#(attachment.contentType)')"#)
+
+                            } else if rowData.title.isEmpty {
+                                return row
+                                    .style([.init(key: "visibility", value: "collapse")])
                             } else {
                                 return row
                                     .class(rowClasses.joined(separator: " "))
@@ -218,16 +229,16 @@ struct TestRouteHTML: Routable {
                     }
                 }
                 tableData {
-                    if let rowData = rowsData.first, let testSummaryIdentifier = test.summaryIdentifier {
-                        if isVideo {
+                    if let testSummaryIdentifier = test.summaryIdentifier {
+                        if let videoCaptureAttachment = videoCapture?.attachment {
                             return
                                 video {
-                                    source(mediaURL: "\(AttachmentRoute().path)?result_id=\(result.identifier)&test_id=\(testSummaryIdentifier)&id=\(rowData.attachmentIdentifier)&content_type=\(rowData.attachmentContentType)")
+                                    source(mediaURL: "\(AttachmentRoute().path)?result_id=\(result.identifier)&test_id=\(testSummaryIdentifier)&id=\(videoCaptureAttachment.identifier)&content_type=\(videoCaptureAttachment.contentType)")
                                 }.id("screen-capture")
-                        } else if rowData.captureMedia.available {
+                        } else if let attachment = rowsData.compactMap(\.attachment).first(where: { $0.captureMedia.available }) {
                             return
                                 div {
-                                    image(url: "\(AttachmentRoute().path)?result_id=\(result.identifier)&test_id=\(testSummaryIdentifier)&id=\(rowData.attachmentIdentifier)&content_type=\(rowData.attachmentContentType)").id("screen-capture")
+                                    image(url: "\(AttachmentRoute().path)?result_id=\(result.identifier)&test_id=\(testSummaryIdentifier)&id=\(attachment.identifier)&content_type=\(attachment.contentType)").id("screen-capture")
                                 }
                         } else {
                             return image(url: "\(ImageRoute().path)?imageEmpty")

@@ -201,13 +201,15 @@ struct TestRouteHTML: Routable {
                                     .style([.init(key: "visibility", value: "collapse")])
                             } else if rowData.captureMedia.available || isVideo { // When a video capture is available we want all rows to have set the timestamp position
                                 if rowData.captureMedia == .firstInGroup {
+                                    .attr("onmouseenter", #"updateScreenCapturePosition(this, \#(rowData.timestamp))"#)
+                                    .attr("onclick", #"updateScreenCapturePosition(this, \#(rowData.timestamp))"#)
                                     rowClasses.append("capture-key")
                                 }
 
                                 return row
                                     .class(rowClasses.joined(separator: " "))
-                                    .attr("onmouseenter", #"onMouseEnter(this, '\#(result.identifier)', '\#(testSummaryIdentifier)', '\#(rowData.attachmentIdentifier)', '\#(rowData.attachmentContentType)', { position: \#(rowData.timestamp) })"#)
-                                    .attr("onclick", #"onMouseEnter(this, '\#(result.identifier)', '\#(testSummaryIdentifier)', '\#(rowData.attachmentIdentifier)', '\#(rowData.attachmentContentType)', { position: \#(rowData.timestamp) })"#)
+                                    .attr("onmouseenter", #"updateScreenCapture(this, '\#(result.identifier)', '\#(testSummaryIdentifier)', '\#(attachment.identifier)', '\#(attachment.contentType)')"#)
+                                    .attr("onclick", #"updateScreenCapture(this, '\#(result.identifier)', '\#(testSummaryIdentifier)', '\#(attachment.identifier)', '\#(attachment.contentType)')"#)
                             } else {
                                 return row
                                     .class(rowClasses.joined(separator: " "))

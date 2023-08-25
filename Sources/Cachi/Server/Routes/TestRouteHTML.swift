@@ -130,6 +130,8 @@ struct TestRouteHTML: Routable {
                     }
                     link(url: "/html/session_logs?id=\(test.summaryIdentifier ?? "")&type=stdouts&back_url=\(currentUrl(test: test, source: source, backUrl: backUrl).hexadecimalRepresentation)") { "Standard outputs" }.class("button")
                     link(url: "/html/session_logs?id=\(test.summaryIdentifier ?? "")&type=session&back_url=\(currentUrl(test: test, source: source, backUrl: backUrl).hexadecimalRepresentation)") { "Session logs" }.class("button")
+
+                    link(url: "\(XcResultDownloadRoute().path)?id=\(test.summaryIdentifier ?? "")") { "Download .xcresult" }.class("button").style([.init(key: "margin-left", value: "20px")])
                 }
             }.class("row indent2 background")
         }

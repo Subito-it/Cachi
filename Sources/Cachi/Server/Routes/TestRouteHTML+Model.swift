@@ -177,6 +177,11 @@ extension TestRouteHTML.TableRowModel {
             case "com.apple.dt.xctest.element-snapshot":
                 // This is an unsupported key archived snapshot of the entire view hierarchy of the app
                 return nil
+            case "com.apple.dt.xctest.synthesized-event-record":
+                // This is an unsupported  of the interaction gesture associated to the step
+                // The plist should be parsed and could be used to show with an overlay on the
+                // screen capture where used did interact with the UI
+                return nil
             default:
                 return nil
             }

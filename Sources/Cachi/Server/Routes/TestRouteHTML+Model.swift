@@ -147,6 +147,12 @@ extension TestRouteHTML.TableRowModel {
                 contentType = "text/plain"
                 url = "/image?imageAttachment"
                 width = 14
+            case "public.json":
+                title = (attachment.name ?? "User data") + ".json"
+                filename = attachment.filename ?? "JSON \(timestampString).json"
+                contentType = "application/json"
+                url = "/image?imageAttachment"
+                width = 14
             case "public.jpeg":
                 let title = attachment.name == "kXCTAttachmentLegacyScreenImageData" ? "Automatic Screenshot" : (attachment.name ?? "User image attachment")
                 self.title = title

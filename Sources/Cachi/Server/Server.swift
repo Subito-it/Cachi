@@ -57,7 +57,7 @@ struct Server {
         app.http.server.configuration.responseCompression = .enabled
 
         for route in routes {
-            app.on(route.method, route.path.pathComponents, use: route.respond)
+            app.on(route.method, type(of: route).path.pathComponents, use: route.respond)
         }
 
         app.middleware.use(NotFoundMiddleware(), at: .beginning)

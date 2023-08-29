@@ -3,8 +3,9 @@ import os
 import Vapor
 
 struct ScriptRoute: Routable {
+    static let path = "/script"
+    
     let method = HTTPMethod.GET
-    let path = "/script"
     let description = "Script route, used for html rendering"
 
     func respond(to req: Request) throws -> Response {
@@ -84,7 +85,7 @@ struct ScriptRoute: Routable {
             }
 
             function updateScreenCapture(source_element, result_identifier, test_identifier, attachment_identifier, content_type) {
-                var destination_src = `\(AttachmentRoute().path)?result_id=${result_identifier}&test_id=${test_identifier}&id=${attachment_identifier}&content_type=${content_type}`;
+                var destination_src = `\(AttachmentRoute.path)?result_id=${result_identifier}&test_id=${test_identifier}&id=${attachment_identifier}&content_type=${content_type}`;
                 if (!document.getElementById('screen-capture').src.includes(destination_src)) {
                     document.getElementById('screen-capture').src = '';
                     setTimeout(function () {

@@ -259,7 +259,7 @@ class Parser {
                     return ResultBundle.Test(xcresultUrl: resultBundleUrl,
                                              identifier: testIdentifier,
                                              routeIdentifier: routeIdentifier,
-                                             url: "\(TestRoute().path)?\(summaryIdentifier)",
+                                             url: "\(TestRoute.path)?\(summaryIdentifier)",
                                              targetName: targetName ?? "",
                                              groupName: group.name,
                                              groupIdentifier: group.identifier,

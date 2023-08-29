@@ -3,8 +3,9 @@ import os
 import Vapor
 
 struct ResultRoute: Routable {
+    static let path = "/v1/result"
+    
     let method = HTTPMethod.GET
-    let path = "/v1/result"
     let description = "Detail of result. Pass identifier"
 
     func respond(to req: Request) throws -> Response {

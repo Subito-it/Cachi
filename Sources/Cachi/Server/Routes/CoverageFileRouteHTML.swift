@@ -5,8 +5,9 @@ import Vapor
 import Vaux
 
 struct CoverageFileRouteHTML: Routable {
+    static let path: String = "/html/coverage-file"
+    
     let method = HTTPMethod.GET
-    let path: String = "/html/coverage-file"
     let description: String = "Coverage file details in html (pass identifier)"
 
     func respond(to req: Request) throws -> Response {

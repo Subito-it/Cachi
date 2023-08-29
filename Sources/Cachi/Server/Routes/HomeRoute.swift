@@ -3,8 +3,9 @@ import os
 import Vapor
 
 struct HomeRoute: Routable {
+    static let path = "/"
+    
     let method = HTTPMethod.GET
-    let path = "/"
     let description = "Home"
 
     func respond(to req: Request) throws -> Response {

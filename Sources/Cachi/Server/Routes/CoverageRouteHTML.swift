@@ -6,8 +6,9 @@ import Vaux
 import ZippyJSON
 
 struct CoverageRouteHTML: Routable {
+    static let path: String = "/html/coverage"
+    
     let method = HTTPMethod.GET
-    let path: String = "/html/coverage"
     let description: String = "Coverage in html (pass identifier)"
 
     func respond(to req: Request) throws -> Response {
@@ -99,7 +100,7 @@ struct CoverageRouteHTML: Routable {
     }
 
     private func currentUrl(result: ResultBundle, state: RouteState, backUrl: String) -> String {
-        "\(path)?id=\(result.identifier)\(state)&back_url=\(backUrl.hexadecimalRepresentation)"
+        "\(Self.path)?id=\(result.identifier)\(state)&back_url=\(backUrl.hexadecimalRepresentation)"
     }
 }
 

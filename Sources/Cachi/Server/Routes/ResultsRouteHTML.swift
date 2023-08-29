@@ -5,8 +5,9 @@ import Vaux
 import ZippyJSON
 
 struct ResultsRouteHTML: Routable {
+    static let path: String = "/html/results"
+    
     let method = HTTPMethod.GET
-    let path: String = "/html/results"
     let description: String = "List of results in html"
 
     func respond(to req: Request) throws -> Response {

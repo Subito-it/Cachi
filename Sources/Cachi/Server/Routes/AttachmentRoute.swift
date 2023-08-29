@@ -4,8 +4,9 @@ import os
 import Vapor
 
 struct AttachmentRoute: Routable {
+    static let path = "/attachment"
+    
     let method = HTTPMethod.GET
-    let path = "/attachment"
     let description = "Attachment route, used for html rendering"
 
     func respond(to req: Request) throws -> Response {

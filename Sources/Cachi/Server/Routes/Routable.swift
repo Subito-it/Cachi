@@ -1,7 +1,7 @@
 import Vapor
 
 protocol Routable {
-    var path: String { get }
+    static var path: String { get }
     var description: String { get }
     var method: HTTPMethod { get }
 

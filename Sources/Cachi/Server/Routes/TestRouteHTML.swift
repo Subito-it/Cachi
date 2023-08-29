@@ -5,8 +5,9 @@ import Vapor
 import Vaux
 
 struct TestRouteHTML: Routable {
-    let method = HTTPMethod.GET
-    let path: String = "/html/test"
+    static let path: String = "/html/test"
+    
+    let method = HTTPMethod.GET    
     let description: String = "Test details in html (pass identifier)"
 
     func respond(to req: Request) throws -> Response {
@@ -131,7 +132,7 @@ struct TestRouteHTML: Routable {
                     link(url: "/html/session_logs?id=\(test.summaryIdentifier ?? "")&type=stdouts&back_url=\(currentUrl(test: test, source: source, backUrl: backUrl).hexadecimalRepresentation)") { "Standard outputs" }.class("button")
                     link(url: "/html/session_logs?id=\(test.summaryIdentifier ?? "")&type=session&back_url=\(currentUrl(test: test, source: source, backUrl: backUrl).hexadecimalRepresentation)") { "Session logs" }.class("button")
 
-                    link(url: "\(XcResultDownloadRoute().path)?id=\(test.summaryIdentifier ?? "")") { "Download .xcresult" }.class("button").style([.init(key: "margin-left", value: "20px")])
+                    link(url: "\(XcResultDownloadRoute.path)?id=\(test.summaryIdentifier ?? "")") { "Download .xcresult" }.class("button").style([.init(key: "margin-left", value: "20px")])
                 }
             }.class("row indent2 background")
         }
@@ -235,15 +236,15 @@ struct TestRouteHTML: Routable {
                         if let videoCaptureAttachment = videoCapture?.attachment {
                             return
                                 video {
-                                    source(mediaURL: "\(AttachmentRoute().path)?result_id=\(result.identifier)&test_id=\(testSummaryIdentifier)&id=\(videoCaptureAttachment.identifier)&content_type=\(videoCaptureAttachment.contentType)")
+                                    source(mediaURL: "\(AttachmentRoute.path)?result_id=\(result.identifier)&test_id=\(testSummaryIdentifier)&id=\(videoCaptureAttachment.identifier)&content_type=\(videoCaptureAttachment.contentType)")
                                 }.id("screen-capture")
                         } else if let attachment = rowsData.compactMap(\.attachment).first(where: { $0.captureMedia.available }) {
                             return
                                 div {
-                                    image(url: "\(AttachmentRoute().path)?result_id=\(result.identifier)&test_id=\(testSummaryIdentifier)&id=\(attachment.identifier)&content_type=\(attachment.contentType)").id("screen-capture")
+                                    image(url: "\(AttachmentRoute.path)?result_id=\(result.identifier)&test_id=\(testSummaryIdentifier)&id=\(attachment.identifier)&content_type=\(attachment.contentType)").id("screen-capture")
                                 }
                         } else {
-                            return image(url: "\(ImageRoute().path)?imageEmpty")
+                            return image(url: "\(ImageRoute.path)?imageEmpty")
                         }
                     } else {
                         return ""
@@ -254,7 +255,7 @@ struct TestRouteHTML: Routable {
     }
 
     private func currentUrl(test: ResultBundle.Test, source: String?, backUrl: String) -> String {
-        var url = "\(path)?id=\(test.summaryIdentifier!)&back_url=\(backUrl.hexadecimalRepresentation)"
+        var url = "\(Self.path)?id=\(test.summaryIdentifier!)&back_url=\(backUrl.hexadecimalRepresentation)"
         if let source {
             url += "&source=\(source)"
         }

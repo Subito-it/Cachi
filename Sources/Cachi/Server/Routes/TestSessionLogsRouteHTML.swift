@@ -5,8 +5,9 @@ import Vapor
 import Vaux
 
 struct TestSessionLogsRouteHTML: Routable {
+    static let path: String = "/html/session_logs"
+    
     let method = HTTPMethod.GET
-    let path: String = "/html/session_logs"
     let description: String = "Test session logs in html (pass identifier)"
 
     func respond(to req: Request) throws -> Response {

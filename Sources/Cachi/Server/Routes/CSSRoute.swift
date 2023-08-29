@@ -3,8 +3,9 @@ import os
 import Vapor
 
 struct CSSRoute: Routable {
+    static let path = "/css"
+    
     let method = HTTPMethod.GET
-    let path = "/css"
     let description = "CSS route, used for html rendering"
 
     func respond(to req: Request) throws -> Response {

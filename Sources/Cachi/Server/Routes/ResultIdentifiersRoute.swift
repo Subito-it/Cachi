@@ -3,8 +3,9 @@ import os
 import Vapor
 
 struct ResultsIdentifiersRoute: Routable {
+    static let path = "/v1/results_identifiers"
+    
     let method = HTTPMethod.GET
-    let path = "/v1/results_identifiers"
     let description = "Return results identifiers (even before parsing has completed)"
 
     private let baseUrl: URL

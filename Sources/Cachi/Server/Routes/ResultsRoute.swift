@@ -3,8 +3,9 @@ import os
 import Vapor
 
 struct ResultsRoute: Routable {
+    static  let path: String = "/v1/results"
+    
     let method = HTTPMethod.GET
-    let path: String = "/v1/results"
     let description: String = "List of results"
 
     private let baseUrl: URL
@@ -27,9 +28,9 @@ struct ResultsRoute: Routable {
         for result in results {
             let info = ResultInfo(target_name: result.tests.first?.targetName ?? "",
                                   identifier: result.identifier,
-                                  url: "\(ResultRoute().path)?\(result.identifier)",
-                                  coverage_url: result.codeCoveragePerFolderJsonUrl != nil ? "\(CoverageRoute().path)?id=\(result.identifier)" : nil,
-                                  html_url: "\(ResultRouteHTML(baseUrl: baseUrl, depth: depth, mergeResults: mergeResults).path)?id=\(result.identifier)",
+                                  url: "\(ResultRoute.path)?\(result.identifier)",
+                                  coverage_url: result.codeCoveragePerFolderJsonUrl != nil ? "\(CoverageRoute.path)?id=\(result.identifier)" : nil,
+                                  html_url: "\(ResultRouteHTML.path)?id=\(result.identifier)",
                                   start_time: result.userInfo?.startDate ?? result.testStartDate,
                                   end_time: result.userInfo?.endDate ?? result.testEndDate,
                                   test_start_time: result.testStartDate,

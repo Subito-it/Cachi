@@ -5,8 +5,9 @@ import os
 import Vapor
 
 struct VideoCaptureRoute: Routable {
+    static let path = "/video_capture"
+    
     let method = HTTPMethod.GET
-    let path = "/video_capture"
     let description = "Download video capture (Xcode 15 and newer)"
 
     func respond(to req: Request) throws -> Response {

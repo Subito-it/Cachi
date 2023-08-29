@@ -4,8 +4,9 @@ import Vapor
 import Vaux
 
 struct ResultsStatRouteHTML: Routable {
+    static let path: String = "/html/results_stat"
+    
     let method = HTTPMethod.GET
-    let path: String = "/html/results_stat"
     let description: String = "Stats of results in html"
 
     func respond(to req: Request) throws -> Response {
@@ -155,7 +156,7 @@ struct ResultsStatRouteHTML: Routable {
     }
 
     private func currentUrl(selectedTarget: String, selectedDevice: String, statType: ResultBundle.TestStatsType, backUrl: String) -> String {
-        "\(path)?target=\(selectedTarget)&device=\(selectedDevice)\(statType.params())&back_url=\(backUrl.hexadecimalRepresentation)"
+        "\(Self.path)?target=\(selectedTarget)&device=\(selectedDevice)\(statType.params())&back_url=\(backUrl.hexadecimalRepresentation)"
     }
 }
 

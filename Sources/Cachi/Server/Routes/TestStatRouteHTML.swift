@@ -5,8 +5,9 @@ import Vapor
 import Vaux
 
 struct TestStatRouteHTML: Routable {
+    static let path = "/html/teststats"
+    
     let method = HTTPMethod.GET
-    let path = "/html/teststats"
     let description: String = "Test execution statistics (pass identifier)"
 
     private let baseUrl: URL
@@ -190,9 +191,9 @@ struct TestStatRouteHTML: Routable {
 
     private func currentUrl(test: ResultBundle.Test, source: String?, backUrl: String) -> String {
         if let source {
-            return "\(path)?id=\(test.summaryIdentifier!)&source=\(source)&back_url=\(backUrl.hexadecimalRepresentation)"
+            return "\(Self.path)?id=\(test.summaryIdentifier!)&source=\(source)&back_url=\(backUrl.hexadecimalRepresentation)"
         } else {
-            return "\(path)?id=\(test.summaryIdentifier!)&back_url=\(backUrl.hexadecimalRepresentation)"
+            return "\(Self.path)?id=\(test.summaryIdentifier!)&back_url=\(backUrl.hexadecimalRepresentation)"
         }
     }
 }

@@ -4,8 +4,9 @@ import Vapor
 import ZippyJSON
 
 struct CoverageRoute: Routable {
+    static let path = "/coverage"
+    
     let method = HTTPMethod.GET
-    let path = "/coverage"
     let description = "Coverage. Pass `id` parameter with result identifier, `kind` [files/paths] (Default: files), `q` query string to filter results paths"
 
     func respond(to req: Request) throws -> Response {

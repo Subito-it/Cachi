@@ -3,8 +3,9 @@ import os
 import Vapor
 
 struct HelpRoute: Routable {
+    static let path = "/v1/help"
+    
     let method = HTTPMethod.GET
-    let path = "/v1/help"
     let description = "List available commands"
 
     let routes: [Routable]
@@ -18,8 +19,9 @@ struct HelpRoute: Routable {
 
         var result = [String: String]()
         for route in routes {
-            guard route.path != path, route.path.count > 0 else { continue }
-            result[route.path] = route.description
+            let routePath = type(of: route).path
+            guard routePath != Self.path, routePath.count > 0 else { continue }
+            result[routePath] = route.description
         }
 
         if let bodyData = try? JSONEncoder().encode(result) {

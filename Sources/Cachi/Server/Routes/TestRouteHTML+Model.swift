@@ -143,7 +143,7 @@ extension TestRouteHTML.TableRowModel {
             switch attachment.uniformTypeIdentifier {
             case "public.plain-text", "public.utf8-plain-text":
                 title = "User plain text data"
-                filename = "Plain data\(timestampString).txt"
+                filename = attachment.filename ?? "Plain data\(timestampString).txt"
                 contentType = "text/plain"
                 url = "/image?imageAttachment"
                 width = 14
@@ -163,7 +163,7 @@ extension TestRouteHTML.TableRowModel {
                 width = 18
             case "public.data":
                 title = "Other text data"
-                filename = "Data\(timestampString).bin"
+                filename = attachment.filename ?? "Data\(timestampString).bin"
                 contentType = "text/plain"
                 url = "/image?imageAttachment"
                 width = 14

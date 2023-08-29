@@ -39,13 +39,17 @@ struct TestSessionLogsRouteHTML: Routable {
         }
 
         let backUrl = queryItems.backUrl
+        
+        var scriptUrlComponents = URLComponents(string: ScriptRoute.path)!
+        scriptUrlComponents.queryItems = [.init(name: "type", value: "capture")]
+        let scriptFilePath = Filepath(name: scriptUrlComponents.url!.absoluteString, path: "")
 
         let document = html {
             head {
                 title("Cachi - Test result")
                 meta().attr("charset", "utf-8")
                 linkStylesheet(url: "/css?main")
-                script(filepath: Filepath(name: "/script?type=capture", path: ""))
+                script(filepath: scriptFilePath)
             }
             body {
                 div {

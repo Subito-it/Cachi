@@ -55,7 +55,21 @@ struct CoverageRoute: Routable {
     private func resultData(_ pathCoverages: [PathCoverage], resultIdentifier: String, for kind: Kind?) -> Data? {
         switch kind ?? .files {
         case .files:
-            let pathCoveragesWithDetails: [PathCoverageWithHtmlUrl] = pathCoverages.map { PathCoverageWithHtmlUrl(path: $0.path, percent: $0.percent, htmlUrl: "/html/coverage-file?id=\(resultIdentifier)&path=\($0.path)") }
+            var pathCoveragesWithDetails = [PathCoverageWithHtmlUrl]()
+            
+            for pathCoverage in pathCoverages {
+                var components = URLComponents(string: CoverageFileRouteHTML.path)!
+                components.queryItems = [
+                    .init(name: "id", value: resultIdentifier),
+                    .init(name: "path", value: pathCoverage.path),
+                ]
+                
+                let pathCoverageWithDetails = PathCoverageWithHtmlUrl(path: pathCoverage.path,
+                                                                      percent: pathCoverage.percent,
+                                                                      htmlUrl: components.url!.absoluteString)
+                pathCoveragesWithDetails.append(pathCoverageWithDetails)
+            }
+            
             return try? JSONEncoder().encode(pathCoveragesWithDetails)
         case .paths:
             return try? JSONEncoder().encode(pathCoverages)

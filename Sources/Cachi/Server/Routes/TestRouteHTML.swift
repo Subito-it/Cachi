@@ -48,13 +48,17 @@ struct TestRouteHTML: Routable {
 
         let source = queryItems.first(where: { $0.name == "source" })?.value
         let backUrl = queryItems.backUrl
+        
+        var scriptUrlComponents = URLComponents(string: ScriptRoute.path)!
+        scriptUrlComponents.queryItems = [.init(name: "type", value: "capture")]
+        let scriptFilePath = Filepath(name: scriptUrlComponents.url!.absoluteString, path: "")
 
         let document = html {
             head {
                 title("Cachi - Test result")
                 meta().attr("charset", "utf-8")
                 linkStylesheet(url: "/css?main")
-                script(filepath: Filepath(name: "/script?type=capture", path: ""))
+                script(filepath: scriptFilePath)
             }
             body {
                 div {
@@ -175,7 +179,7 @@ struct TestRouteHTML: Routable {
                                                         .class("icon color-svg-subtext")
                                                 )
                                             } else {
-                                                return link(url: "/video_capture?result_id=\(result.identifier)&id=\(attachment.identifier)&test_id=\(testSummaryIdentifier)&content_type=\(attachment.contentType)&filename=\(attachment.filename)") {
+                                                return link(url: attachment.videoCaptureURL(testSummaryIdentifier: testSummaryIdentifier, resultIdentifier: result.identifier)) {
                                                     div { rowData.title }.class("color-subtext").inlineBlock()
                                                     image(url: attachment.url)
                                                         .iconStyleAttributes(width: attachment.width)
@@ -183,7 +187,7 @@ struct TestRouteHTML: Routable {
                                                 }
                                             }
                                         } else {
-                                            return link(url: "/attachment?result_id=\(result.identifier)&id=\(attachment.identifier)&test_id=\(testSummaryIdentifier)&content_type=\(attachment.contentType)") {
+                                            return link(url: attachment.attachmentURL(testSummaryIdentifier: testSummaryIdentifier, resultIdentifier: result.identifier)) {
                                                 div { rowData.title }.class("color-subtext").inlineBlock()
                                                 image(url: attachment.url)
                                                     .iconStyleAttributes(width: attachment.width)
@@ -236,12 +240,12 @@ struct TestRouteHTML: Routable {
                         if let videoCaptureAttachment = videoCapture?.attachment {
                             return
                                 video {
-                                    source(mediaURL: "\(AttachmentRoute.path)?result_id=\(result.identifier)&test_id=\(testSummaryIdentifier)&id=\(videoCaptureAttachment.identifier)&content_type=\(videoCaptureAttachment.contentType)")
+                                    source(mediaURL: videoCaptureAttachment.attachmentURL(testSummaryIdentifier: testSummaryIdentifier, resultIdentifier: result.identifier))
                                 }.id("screen-capture")
                         } else if let attachment = rowsData.compactMap(\.attachment).first(where: { $0.captureMedia.available }) {
                             return
                                 div {
-                                    image(url: "\(AttachmentRoute.path)?result_id=\(result.identifier)&test_id=\(testSummaryIdentifier)&id=\(attachment.identifier)&content_type=\(attachment.contentType)").id("screen-capture")
+                                    image(url: attachment.attachmentURL(testSummaryIdentifier: testSummaryIdentifier, resultIdentifier: result.identifier)).id("screen-capture")
                                 }
                         } else {
                             return image(url: "\(ImageRoute.path)?imageEmpty")
@@ -255,10 +259,38 @@ struct TestRouteHTML: Routable {
     }
 
     private func currentUrl(test: ResultBundle.Test, source: String?, backUrl: String) -> String {
-        var url = "\(Self.path)?id=\(test.summaryIdentifier!)&back_url=\(backUrl.hexadecimalRepresentation)"
+        var components = URLComponents(string: Self.path)!
+        components.queryItems = [
+            .init(name: "id", value: test.summaryIdentifier),
+            .init(name: "back_url", value: backUrl.hexadecimalRepresentation),
+        ]
         if let source {
-            url += "&source=\(source)"
+            components.queryItems?.append(.init(name: "source", value: source))
         }
-        return url
+        
+        return components.url!.absoluteString
+    }
+}
+
+private extension TestRouteHTML.TableRowModel.Attachment {
+    func attachmentURL(testSummaryIdentifier: String, resultIdentifier: String) -> String {
+        makeUrlComponents(path: AttachmentRoute.path, testSummaryIdentifier: testSummaryIdentifier, resultIdentifier: resultIdentifier).url!.absoluteString
+    }
+    
+    func videoCaptureURL(testSummaryIdentifier: String, resultIdentifier: String) -> String {
+        makeUrlComponents(path: VideoCaptureRoute.path, testSummaryIdentifier: testSummaryIdentifier, resultIdentifier: resultIdentifier).url!.absoluteString
+    }
+    
+    private func makeUrlComponents(path: String, testSummaryIdentifier: String, resultIdentifier: String) -> URLComponents {
+        var components = URLComponents(string: path)!
+        components.queryItems = [
+            .init(name: "result_id", value: resultIdentifier),
+            .init(name: "id", value: identifier),
+            .init(name: "test_id", value: testSummaryIdentifier),
+            .init(name: "filename", value: filename),
+            .init(name: "content_type", value: contentType),
+        ]
+        
+        return components
     }
 }

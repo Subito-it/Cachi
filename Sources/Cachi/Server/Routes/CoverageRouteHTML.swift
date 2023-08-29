@@ -27,17 +27,19 @@ struct CoverageRouteHTML: Routable {
         let state = RouteState(queryItems: queryItems)
         let backUrl = queryItems.backUrl
 
+        var scriptUrlComponents = URLComponents(string: ScriptRoute.path)!
+        scriptUrlComponents.queryItems = [
+            .init(name: "id", value: resultBundle.identifier),
+            .init(name: "type", value: "coverage-" + state.showFilter.rawValue),
+        ]
+        let scriptFilePath = Filepath(name: scriptUrlComponents.url!.absoluteString, path: "")
+
         let document = html {
             head {
                 title("Cachi - Test result")
                 meta().attr("charset", "utf-8")
                 linkStylesheet(url: "/css?main")
-                switch state.showFilter {
-                case .files:
-                    script(filepath: Filepath(name: "/script?type=coverage-files&id=\(resultBundle.identifier)", path: ""))
-                case .folders:
-                    script(filepath: Filepath(name: "/script?type=coverage-folders&id=\(resultBundle.identifier)", path: ""))
-                }
+                script(filepath: scriptFilePath)
             }
             body {
                 div {
@@ -100,7 +102,13 @@ struct CoverageRouteHTML: Routable {
     }
 
     private func currentUrl(result: ResultBundle, state: RouteState, backUrl: String) -> String {
-        "\(Self.path)?id=\(result.identifier)\(state)&back_url=\(backUrl.hexadecimalRepresentation)"
+        var components = URLComponents(string: Self.path)!
+        components.queryItems = [
+            .init(name: "id", value: result.identifier),
+            .init(name: "back_url", value: backUrl.hexadecimalRepresentation),
+        ]
+        
+        return components.url!.absoluteString + state.description
     }
 }
 
@@ -108,7 +116,9 @@ private extension CoverageRouteHTML {
     struct RouteState: Codable, CustomStringConvertible {
         static let key = "state"
 
-        enum ShowFilter: String, Codable, CaseIterable { case files, folders }
+        enum ShowFilter: String, Codable, CaseIterable {
+            case files, folders
+        }
 
         var showFilter: ShowFilter
         var filterQuery: String

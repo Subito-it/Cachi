@@ -47,6 +47,10 @@ struct ResultsStatRouteHTML: Routable {
         let windowSize = Int(rawWindowSize) ?? State.defaultStatWindowSize
 
         let testStats = State.shared.resultsTestStats(target: selectedTarget, device: selectedDevice, type: typeFilter, windowSize: windowSize)
+        
+        var scriptUrlComponents = URLComponents(string: ScriptRoute.path)!
+        scriptUrlComponents.queryItems = [.init(name: "type", value: "result-stat")]
+        let scriptFilePath = Filepath(name: scriptUrlComponents.url!.absoluteString, path: "")
 
         let document = html {
             head {
@@ -59,7 +63,7 @@ struct ResultsStatRouteHTML: Routable {
                     div { floatingHeaderHTML(targets: allTargets, selectedTarget: selectedTarget, devices: allDevices.map(\.description), selectedDevice: rawSelectedDevice!, typeFilter: typeFilter, windowSize: windowSize, backUrl: backUrl) }.class("sticky-top").id("top-bar")
                     div { resultsTableHTML(testStats: testStats, selectedTarget: selectedTarget, selectedDevice: rawSelectedDevice!, statType: typeFilter, backUrl: backUrl) }
                 }.class("main-container background")
-                script(filepath: Filepath(name: "/script?type=result-stat", path: ""))
+                script(filepath: scriptFilePath)
             }
         }
 
@@ -154,16 +158,20 @@ struct ResultsStatRouteHTML: Routable {
             }
         }.style([StyleAttribute(key: "table-layout", value: "fixed")])
     }
-
+    
     private func currentUrl(selectedTarget: String, selectedDevice: String, statType: ResultBundle.TestStatsType, backUrl: String) -> String {
-        "\(Self.path)?target=\(selectedTarget)&device=\(selectedDevice)\(statType.params())&back_url=\(backUrl.hexadecimalRepresentation)"
+        var components = URLComponents(string: Self.path)!
+        components.queryItems = [
+            .init(name: "target", value: selectedTarget),
+            .init(name: "device", value: selectedDevice),
+            .init(name: "back_url", value: backUrl.hexadecimalRepresentation),
+            .init(name: type(of: statType).queryName, value: statType.rawValue),
+        ]
+        
+        return components.url!.absoluteString
     }
 }
 
 private extension ResultBundle.TestStatsType {
-    func params() -> String {
-        "&\(Self.queryName)=\(rawValue)"
-    }
-
     static let queryName = "type"
 }

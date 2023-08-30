@@ -61,7 +61,7 @@ struct VideoCaptureRoute: Routable {
             ("Content-Type", contentType),
             ("Accept-Ranges", "bytes"),
         ]
-        if let filename = queryItems.first(where: { $0.name == "filename" })?.value?.replacingOccurrences(of: " ", with: "%20") {
+        if let filename = queryItems.first(where: { $0.name == "filename" })?.value?.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) {
             headers.append(("Content-Disposition", value: "attachment; filename=\(filename)"))
         }
 

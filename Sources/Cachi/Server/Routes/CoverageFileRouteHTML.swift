@@ -43,6 +43,18 @@ struct CoverageFileRouteHTML: Routable {
 
         return document.httpResponse()
     }
+    
+    static func urlString(resultIdentifier: String, path: String) -> String {
+        var components = URLComponents(string: path)!
+        components.queryItems = [
+            .init(name: "id", value: resultIdentifier),
+            .init(name: "path", value: path),
+        ]
+        
+        components.queryItems = components.queryItems?.filter { !($0.value?.isEmpty ?? true) }
+        
+        return components.url!.absoluteString
+    }
 
     private func floatingHeaderHTML(result: ResultBundle, path _: String) -> HTML {
         let resultTitle = result.htmlTitle()
@@ -55,7 +67,7 @@ struct CoverageFileRouteHTML: Routable {
             div {
                 div {
                     link(url: "javascript:history.back()") {
-                        image(url: "/image?imageArrowLeft")
+                        image(url: ImageRoute.arrowLeftImageUrl())
                             .iconStyleAttributes(width: 8)
                             .class("icon color-svg-text")
                     }

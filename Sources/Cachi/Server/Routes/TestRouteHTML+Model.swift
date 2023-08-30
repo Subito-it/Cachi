@@ -145,40 +145,40 @@ extension TestRouteHTML.TableRowModel {
                 filename = attachment.filename ?? "User data\(timestampString).txt"
                 title = filename
                 contentType = "text/plain"
-                url = "/image?imageAttachment"
+                url = ImageRoute.attachmentImageUrl()
                 width = 14
             case "public.json":
                 title = (attachment.name ?? "User data") + ".json"
                 filename = attachment.filename ?? "JSON \(timestampString).json"
                 contentType = "application/json"
-                url = "/image?imageAttachment"
+                url = ImageRoute.attachmentImageUrl()
                 width = 14
             case "public.jpeg":
                 let title = attachment.name == "kXCTAttachmentLegacyScreenImageData" ? "Automatic Screenshot" : (attachment.name ?? "User image attachment")
                 self.title = title
                 filename = "\(title)\(timestampString).jpg"
                 contentType = "image/jpeg"
-                url = "/image?imageView"
+                url = ImageRoute.placeholderImageUrl()
                 width = 18
             case "public.png":
                 let title = attachment.name == "kXCTAttachmentLegacyScreenImageData" ? "Automatic Screenshot" : (attachment.name ?? "User image attachment")
                 self.title = title
                 filename = "\(title)\(timestampString).png"
                 contentType = "image/png"
-                url = "/image?imageView"
+                url = ImageRoute.placeholderImageUrl()
                 width = 18
             case "public.data":
                 title = attachment.name ?? "Binary data"
                 filename = attachment.filename ?? "Data\(timestampString).bin"
                 contentType = "text/plain"
-                url = "/image?imageAttachment"
+                url = ImageRoute.attachmentImageUrl()
                 width = 14
             case "public.mpeg-4" where attachment.name == "kXCTAttachmentScreenRecording":
                 let title = "Screen recording"
                 self.title = "\(title).mp4"
                 filename = "\(title)\(timestampString).mp4"
                 contentType = "video/mp4"
-                url = "/image?imageAttachment"
+                url = ImageRoute.attachmentImageUrl()
                 width = 14
             case "com.apple.dt.xctest.element-snapshot":
                 // This is an unsupported key archived snapshot of the entire view hierarchy of the app

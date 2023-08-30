@@ -61,6 +61,18 @@ struct ResultRouteHTML: Routable {
 
         return document.httpResponse()
     }
+    
+    static func urlString(resultIdentifier: String, backUrl: String) -> String {
+        var components = URLComponents(string: path)!
+        components.queryItems = [
+            .init(name: "id", value: resultIdentifier),
+            .init(name: "back_url", value: backUrl.hexadecimalRepresentation),
+        ]
+        
+        components.queryItems = components.queryItems?.filter { !($0.value?.isEmpty ?? true) }
+        
+        return components.url!.absoluteString
+    }
 
     private func floatingHeaderHTML(result: ResultBundle, state: RouteState, backUrl: String) -> HTML {
         let resultTitle = result.htmlTitle()
@@ -73,7 +85,7 @@ struct ResultRouteHTML: Routable {
             div {
                 div {
                     link(url: backUrl) {
-                        image(url: "/image?imageArrowLeft")
+                        image(url: ImageRoute.arrowLeftImageUrl())
                             .iconStyleAttributes(width: 8)
                             .class("icon color-svg-text")
                     }
@@ -124,7 +136,7 @@ struct ResultRouteHTML: Routable {
 
                     var mState = state
                     let linkForState: (RouteState) -> HTML = { linkState in
-                        link(url: currentUrl(result: result, state: linkState, backUrl: backUrl)) { linkState.showFilter.rawValue.capitalized }.class(state.showFilter == linkState.showFilter ? "button-selected" : "button")
+                        link(url: Self.urlString(result: result, state: linkState, backUrl: backUrl)) { linkState.showFilter.rawValue.capitalized }.class(state.showFilter == linkState.showFilter ? "button-selected" : "button")
                     }
 
                     mState.showFilter = .all
@@ -147,7 +159,7 @@ struct ResultRouteHTML: Routable {
                             var mState = state
                             mState.showFailureMessage.toggle()
                             blocks.append("&nbsp;&nbsp;&nbsp;&nbsp;")
-                            blocks.append(link(url: currentUrl(result: result, state: mState, backUrl: backUrl)) { "Show failure message" }.class(state.showFailureMessage ? "button-selected" : "button"))
+                            blocks.append(link(url: Self.urlString(result: result, state: mState, backUrl: backUrl)) { "Show failure message" }.class(state.showFailureMessage ? "button-selected" : "button"))
                         }
                     }
 
@@ -155,13 +167,13 @@ struct ResultRouteHTML: Routable {
                         if state.showFilter == .all || state.showFilter == .failed {
                             var mState = state
                             mState.showSystemFailures.toggle()
-                            blocks.append(link(url: currentUrl(result: result, state: mState, backUrl: backUrl)) { "Show system failures" }.class(state.showSystemFailures ? "button-selected" : "button"))
+                            blocks.append(link(url: Self.urlString(result: result, state: mState, backUrl: backUrl)) { "Show system failures" }.class(state.showSystemFailures ? "button-selected" : "button"))
                         }
                     }
 
                     if result.codeCoverageSplittedHtmlBaseUrl != nil {
                         blocks.append("&nbsp;&nbsp;&nbsp;&nbsp;")
-                        blocks.append(link(url: "coverage?id=\(result.identifier)&back_url=\(currentUrl(result: result, state: state, backUrl: backUrl).hexadecimalRepresentation)") { "Coverage" }.class("button"))
+                        blocks.append(link(url: CoverageRouteHTML.urlString(resultIdentifier: result.identifier, backUrl: Self.urlString(result: result, state: state, backUrl: backUrl))) { "Coverage" }.class("button"))
                     }
 
                     return HTMLBuilder.buildBlocks(blocks)
@@ -226,8 +238,10 @@ struct ResultRouteHTML: Routable {
                     }.class("dark-bordered-container"),
                     forEach(tests) { test in
                         tableRow {
+                            let backUrl = Self.urlString(result: result, state: state, backUrl: backUrl)
+                            let testRouteUrlString = TestRouteHTML.urlString(testSummaryIdentifier: test.summaryIdentifier, source: nil, backUrl: backUrl)
                             tableData {
-                                link(url: resultDetailUrlString(result: result, test: test, state: state, backUrl: backUrl)) {
+                                link(url: testRouteUrlString) {
                                     image(url: result.htmlStatusImageUrl(for: test))
                                         .attr("title", result.htmlStatusTitle(for: test))
                                         .iconStyleAttributes(width: 14)
@@ -239,7 +253,7 @@ struct ResultRouteHTML: Routable {
                                 }.class(result.htmlTextColor(for: test))
                             }.class("row indent3")
                             tableData {
-                                link(url: resultDetailUrlString(result: result, test: test, state: state, backUrl: backUrl)) {
+                                link(url: testRouteUrlString) {
                                     hoursMinutesSeconds(in: test.duration)
                                 }.class("color-text")
                             }.alignment(.left).class("row indent1")
@@ -251,24 +265,16 @@ struct ResultRouteHTML: Routable {
         }.style([StyleAttribute(key: "table-layout", value: "fixed")])
     }
 
-    private func currentUrl(result: ResultBundle, state: RouteState, backUrl: String) -> String {
-        var components = URLComponents(string: Self.path)!
+    private static func urlString(result: ResultBundle, state: RouteState, backUrl: String) -> String {
+        var components = URLComponents(string: path)!
         components.queryItems = [
             .init(name: "id", value: result.identifier),
             .init(name: "back_url", value: backUrl.hexadecimalRepresentation),
         ]
         
-        return components.url!.absoluteString + state.description
-    }
-
-    private func resultDetailUrlString(result: ResultBundle, test: ResultBundle.Test, state: RouteState, backUrl: String) -> String {
-        var components = URLComponents(string: TestRouteHTML.path)!
-        components.queryItems = [
-            .init(name: "id", value: test.summaryIdentifier),
-            .init(name: "back_url", value: currentUrl(result: result, state: state, backUrl: backUrl).hexadecimalRepresentation),
-        ]
+        components.queryItems = components.queryItems?.filter { !($0.value?.isEmpty ?? true) }
         
-        return components.url!.absoluteString
+        return components.url!.absoluteString + state.description
     }
 }
 

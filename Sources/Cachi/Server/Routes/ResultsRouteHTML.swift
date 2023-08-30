@@ -53,8 +53,7 @@ struct ResultsRouteHTML: Routable {
         if results.count > 0 {
             var buttonBlocks = [HTML]()
 
-            let params = "back_url=\(currentUrl(state: state).hexadecimalRepresentation)"
-            buttonBlocks.append(link(url: "/html/results_stat?\(params)") { "Stats" }.class("button"))
+            buttonBlocks.append(link(url: ResultsStatRouteHTML.urlString(backUrl: currentUrl(state: state))) { "Stats" }.class("button"))
 
             var mState = state
             mState.showSystemFailures.toggle()
@@ -145,7 +144,7 @@ struct ResultsRouteHTML: Routable {
     }
 
     private func linkToResultDetail(result: ResultBundle, state: RouteState, @HTMLBuilder child: () -> HTML) -> HTML {
-        link(url: "/html/result?id=\(result.identifier)&back_url=\(currentUrl(state: state).hexadecimalRepresentation)") {
+        link(url: ResultRouteHTML.urlString(resultIdentifier: result.identifier, backUrl: currentUrl(state: state))) {
             child()
         }
     }

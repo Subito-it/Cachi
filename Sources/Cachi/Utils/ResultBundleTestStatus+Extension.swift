@@ -15,13 +15,13 @@ extension ResultBundle {
 extension ResultBundle {
     func htmlStatusImageUrl(for test: ResultBundle.Test) -> String {
         if test.status == .success {
-            return "/image?imageTestPass"
+            return ImageRoute.passedTestImageUrl()
         }
 
         if testsUniquelyFailed.contains(where: { $0.matches(test) }) || test.groupName == "System Failures" {
-            return "/image?imageTestFail"
+            return ImageRoute.failedTestImageUrl()
         } else {
-            return "/image?imageTestRetried"
+            return ImageRoute.retriedTestImageUrl()
         }
     }
 
@@ -59,9 +59,9 @@ extension ResultBundle {
         }
 
         if failedTestCount > 0 {
-            return "/image?imageTestFail"
+            return ImageRoute.failedTestImageUrl()
         } else {
-            return "/image?imageTestPass"
+            return ImageRoute.passedTestImageUrl()
         }
     }
 

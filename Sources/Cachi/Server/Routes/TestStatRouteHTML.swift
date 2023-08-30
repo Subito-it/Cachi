@@ -85,7 +85,7 @@ struct TestStatRouteHTML: Routable {
                     div { "Average execution" }.class("header indent2")
                     if successfulTests.count > 0 {
                         div {
-                            image(url: "/image?imageTestPass")
+                            image(url: ImageRoute.passedTestImageUrl())
                                 .attr("title", "Passed tests average")
                                 .iconStyleAttributes(width: 14)
                                 .class("icon")
@@ -95,7 +95,7 @@ struct TestStatRouteHTML: Routable {
                     }
                     if failedTests.count > 0 {
                         div {
-                            image(url: "/image?imageTestFail")
+                            image(url: ImageRoute.failedTestImageUrl())
                                 .attr("title", "Failed tests average")
                                 .iconStyleAttributes(width: 14)
                                 .class("icon")
@@ -105,7 +105,7 @@ struct TestStatRouteHTML: Routable {
                     }
                     if successfulTests.count > 0, failedTests.count > 0 {
                         div {
-                            image(url: "/image?imageTestGray")
+                            image(url: ImageRoute.grayTestImageUrl())
                                 .attr("title", "All tests average")
                                 .iconStyleAttributes(width: 14)
                                 .class("icon")
@@ -119,6 +119,19 @@ struct TestStatRouteHTML: Routable {
 
         return document.httpResponse()
     }
+    
+    static func urlString(testSummaryIdentifier: String?, source: String?, backUrl: String) -> String {
+        var components = URLComponents(string: path)!
+        components.queryItems = [
+            .init(name: "id", value: testSummaryIdentifier),
+            .init(name: "source", value: source),
+            .init(name: "back_url", value: backUrl.hexadecimalRepresentation),
+        ]
+        
+        components.queryItems = components.queryItems?.filter { !($0.value?.isEmpty ?? true) }
+        
+        return components.url!.absoluteString
+    }
 
     private func floatingHeaderHTML(test: ResultBundle.Test, testDetail: String, source _: String?, backUrl: String) -> HTML {
         let testTitle = test.name
@@ -130,7 +143,7 @@ struct TestStatRouteHTML: Routable {
             div {
                 div {
                     link(url: backUrl) {
-                        image(url: "/image?imageArrowLeft")
+                        image(url: ImageRoute.arrowLeftImageUrl())
                             .iconStyleAttributes(width: 8)
                             .class("icon color-svg-text")
                     }
@@ -161,7 +174,7 @@ struct TestStatRouteHTML: Routable {
                     HTMLBuilder.buildBlock(
                         tableRow {
                             tableData {
-                                link(url: test.htmlUrl(source: source, backUrl: backUrl)) {
+                                link(url: TestRouteHTML.urlString(testSummaryIdentifier: test.summaryIdentifier, source: source, backUrl: backUrl)) {
                                     div {
                                         image(url: matching.resultBundle.htmlStatusImageUrl(for: test))
                                             .attr("title", matching.resultBundle.htmlStatusTitle(for: test))
@@ -187,31 +200,5 @@ struct TestStatRouteHTML: Routable {
                 }
             }
         }.style([StyleAttribute(key: "table-layout", value: "fixed")])
-    }
-}
-
-private extension ResultBundle.Test {
-    func htmlUrl(source: String?, backUrl: String) -> String {
-        var components = URLComponents(string: ScriptRoute.path)!
-        components.queryItems = [
-            .init(name: "id", value: summaryIdentifier),
-            .init(name: "source", value: "test_stats"),
-            .init(name: "back_url", value: currentUrl(test: self, source: source, backUrl: backUrl).hexadecimalRepresentation),
-        ]
-
-        return components.url!.absoluteString
-    }
-    
-    private func currentUrl(test: ResultBundle.Test, source: String?, backUrl: String) -> String {
-        var components = URLComponents(string: TestStatRouteHTML.path)!
-        components.queryItems = [
-            .init(name: "id", value: test.summaryIdentifier),
-            .init(name: "back_url", value: backUrl.hexadecimalRepresentation),
-        ]
-        if let source {
-            components.queryItems?.append(.init(name: "source", value: source))
-        }
-        
-        return components.url!.absoluteString
     }
 }

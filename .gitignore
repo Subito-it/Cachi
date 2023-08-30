@@ -75,5 +75,5 @@ Cachi.xcodeproj
 *.xcscheme
 
 # Deploy
-cachi
+/cachi
 deploy.sh

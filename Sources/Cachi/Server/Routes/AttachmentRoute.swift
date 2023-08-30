@@ -48,7 +48,7 @@ struct AttachmentRoute: Routable {
             ("Content-Type", contentType),
         ]
         
-        if let filename = queryItems.first(where: { $0.name == "filename" })?.value?.replacingOccurrences(of: " ", with: "%20"),
+        if let filename = queryItems.first(where: { $0.name == "filename" })?.value?.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed),
            let fileAttributes = try? FileManager.default.attributesOfItem(atPath: destinationPath),
            let bytes = fileAttributes[.size] as? Int64,
            bytes > 100 * 1024 {

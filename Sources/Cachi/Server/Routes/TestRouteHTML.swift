@@ -201,8 +201,19 @@ struct TestRouteHTML: Routable {
                                                     .iconStyleAttributes(width: 12)
                                                     .class("icon color-svg-subtext")
                                             }
-
-                                            div { rowData.title }.class(rowData.hasChildren ? "bold" : "").inlineBlock()
+                                            
+                                            if rowData.title.contains("\n") {
+                                                div { rowData.title }
+                                                    .class(rowData.hasChildren ? "bold" : "")
+                                                    .style([
+                                                        StyleAttribute(key: "white-space", value: "pre-line"),
+                                                        StyleAttribute(key: "margin-bottom", value: "15px")
+                                                    ])
+                                            } else {
+                                                div { rowData.title }
+                                                    .class(rowData.hasChildren ? "bold" : "")
+                                                    .inlineBlock()
+                                            }
                                         }
                                     }
                                 }.class(rowData.isError ? "row background-error" : "row")

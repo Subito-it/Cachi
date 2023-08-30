@@ -3,8 +3,9 @@ import os
 import Vapor
 
 struct ImageRoute: Routable {
+    static let path = "/image"
+    
     let method = HTTPMethod.GET
-    let path = "/image"
     let description = "Image route, used for html rendering"
 
     func respond(to req: Request) throws -> Response {

@@ -5,8 +5,9 @@ import Vaux
 import ZippyJSON
 
 struct ResultRouteHTML: Routable {
+    static let path: String = "/html/result"
+    
     let method = HTTPMethod.GET
-    let path: String = "/html/result"
     let description: String = "Detail of result in html (pass identifier)"
 
     private let baseUrl: URL
@@ -251,11 +252,23 @@ struct ResultRouteHTML: Routable {
     }
 
     private func currentUrl(result: ResultBundle, state: RouteState, backUrl: String) -> String {
-        "\(path)?id=\(result.identifier)\(state)&back_url=\(backUrl.hexadecimalRepresentation)"
+        var components = URLComponents(string: Self.path)!
+        components.queryItems = [
+            .init(name: "id", value: result.identifier),
+            .init(name: "back_url", value: backUrl.hexadecimalRepresentation),
+        ]
+        
+        return components.url!.absoluteString + state.description
     }
 
     private func resultDetailUrlString(result: ResultBundle, test: ResultBundle.Test, state: RouteState, backUrl: String) -> String {
-        "/html/test?id=\(test.summaryIdentifier!)&back_url=\(currentUrl(result: result, state: state, backUrl: backUrl).hexadecimalRepresentation)"
+        var components = URLComponents(string: TestRouteHTML.path)!
+        components.queryItems = [
+            .init(name: "id", value: test.summaryIdentifier),
+            .init(name: "back_url", value: currentUrl(result: result, state: state, backUrl: backUrl).hexadecimalRepresentation),
+        ]
+        
+        return components.url!.absoluteString
     }
 }
 

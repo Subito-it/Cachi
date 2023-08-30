@@ -141,29 +141,35 @@ extension TestRouteHTML.TableRowModel {
             }
 
             switch attachment.uniformTypeIdentifier {
-            case "public.plain-text", "public.utf8-plain-text":
-                title = "User plain text data"
-                filename = "Plain data\(timestampString).txt"
+            case "public.plain-text", "public.utf8-plain-text", "public.text":
+                filename = attachment.filename ?? "User data\(timestampString).txt"
+                title = filename
                 contentType = "text/plain"
                 url = "/image?imageAttachment"
                 width = 14
+            case "public.json":
+                title = (attachment.name ?? "User data") + ".json"
+                filename = attachment.filename ?? "JSON \(timestampString).json"
+                contentType = "application/json"
+                url = "/image?imageAttachment"
+                width = 14
             case "public.jpeg":
-                let title = attachment.name == "kXCTAttachmentLegacyScreenImageData" ? "Automatic Screenshot" : "User image attachment"
+                let title = attachment.name == "kXCTAttachmentLegacyScreenImageData" ? "Automatic Screenshot" : (attachment.name ?? "User image attachment")
                 self.title = title
                 filename = "\(title)\(timestampString).jpg"
                 contentType = "image/jpeg"
                 url = "/image?imageView"
                 width = 18
             case "public.png":
-                let title = attachment.name == "kXCTAttachmentLegacyScreenImageData" ? "Automatic Screenshot" : "User image attachment"
+                let title = attachment.name == "kXCTAttachmentLegacyScreenImageData" ? "Automatic Screenshot" : (attachment.name ?? "User image attachment")
                 self.title = title
                 filename = "\(title)\(timestampString).png"
                 contentType = "image/png"
                 url = "/image?imageView"
                 width = 18
             case "public.data":
-                title = "Other text data"
-                filename = "Data\(timestampString).bin"
+                title = attachment.name ?? "Binary data"
+                filename = attachment.filename ?? "Data\(timestampString).bin"
                 contentType = "text/plain"
                 url = "/image?imageAttachment"
                 width = 14

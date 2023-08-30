@@ -5,8 +5,9 @@ import Vapor
 import Vaux
 
 struct TestStatRouteHTML: Routable {
+    static let path = "/html/teststats"
+    
     let method = HTTPMethod.GET
-    let path = "/html/teststats"
     let description: String = "Test execution statistics (pass identifier)"
 
     private let baseUrl: URL
@@ -160,7 +161,7 @@ struct TestStatRouteHTML: Routable {
                     HTMLBuilder.buildBlock(
                         tableRow {
                             tableData {
-                                link(url: "/html/test?id=\(test.summaryIdentifier!)&source=test_stats&back_url=\(currentUrl(test: test, source: source, backUrl: backUrl).hexadecimalRepresentation)") {
+                                link(url: test.htmlUrl(source: source, backUrl: backUrl)) {
                                     div {
                                         image(url: matching.resultBundle.htmlStatusImageUrl(for: test))
                                             .attr("title", matching.resultBundle.htmlStatusTitle(for: test))
@@ -187,12 +188,30 @@ struct TestStatRouteHTML: Routable {
             }
         }.style([StyleAttribute(key: "table-layout", value: "fixed")])
     }
+}
 
+private extension ResultBundle.Test {
+    func htmlUrl(source: String?, backUrl: String) -> String {
+        var components = URLComponents(string: ScriptRoute.path)!
+        components.queryItems = [
+            .init(name: "id", value: summaryIdentifier),
+            .init(name: "source", value: "test_stats"),
+            .init(name: "back_url", value: currentUrl(test: self, source: source, backUrl: backUrl).hexadecimalRepresentation),
+        ]
+
+        return components.url!.absoluteString
+    }
+    
     private func currentUrl(test: ResultBundle.Test, source: String?, backUrl: String) -> String {
+        var components = URLComponents(string: TestStatRouteHTML.path)!
+        components.queryItems = [
+            .init(name: "id", value: test.summaryIdentifier),
+            .init(name: "back_url", value: backUrl.hexadecimalRepresentation),
+        ]
         if let source {
-            return "\(path)?id=\(test.summaryIdentifier!)&source=\(source)&back_url=\(backUrl.hexadecimalRepresentation)"
-        } else {
-            return "\(path)?id=\(test.summaryIdentifier!)&back_url=\(backUrl.hexadecimalRepresentation)"
+            components.queryItems?.append(.init(name: "source", value: source))
         }
+        
+        return components.url!.absoluteString
     }
 }

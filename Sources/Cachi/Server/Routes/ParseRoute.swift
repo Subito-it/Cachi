@@ -3,8 +3,9 @@ import os
 import Vapor
 
 struct ParseRoute: Routable {
+    static let path = "/v1/parse"
+    
     let method = HTTPMethod.GET
-    let path = "/v1/parse"
     let description = "Parse new results"
 
     private let baseUrl: URL

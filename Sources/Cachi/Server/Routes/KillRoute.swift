@@ -3,8 +3,9 @@ import os
 import Vapor
 
 struct KillRoute: Routable {
+    static let path = "/v1/kill"
+    
     let method = HTTPMethod.GET
-    let path = "/v1/kill"
     let description = "Quit Cachi"
 
     func respond(to _: Request) throws -> Response {

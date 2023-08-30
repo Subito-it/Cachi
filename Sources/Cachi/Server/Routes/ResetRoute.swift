@@ -3,8 +3,9 @@ import os
 import Vapor
 
 struct ResetRoute: Routable {
+    static let path = "/v1/reset"
+    
     let method = HTTPMethod.GET
-    let path = "/v1/reset"
     let description = "Reset and reparse results"
 
     private let baseUrl: URL

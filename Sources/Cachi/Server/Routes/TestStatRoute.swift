@@ -3,8 +3,9 @@ import os
 import Vapor
 
 struct TestStatRoute: Routable {
+    static let path = "/v1/teststats"
+    
     let method = HTTPMethod.GET
-    let path = "/v1/teststats"
     let description = #"Test execution statistics (pass MD5({test.targetName}-{test.suite}-{test.name}-{device.model}-{device.os}). Example: MD5('SomeUITestTarget-TestLogins-testHappyPath()-iPhone 8-13.0')"#
 
     func respond(to req: Request) throws -> Response {

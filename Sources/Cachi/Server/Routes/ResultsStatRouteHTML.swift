@@ -47,10 +47,6 @@ struct ResultsStatRouteHTML: Routable {
         let windowSize = Int(rawWindowSize) ?? State.defaultStatWindowSize
 
         let testStats = State.shared.resultsTestStats(target: selectedTarget, device: selectedDevice, type: typeFilter, windowSize: windowSize)
-        
-        var scriptUrlComponents = URLComponents(string: ScriptRoute.path)!
-        scriptUrlComponents.queryItems = [.init(name: "type", value: "result-stat")]
-        let scriptFilePath = Filepath(name: scriptUrlComponents.url!.absoluteString, path: "")
 
         let document = html {
             head {
@@ -63,11 +59,22 @@ struct ResultsStatRouteHTML: Routable {
                     div { floatingHeaderHTML(targets: allTargets, selectedTarget: selectedTarget, devices: allDevices.map(\.description), selectedDevice: rawSelectedDevice!, typeFilter: typeFilter, windowSize: windowSize, backUrl: backUrl) }.class("sticky-top").id("top-bar")
                     div { resultsTableHTML(testStats: testStats, selectedTarget: selectedTarget, selectedDevice: rawSelectedDevice!, statType: typeFilter, backUrl: backUrl) }
                 }.class("main-container background")
-                script(filepath: scriptFilePath)
+                script(filepath: Filepath(name: ScriptRoute.resultStatsUrlString(), path: ""))
             }
         }
 
         return document.httpResponse()
+    }
+    
+    static func urlString(backUrl: String) -> String {
+        var components = URLComponents(string: path)!
+        components.queryItems = [
+            .init(name: "back_url", value: backUrl.hexadecimalRepresentation),
+        ]
+        
+        components.queryItems = components.queryItems?.filter { !($0.value?.isEmpty ?? true) }
+        
+        return components.url!.absoluteString
     }
 
     private func floatingHeaderHTML(targets: [String], selectedTarget: String, devices: [String], selectedDevice: String, typeFilter: ResultBundle.TestStatsType, windowSize: Int, backUrl: String) -> HTML {
@@ -75,7 +82,7 @@ struct ResultsStatRouteHTML: Routable {
             div {
                 div {
                     link(url: backUrl) {
-                        image(url: "/image?imageArrowLeft")
+                        image(url: ImageRoute.arrowLeftImageUrl())
                             .iconStyleAttributes(width: 8)
                             .class("icon color-svg-text")
                     }
@@ -131,9 +138,9 @@ struct ResultsStatRouteHTML: Routable {
                 HTMLBuilder.buildBlock(
                     tableRow {
                         tableData {
-                            link(url: "/html/teststats?id=\(testStat.first_summary_identifier)&show=all&back_url=\(currentUrl(selectedTarget: selectedTarget, selectedDevice: selectedDevice, statType: statType, backUrl: backUrl).hexadecimalRepresentation)") {
+                            link(url: TestStatRouteHTML.urlString(testSummaryIdentifier: testStat.first_summary_identifier, source: nil, backUrl: currentUrl(selectedTarget: selectedTarget, selectedDevice: selectedDevice, statType: statType, backUrl: backUrl))) {
                                 div {
-                                    image(url: "/image?imageTestGray")
+                                    image(url: ImageRoute.grayTestImageUrl())
                                         .attr("title", "Test stats")
                                         .iconStyleAttributes(width: 14)
                                         .class("icon")
@@ -167,6 +174,8 @@ struct ResultsStatRouteHTML: Routable {
             .init(name: "back_url", value: backUrl.hexadecimalRepresentation),
             .init(name: type(of: statType).queryName, value: statType.rawValue),
         ]
+        
+        components.queryItems = components.queryItems?.filter { !($0.value?.isEmpty ?? true) }
         
         return components.url!.absoluteString
     }

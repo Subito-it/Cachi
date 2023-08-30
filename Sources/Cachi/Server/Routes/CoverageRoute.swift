@@ -58,15 +58,9 @@ struct CoverageRoute: Routable {
             var pathCoveragesWithDetails = [PathCoverageWithHtmlUrl]()
             
             for pathCoverage in pathCoverages {
-                var components = URLComponents(string: CoverageFileRouteHTML.path)!
-                components.queryItems = [
-                    .init(name: "id", value: resultIdentifier),
-                    .init(name: "path", value: pathCoverage.path),
-                ]
-                
                 let pathCoverageWithDetails = PathCoverageWithHtmlUrl(path: pathCoverage.path,
                                                                       percent: pathCoverage.percent,
-                                                                      htmlUrl: components.url!.absoluteString)
+                                                                      htmlUrl: CoverageFileRouteHTML.urlString(resultIdentifier: resultIdentifier, path: pathCoverage.path))
                 pathCoveragesWithDetails.append(pathCoverageWithDetails)
             }
             

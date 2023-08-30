@@ -47,6 +47,34 @@ struct ScriptRoute: Routable {
 
         return Response(headers: HTTPHeaders([("Content-Type", "application/javascript")]), body: Response.Body(string: scriptContent!))
     }
+    
+    static func captureUrlString() -> String {
+        urlString(type: "capture")
+    }
+
+    static func fileCoverageUrlString(resultIdentifier: String) -> String {
+        urlString(type: "coverage-files", resultIdentifier: resultIdentifier)
+    }
+    
+    static func foldersCoverageUrlString(resultIdentifier: String) -> String {
+        urlString(type: "coverage-folders", resultIdentifier: resultIdentifier)
+    }
+
+    static func resultStatsUrlString() -> String {
+        urlString(type: "result-stat")
+    }
+
+    private static func urlString(type: String, resultIdentifier: String? = nil) -> String {
+        var components = URLComponents(string: path)!
+        components.queryItems = [
+            .init(name: "id", value: resultIdentifier),
+            .init(name: "type", value: type),
+        ]
+        
+        components.queryItems = components.queryItems?.filter { !($0.value?.isEmpty ?? true) }
+        
+        return components.url!.absoluteString
+    }
 
     private func scriptCapture() -> String {
         """

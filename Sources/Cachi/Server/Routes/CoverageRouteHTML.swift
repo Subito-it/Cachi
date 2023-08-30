@@ -27,19 +27,17 @@ struct CoverageRouteHTML: Routable {
         let state = RouteState(queryItems: queryItems)
         let backUrl = queryItems.backUrl
 
-        var scriptUrlComponents = URLComponents(string: ScriptRoute.path)!
-        scriptUrlComponents.queryItems = [
-            .init(name: "id", value: resultBundle.identifier),
-            .init(name: "type", value: "coverage-" + state.showFilter.rawValue),
-        ]
-        let scriptFilePath = Filepath(name: scriptUrlComponents.url!.absoluteString, path: "")
-
         let document = html {
             head {
                 title("Cachi - Test result")
                 meta().attr("charset", "utf-8")
                 linkStylesheet(url: "/css?main")
-                script(filepath: scriptFilePath)
+                switch state.showFilter {
+                case .files:
+                    script(filepath: Filepath(name: ScriptRoute.fileCoverageUrlString(resultIdentifier: resultBundle.identifier), path: ""))
+                case .folders:
+                    script(filepath: Filepath(name: ScriptRoute.foldersCoverageUrlString(resultIdentifier: resultBundle.identifier), path: ""))
+                }
             }
             body {
                 div {
@@ -51,6 +49,18 @@ struct CoverageRouteHTML: Routable {
         }
 
         return document.httpResponse()
+    }
+    
+    static func urlString(resultIdentifier: String, backUrl: String) -> String {
+        var components = URLComponents(string: path)!
+        components.queryItems = [
+            .init(name: "id", value: resultIdentifier),
+            .init(name: "back_url", value: backUrl.hexadecimalRepresentation),
+        ]
+        
+        components.queryItems = components.queryItems?.filter { !($0.value?.isEmpty ?? true) }
+        
+        return components.url!.absoluteString
     }
 
     private func floatingHeaderHTML(result: ResultBundle, state: RouteState, backUrl: String) -> HTML {
@@ -64,7 +74,7 @@ struct CoverageRouteHTML: Routable {
             div {
                 div {
                     link(url: backUrl) {
-                        image(url: "/image?imageArrowLeft")
+                        image(url: ImageRoute.arrowLeftImageUrl())
                             .iconStyleAttributes(width: 8)
                             .class("icon color-svg-text")
                     }
@@ -107,6 +117,8 @@ struct CoverageRouteHTML: Routable {
             .init(name: "id", value: result.identifier),
             .init(name: "back_url", value: backUrl.hexadecimalRepresentation),
         ]
+        
+        components.queryItems = components.queryItems?.filter { !($0.value?.isEmpty ?? true) }
         
         return components.url!.absoluteString + state.description
     }

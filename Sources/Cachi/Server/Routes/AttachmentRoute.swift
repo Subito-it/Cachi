@@ -62,4 +62,19 @@ struct AttachmentRoute: Routable {
 
         return response
     }
+    
+    static func urlString(identifier: String, resultIdentifier: String, testSummaryIdentifier: String, filename: String, contentType: String) -> String {
+        var components = URLComponents(string: path)!
+        components.queryItems = [
+            .init(name: "result_id", value: resultIdentifier),
+            .init(name: "id", value: identifier),
+            .init(name: "test_id", value: testSummaryIdentifier),
+            .init(name: "filename", value: filename),
+            .init(name: "content_type", value: contentType),
+        ]
+        
+        components.queryItems = components.queryItems?.filter { !($0.value?.isEmpty ?? true) }
+        
+        return components.url!.absoluteString
+    }
 }

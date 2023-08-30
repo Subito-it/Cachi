@@ -68,6 +68,27 @@ struct TestSessionLogsRouteHTML: Routable {
 
         return document.httpResponse()
     }
+    
+    static func stdoutUrlString(testSummaryIdentifier: String?, backUrl: String) -> String {
+        urlString(testSummaryIdentifier: testSummaryIdentifier, type: "stdouts", backUrl: backUrl)
+    }
+
+    static func sessionUrlString(testSummaryIdentifier: String?, backUrl: String) -> String {
+        urlString(testSummaryIdentifier: testSummaryIdentifier, type: "session", backUrl: backUrl)
+    }
+    
+    private static func urlString(testSummaryIdentifier: String?, type: String, backUrl: String) -> String {
+        var components = URLComponents(string: path)!
+        components.queryItems = [
+            .init(name: "id", value: testSummaryIdentifier),
+            .init(name: "type", value: type),
+            .init(name: "back_url", value: backUrl.hexadecimalRepresentation),
+        ]
+        
+        components.queryItems = components.queryItems?.filter { !($0.value?.isEmpty ?? true) }
+        
+        return components.url!.absoluteString
+    }
 
     private func floatingHeaderHTML(result _: ResultBundle, test: ResultBundle.Test, backUrl: String) -> HTML {
         let testTitle = test.name
@@ -88,7 +109,7 @@ struct TestSessionLogsRouteHTML: Routable {
             div {
                 div {
                     link(url: backUrl) {
-                        image(url: "/image?imageArrowLeft")
+                        image(url: ImageRoute.arrowLeftImageUrl())
                             .iconStyleAttributes(width: 8)
                             .class("icon color-svg-text")
                     }

@@ -4,7 +4,7 @@ import Vapor
 
 struct HomeRoute: Routable {
     static let path = "/"
-    
+
     let method = HTTPMethod.GET
     let description = "Home"
 

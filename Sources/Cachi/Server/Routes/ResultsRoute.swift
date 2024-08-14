@@ -3,8 +3,8 @@ import os
 import Vapor
 
 struct ResultsRoute: Routable {
-    static  let path: String = "/v1/results"
-    
+    static let path: String = "/v1/results"
+
     let method = HTTPMethod.GET
     let description: String = "List of results"
 

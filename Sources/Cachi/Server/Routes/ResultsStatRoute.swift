@@ -4,7 +4,7 @@ import Vapor
 
 struct ResultsStatRoute: Routable {
     static let path = "/v1/results_stat"
-    
+
     let method = HTTPMethod.GET
     let description = #"Test execution statistics on all tests (pass target, device_model (e.g. iPhone 8), device_os (e.g. 14.4) and type [flaky, slowest, fastest])"#
 

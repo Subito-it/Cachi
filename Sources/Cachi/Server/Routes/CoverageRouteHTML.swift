@@ -7,7 +7,7 @@ import ZippyJSON
 
 struct CoverageRouteHTML: Routable {
     static let path: String = "/html/coverage"
-    
+
     let method = HTTPMethod.GET
     let description: String = "Coverage in html (pass identifier)"
 
@@ -50,16 +50,16 @@ struct CoverageRouteHTML: Routable {
 
         return document.httpResponse()
     }
-    
+
     static func urlString(resultIdentifier: String, backUrl: String) -> String {
         var components = URLComponents(string: path)!
         components.queryItems = [
             .init(name: "id", value: resultIdentifier),
             .init(name: "back_url", value: backUrl.hexadecimalRepresentation),
         ]
-        
+
         components.queryItems = components.queryItems?.filter { !($0.value?.isEmpty ?? true) }
-        
+
         return components.url!.absoluteString
     }
 
@@ -117,9 +117,9 @@ struct CoverageRouteHTML: Routable {
             .init(name: "id", value: result.identifier),
             .init(name: "back_url", value: backUrl.hexadecimalRepresentation),
         ]
-        
+
         components.queryItems = components.queryItems?.filter { !($0.value?.isEmpty ?? true) }
-        
+
         return components.url!.absoluteString + state.description
     }
 }

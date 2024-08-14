@@ -6,7 +6,7 @@ import ZippyJSON
 
 struct ResultsRouteHTML: Routable {
     static let path: String = "/html/results"
-    
+
     let method = HTTPMethod.GET
     let description: String = "List of results in html"
 

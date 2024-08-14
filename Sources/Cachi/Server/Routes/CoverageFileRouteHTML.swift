@@ -6,7 +6,7 @@ import Vaux
 
 struct CoverageFileRouteHTML: Routable {
     static let path: String = "/html/coverage-file"
-    
+
     let method = HTTPMethod.GET
     let description: String = "Coverage file details in html (pass identifier)"
 
@@ -43,16 +43,16 @@ struct CoverageFileRouteHTML: Routable {
 
         return document.httpResponse()
     }
-    
+
     static func urlString(resultIdentifier: String, path: String) -> String {
         var components = URLComponents(string: path)!
         components.queryItems = [
             .init(name: "id", value: resultIdentifier),
             .init(name: "path", value: path),
         ]
-        
+
         components.queryItems = components.queryItems?.filter { !($0.value?.isEmpty ?? true) }
-        
+
         return components.url!.absoluteString
     }
 

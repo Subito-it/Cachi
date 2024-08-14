@@ -5,7 +5,7 @@ import Vaux
 
 struct ResultsStatRouteHTML: Routable {
     static let path: String = "/html/results_stat"
-    
+
     let method = HTTPMethod.GET
     let description: String = "Stats of results in html"
 
@@ -65,15 +65,15 @@ struct ResultsStatRouteHTML: Routable {
 
         return document.httpResponse()
     }
-    
+
     static func urlString(backUrl: String) -> String {
         var components = URLComponents(string: path)!
         components.queryItems = [
             .init(name: "back_url", value: backUrl.hexadecimalRepresentation),
         ]
-        
+
         components.queryItems = components.queryItems?.filter { !($0.value?.isEmpty ?? true) }
-        
+
         return components.url!.absoluteString
     }
 
@@ -165,7 +165,7 @@ struct ResultsStatRouteHTML: Routable {
             }
         }.style([StyleAttribute(key: "table-layout", value: "fixed")])
     }
-    
+
     private func currentUrl(selectedTarget: String, selectedDevice: String, statType: ResultBundle.TestStatsType, backUrl: String) -> String {
         var components = URLComponents(string: Self.path)!
         components.queryItems = [
@@ -174,9 +174,9 @@ struct ResultsStatRouteHTML: Routable {
             .init(name: "back_url", value: backUrl.hexadecimalRepresentation),
             .init(name: type(of: statType).queryName, value: statType.rawValue),
         ]
-        
+
         components.queryItems = components.queryItems?.filter { !($0.value?.isEmpty ?? true) }
-        
+
         return components.url!.absoluteString
     }
 }

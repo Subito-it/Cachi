@@ -4,7 +4,7 @@ import Vapor
 
 struct ScriptRoute: Routable {
     static let path = "/script"
-    
+
     let method = HTTPMethod.GET
     let description = "Script route, used for html rendering"
 
@@ -47,7 +47,7 @@ struct ScriptRoute: Routable {
 
         return Response(headers: HTTPHeaders([("Content-Type", "application/javascript")]), body: Response.Body(string: scriptContent!))
     }
-    
+
     static func captureUrlString() -> String {
         urlString(type: "capture")
     }
@@ -55,7 +55,7 @@ struct ScriptRoute: Routable {
     static func fileCoverageUrlString(resultIdentifier: String) -> String {
         urlString(type: "coverage-files", resultIdentifier: resultIdentifier)
     }
-    
+
     static func foldersCoverageUrlString(resultIdentifier: String) -> String {
         urlString(type: "coverage-folders", resultIdentifier: resultIdentifier)
     }
@@ -70,9 +70,9 @@ struct ScriptRoute: Routable {
             .init(name: "id", value: resultIdentifier),
             .init(name: "type", value: type),
         ]
-        
+
         components.queryItems = components.queryItems?.filter { !($0.value?.isEmpty ?? true) }
-        
+
         return components.url!.absoluteString
     }
 

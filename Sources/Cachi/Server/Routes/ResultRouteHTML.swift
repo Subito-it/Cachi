@@ -6,7 +6,7 @@ import ZippyJSON
 
 struct ResultRouteHTML: Routable {
     static let path: String = "/html/result"
-    
+
     let method = HTTPMethod.GET
     let description: String = "Detail of result in html (pass identifier)"
 
@@ -61,16 +61,16 @@ struct ResultRouteHTML: Routable {
 
         return document.httpResponse()
     }
-    
+
     static func urlString(resultIdentifier: String, backUrl: String) -> String {
         var components = URLComponents(string: path)!
         components.queryItems = [
             .init(name: "id", value: resultIdentifier),
             .init(name: "back_url", value: backUrl.hexadecimalRepresentation),
         ]
-        
+
         components.queryItems = components.queryItems?.filter { !($0.value?.isEmpty ?? true) }
-        
+
         return components.url!.absoluteString
     }
 
@@ -271,9 +271,9 @@ struct ResultRouteHTML: Routable {
             .init(name: "id", value: result.identifier),
             .init(name: "back_url", value: backUrl.hexadecimalRepresentation),
         ]
-        
+
         components.queryItems = components.queryItems?.filter { !($0.value?.isEmpty ?? true) }
-        
+
         return components.url!.absoluteString + state.description
     }
 }

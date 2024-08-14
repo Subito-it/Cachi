@@ -4,7 +4,7 @@ import Vapor
 
 struct VersionRoute: Routable {
     static let path = "/v1/version"
-    
+
     let method = HTTPMethod.GET
     let description = "Cachi version"
 

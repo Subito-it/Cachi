@@ -6,7 +6,7 @@ import Vaux
 
 struct TestStatRouteHTML: Routable {
     static let path = "/html/teststats"
-    
+
     let method = HTTPMethod.GET
     let description: String = "Test execution statistics (pass identifier)"
 
@@ -119,7 +119,7 @@ struct TestStatRouteHTML: Routable {
 
         return document.httpResponse()
     }
-    
+
     static func urlString(testSummaryIdentifier: String?, source: String?, backUrl: String) -> String {
         var components = URLComponents(string: path)!
         components.queryItems = [
@@ -127,9 +127,9 @@ struct TestStatRouteHTML: Routable {
             .init(name: "source", value: source),
             .init(name: "back_url", value: backUrl.hexadecimalRepresentation),
         ]
-        
+
         components.queryItems = components.queryItems?.filter { !($0.value?.isEmpty ?? true) }
-        
+
         return components.url!.absoluteString
     }
 

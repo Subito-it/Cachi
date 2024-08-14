@@ -4,7 +4,7 @@ import Vapor
 
 struct ImageRoute: Routable {
     static let path = "/image"
-    
+
     let method = HTTPMethod.GET
     let description = "Image route, used for html rendering"
 
@@ -37,49 +37,49 @@ struct ImageRoute: Routable {
 
         return Response(status: .notFound, body: Response.Body(stringLiteral: "Not found..."))
     }
-    
+
     static func passedTestImageUrl() -> String {
-        "\(Self.path)?imageTestPass"
+        "\(path)?imageTestPass"
     }
-    
+
     static func failedTestImageUrl() -> String {
-        "\(Self.path)?imageTestFail"
+        "\(path)?imageTestFail"
     }
 
     static func retriedTestImageUrl() -> String {
-        "\(Self.path)?imageTestRetried"
+        "\(path)?imageTestRetried"
     }
 
     static func grayTestImageUrl() -> String {
-        "\(Self.path)?imageTestGray"
+        "\(path)?imageTestGray"
     }
 
     static func arrowLeftImageUrl() -> String {
-        "\(Self.path)?imageArrowLeft"
+        "\(path)?imageArrowLeft"
     }
 
     static func arrowRightImageUrl() -> String {
-        "\(Self.path)?imageArrowRight"
+        "\(path)?imageArrowRight"
     }
 
     static func arrowDownImageUrl() -> String {
-        "\(Self.path)?imageArrowDown"
+        "\(path)?imageArrowDown"
     }
-    
+
     static func linkImageUrl() -> String {
-        "\(Self.path)?imageLink"
+        "\(path)?imageLink"
     }
-    
+
     static func attachmentImageUrl() -> String {
-        "\(Self.path)?imageAttachment"
+        "\(path)?imageAttachment"
     }
 
     static func emptyImageUrl() -> String {
-        "\(Self.path)?imageEmpty"
+        "\(path)?imageEmpty"
     }
-    
+
     static func placeholderImageUrl() -> String {
-        "\(Self.path)?imagePlaceholder"
+        "\(path)?imagePlaceholder"
     }
 
     private func imageTestPass() -> StaticString {

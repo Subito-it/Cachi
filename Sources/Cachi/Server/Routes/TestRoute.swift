@@ -4,7 +4,7 @@ import Vapor
 
 struct TestRoute: Routable {
     static let path = "/v1/test"
-    
+
     let method = HTTPMethod.GET
     let description = "Test details. Pass summaryIdentifier"
 

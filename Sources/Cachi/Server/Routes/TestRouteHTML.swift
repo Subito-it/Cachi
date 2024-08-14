@@ -6,8 +6,8 @@ import Vaux
 
 struct TestRouteHTML: Routable {
     static let path: String = "/html/test"
-    
-    let method = HTTPMethod.GET    
+
+    let method = HTTPMethod.GET
     let description: String = "Test details in html (pass identifier)"
 
     func respond(to req: Request) throws -> Response {
@@ -48,7 +48,7 @@ struct TestRouteHTML: Routable {
 
         let source = queryItems.first(where: { $0.name == "source" })?.value
         let backUrl = queryItems.backUrl
-        
+
         let document = html {
             head {
                 title("Cachi - Test result")
@@ -66,7 +66,7 @@ struct TestRouteHTML: Routable {
 
         return document.httpResponse()
     }
-    
+
     static func urlString(testSummaryIdentifier: String?, source: String?, backUrl: String) -> String {
         var components = URLComponents(string: path)!
         components.queryItems = [
@@ -74,9 +74,9 @@ struct TestRouteHTML: Routable {
             .init(name: "source", value: source),
             .init(name: "back_url", value: backUrl.hexadecimalRepresentation),
         ]
-        
+
         components.queryItems = components.queryItems?.filter { !($0.value?.isEmpty ?? true) }
-        
+
         return components.url!.absoluteString
     }
 
@@ -140,7 +140,7 @@ struct TestRouteHTML: Routable {
                     if !fromTestStats {
                         link(url: TestStatRouteHTML.urlString(testSummaryIdentifier: test.summaryIdentifier, source: "test_route", backUrl: currentUrl(test: test, source: source, backUrl: backUrl))) { "Test stats" }.class("button")
                     }
-                    
+
                     let sessionBackUrl = currentUrl(test: test, source: source, backUrl: backUrl)
                     link(url: TestSessionLogsRouteHTML.stdoutUrlString(testSummaryIdentifier: test.summaryIdentifier, backUrl: sessionBackUrl)) { "Standard output" }.class("button")
                     link(url: TestSessionLogsRouteHTML.sessionUrlString(testSummaryIdentifier: test.summaryIdentifier, backUrl: sessionBackUrl)) { "Session logs" }.class("button")
@@ -210,13 +210,13 @@ struct TestRouteHTML: Routable {
                                                     .iconStyleAttributes(width: 12)
                                                     .class("icon color-svg-subtext")
                                             }
-                                            
+
                                             if rowData.title.contains("\n") {
                                                 div { rowData.title }
                                                     .class(rowData.hasChildren ? "bold" : "")
                                                     .style([
                                                         StyleAttribute(key: "white-space", value: "pre-line"),
-                                                        StyleAttribute(key: "margin-bottom", value: "15px")
+                                                        StyleAttribute(key: "margin-bottom", value: "15px"),
                                                     ])
                                             } else {
                                                 div { rowData.title }
@@ -285,9 +285,9 @@ struct TestRouteHTML: Routable {
             .init(name: "source", value: source),
             .init(name: "back_url", value: backUrl.hexadecimalRepresentation),
         ]
-        
+
         components.queryItems = components.queryItems?.filter { !($0.value?.isEmpty ?? true) }
-        
+
         return components.url!.absoluteString
     }
 }

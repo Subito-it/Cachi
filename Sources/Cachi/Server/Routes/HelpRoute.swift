@@ -4,7 +4,7 @@ import Vapor
 
 struct HelpRoute: Routable {
     static let path = "/v1/help"
-    
+
     let method = HTTPMethod.GET
     let description = "List available commands"
 

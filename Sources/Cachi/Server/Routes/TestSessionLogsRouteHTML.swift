@@ -6,7 +6,7 @@ import Vaux
 
 struct TestSessionLogsRouteHTML: Routable {
     static let path: String = "/html/session_logs"
-    
+
     let method = HTTPMethod.GET
     let description: String = "Test session logs in html (pass identifier)"
 
@@ -39,7 +39,7 @@ struct TestSessionLogsRouteHTML: Routable {
         }
 
         let backUrl = queryItems.backUrl
-        
+
         var scriptUrlComponents = URLComponents(string: ScriptRoute.path)!
         scriptUrlComponents.queryItems = [.init(name: "type", value: "capture")]
         let scriptFilePath = Filepath(name: scriptUrlComponents.url!.absoluteString, path: "")
@@ -68,7 +68,7 @@ struct TestSessionLogsRouteHTML: Routable {
 
         return document.httpResponse()
     }
-    
+
     static func stdoutUrlString(testSummaryIdentifier: String?, backUrl: String) -> String {
         urlString(testSummaryIdentifier: testSummaryIdentifier, type: "stdouts", backUrl: backUrl)
     }
@@ -76,7 +76,7 @@ struct TestSessionLogsRouteHTML: Routable {
     static func sessionUrlString(testSummaryIdentifier: String?, backUrl: String) -> String {
         urlString(testSummaryIdentifier: testSummaryIdentifier, type: "session", backUrl: backUrl)
     }
-    
+
     private static func urlString(testSummaryIdentifier: String?, type: String, backUrl: String) -> String {
         var components = URLComponents(string: path)!
         components.queryItems = [
@@ -84,9 +84,9 @@ struct TestSessionLogsRouteHTML: Routable {
             .init(name: "type", value: type),
             .init(name: "back_url", value: backUrl.hexadecimalRepresentation),
         ]
-        
+
         components.queryItems = components.queryItems?.filter { !($0.value?.isEmpty ?? true) }
-        
+
         return components.url!.absoluteString
     }
 

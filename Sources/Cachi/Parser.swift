@@ -179,7 +179,7 @@ class Parser {
         for (path, coverages) in folderCoverageAggregation {
             let totalLines = coverages.reduce(0) { $0 + $1.summary.lines.count }
             guard totalLines > 0 else { continue }
-            
+
             let coveredLines = coverages.reduce(0) { $0 + $1.summary.lines.covered }
             let percent = Double(coveredLines) / Double(totalLines)
 

@@ -6,7 +6,7 @@ import Vapor
 
 struct VideoCaptureRoute: Routable {
     static let path = "/video_capture"
-    
+
     let method = HTTPMethod.GET
     let description = "Download video capture (Xcode 15 and newer)"
 
@@ -72,7 +72,7 @@ struct VideoCaptureRoute: Routable {
 
         return response
     }
-    
+
     static func urlString(identifier: String, resultIdentifier: String, testSummaryIdentifier: String, filename: String, contentType: String) -> String {
         var components = URLComponents(string: path)!
         components.queryItems = [
@@ -82,9 +82,9 @@ struct VideoCaptureRoute: Routable {
             .init(name: "filename", value: filename),
             .init(name: "content_type", value: contentType),
         ]
-        
+
         components.queryItems = components.queryItems?.filter { !($0.value?.isEmpty ?? true) }
-        
+
         return components.url!.absoluteString
     }
 }

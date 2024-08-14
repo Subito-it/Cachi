@@ -4,7 +4,7 @@ import Vapor
 
 struct KillRoute: Routable {
     static let path = "/v1/kill"
-    
+
     let method = HTTPMethod.GET
     let description = "Quit Cachi"
 

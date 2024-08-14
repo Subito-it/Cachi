@@ -6,7 +6,7 @@ import Vapor
 
 struct XcResultDownloadRoute: Routable {
     static let path = "/v1/xcresult"
-    
+
     let method = HTTPMethod.GET
     let description = "Download the original xcresult"
 
@@ -29,7 +29,7 @@ struct XcResultDownloadRoute: Routable {
 
         let destinationUrl = Cachi.temporaryFolderUrl.appendingPathComponent("\(UUID().uuidString).zip")
         defer { try? FileManager.default.removeItem(at: destinationUrl) }
-        
+
         do {
             _ = try test.xcresultUrl.zip(to: destinationUrl)
         } catch {
@@ -40,25 +40,25 @@ struct XcResultDownloadRoute: Routable {
         let headers = [
             ("Content-Type", "application/zip"),
             ("Accept-Ranges", "bytes"),
-            ("Content-Disposition", value: "attachment; filename=\(filename)")
+            ("Content-Disposition", value: "attachment; filename=\(filename)"),
         ]
-        
+
         let response = req.fileio.streamFile(at: destinationUrl.path(percentEncoded: false))
         for header in headers {
             response.headers.add(name: header.0, value: header.1)
         }
-        
-        return Response(body: Response.Body(data: try Data(contentsOf: destinationUrl, options: [.alwaysMapped])))
+
+        return try Response(body: Response.Body(data: Data(contentsOf: destinationUrl, options: [.alwaysMapped])))
     }
-    
+
     static func urlString(testSummaryIdentifier: String?) -> String {
         var components = URLComponents(string: path)!
         components.queryItems = [
-            .init(name: "id", value: testSummaryIdentifier)
+            .init(name: "id", value: testSummaryIdentifier),
         ]
-        
+
         components.queryItems = components.queryItems?.filter { !($0.value?.isEmpty ?? true) }
-        
+
         return components.url!.absoluteString
     }
 }

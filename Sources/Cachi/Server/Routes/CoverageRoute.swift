@@ -5,7 +5,7 @@ import ZippyJSON
 
 struct CoverageRoute: Routable {
     static let path = "/coverage"
-    
+
     let method = HTTPMethod.GET
     let description = "Coverage. Pass `id` parameter with result identifier, `kind` [files/paths] (Default: files), `q` query string to filter results paths"
 
@@ -56,14 +56,14 @@ struct CoverageRoute: Routable {
         switch kind ?? .files {
         case .files:
             var pathCoveragesWithDetails = [PathCoverageWithHtmlUrl]()
-            
+
             for pathCoverage in pathCoverages {
                 let pathCoverageWithDetails = PathCoverageWithHtmlUrl(path: pathCoverage.path,
                                                                       percent: pathCoverage.percent,
                                                                       htmlUrl: CoverageFileRouteHTML.urlString(resultIdentifier: resultIdentifier, path: pathCoverage.path))
                 pathCoveragesWithDetails.append(pathCoverageWithDetails)
             }
-            
+
             return try? JSONEncoder().encode(pathCoveragesWithDetails)
         case .paths:
             return try? JSONEncoder().encode(pathCoverages)

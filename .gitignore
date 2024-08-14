@@ -77,5 +77,8 @@ Cachi.xcodeproj
 # Deploy
 /cachi
 deploy.sh
+hb.sh
 
 .swiftpm/
+.vscode/
+*.tar.gz

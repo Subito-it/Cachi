@@ -167,7 +167,7 @@ struct ScriptRoute: Routable {
                 }
 
                 filteredItems = filteredItems.sort(function(a,b) {
-                    return b.n - a.n
+                    return b.n.localeCompare(a.n);
                 });
 
                 const filterInput = document.getElementById('filter-input');

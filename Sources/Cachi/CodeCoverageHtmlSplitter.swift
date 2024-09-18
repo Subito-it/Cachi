@@ -26,7 +26,9 @@ class CodeCoverageHtmlSplitter {
                 }
                 pendingRows.append(components[0])
 
-                let filename = try extractFilename(line: components[0]).replacingOccurrences(of: basePath, with: "") + ".html"
+                guard let filename = try? extractFilename(line: components[0]).replacingOccurrences(of: basePath, with: "") + ".html" else {
+                    continue
+                }
                 let fileUrl = destinationUrl.appendingPathComponent(filename)
 
                 try FileManager.default.createDirectory(at: fileUrl.deletingLastPathComponent(), withIntermediateDirectories: true, attributes: nil)
@@ -42,7 +44,7 @@ class CodeCoverageHtmlSplitter {
     }
 
     private func extractFilename(line: String) throws -> String {
-        let head = String(line.prefix(300))
+        let head = String(line.prefix(500))
         let groups = try head.capturedGroups(withRegexString: #"<div class='source-name-title'><pre>(.*?)<\/pre>"#)
         guard groups.count == 1 else {
             throw Error.unexpectedFormat

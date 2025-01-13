@@ -79,6 +79,7 @@ struct ResultBundle: Codable {
         var githubBaseUrl: String?
         var startDate: Date?
         var endDate: Date?
+        var xcresultPathToFailedTestName: [String: String]?
 
         init(from decoder: Decoder) throws {
             let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -95,6 +96,7 @@ struct ResultBundle: Codable {
             self.startDate = try container.decodeIfPresent(Date.self, forKey: .startDate)
             self.endDate = try container.decodeIfPresent(Date.self, forKey: .endDate)
 
+            self.xcresultPathToFailedTestName = try container.decodeIfPresent([String: String].self, forKey: .xcresultPathToFailedTestName)
 
             if branchName == nil,
                commitMessage == nil,
@@ -104,6 +106,7 @@ struct ResultBundle: Codable {
                endDate == nil,
                sourceBasePath == nil,
                githubBaseUrl == nil,
+               xcresultPathToFailedTestName == nil {
                 throw Error.empty
             }
         }

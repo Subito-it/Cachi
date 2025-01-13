@@ -14,86 +14,87 @@ struct ResultBundle: Codable {
     }
 
     struct TestStats: Codable, Hashable {
-        let first_summary_identifier: String
-        let group_name: String
-        let test_name: String
-        let average_s: TimeInterval
-        let success_min_s: Double
-        let success_max_s: Double
-        let success_ratio: Double
-        let success_count: Int
-        let failure_count: Int
-        let execution_sequence: String
+        var first_summary_identifier: String
+        var group_name: String
+        var test_name: String
+        var average_s: TimeInterval
+        var success_min_s: Double
+        var success_max_s: Double
+        var success_ratio: Double
+        var success_count: Int
+        var failure_count: Int
+        var execution_sequence: String
     }
 
     struct Test: Codable, Hashable {
         struct SessionLogs: Codable {
-            let appStandardOutput: String?
-            let runerAppStandardOutput: String?
-            let sessionLogs: String?
+            var appStandardOutput: String?
+            var runerAppStandardOutput: String?
+            var sessionLogs: String?
         }
 
         struct Stats: Codable {
-            let group_name: String
-            let test_name: String
-            let device_model: String
-            let device_os: String
-            let average_s: Double
-            let success_average_s: Double?
-            let failure_average_s: Double?
-            let success_count: Int
-            let failure_count: Int
+            var group_name: String
+            var test_name: String
+            var device_model: String
+            var device_os: String
+            var average_s: Double
+            var success_average_s: Double?
+            var failure_average_s: Double?
+            var success_count: Int
+            var failure_count: Int
         }
 
         enum Status: String, Codable {
             case success, failure
         }
 
-        let xcresultUrl: URL
-        let identifier: String
-        let routeIdentifier: String
-        let url: String
-        let targetName: String
-        let groupName: String
-        let groupIdentifier: String
-        let name: String
-        let testStartDate: Date
-        let duration: Double
-        let status: Status
-        let deviceName: String
-        let deviceModel: String
-        let deviceOs: String
-        let deviceIdentifier: String
-        let diagnosticsIdentifier: String?
-        let summaryIdentifier: String?
+        var xcresultUrl: URL
+        var identifier: String
+        var routeIdentifier: String
+        var url: String
+        var targetName: String
+        var groupName: String
+        var groupIdentifier: String
+        var name: String
+        var testStartDate: Date
+        var duration: Double
+        var status: Status
+        var deviceName: String
+        var deviceModel: String
+        var deviceOs: String
+        var deviceIdentifier: String
+        var diagnosticsIdentifier: String?
+        var summaryIdentifier: String?
     }
 
     struct UserInfo: Codable {
         enum Error: Swift.Error { case empty }
 
-        let branchName: String?
-        let commitMessage: String?
-        let commitHash: String?
-        let metadata: String?
-        let sourceBasePath: String?
-        let githubBaseUrl: String?
-        let startDate: Date?
-        let endDate: Date?
+        var branchName: String?
+        var commitMessage: String?
+        var commitHash: String?
+        var metadata: String?
+        var sourceBasePath: String?
+        var githubBaseUrl: String?
+        var startDate: Date?
+        var endDate: Date?
 
         init(from decoder: Decoder) throws {
             let container = try decoder.container(keyedBy: CodingKeys.self)
 
-            branchName = try container.decodeIfPresent(String.self, forKey: .branchName)
+            self.branchName = try container.decodeIfPresent(String.self, forKey: .branchName)
 
-            commitMessage = try container.decodeIfPresent(String.self, forKey: .commitMessage)
-            commitHash = try container.decodeIfPresent(String.self, forKey: .commitHash)
-            metadata = try container.decodeIfPresent(String.self, forKey: .metadata)
+            self.commitMessage = try container.decodeIfPresent(String.self, forKey: .commitMessage)
+            self.commitHash = try container.decodeIfPresent(String.self, forKey: .commitHash)
+            self.metadata = try container.decodeIfPresent(String.self, forKey: .metadata)
 
-            sourceBasePath = try container.decodeIfPresent(String.self, forKey: .sourceBasePath)
-            githubBaseUrl = try container.decodeIfPresent(String.self, forKey: .githubBaseUrl)
+            self.sourceBasePath = try container.decodeIfPresent(String.self, forKey: .sourceBasePath)
+            self.githubBaseUrl = try container.decodeIfPresent(String.self, forKey: .githubBaseUrl)
 
-            startDate = try container.decodeIfPresent(Date.self, forKey: .startDate)
-            endDate = try container.decodeIfPresent(Date.self, forKey: .endDate)
+            self.startDate = try container.decodeIfPresent(Date.self, forKey: .startDate)
+            self.endDate = try container.decodeIfPresent(Date.self, forKey: .endDate)
+
 
             if branchName == nil,
                commitMessage == nil,
@@ -102,29 +103,28 @@ struct ResultBundle: Codable {
                startDate == nil,
                endDate == nil,
                sourceBasePath == nil,
-               githubBaseUrl == nil
-            {
+               githubBaseUrl == nil,
                 throw Error.empty
             }
         }
     }
 
-    let identifier: String
-    let xcresultUrls: Set<URL>
-    let destinations: String
-    let testStartDate: Date
-    let testEndDate: Date
-    let totalExecutionTime: TimeInterval
-    let tests: [Test]
-    let testsPassed: [Test]
-    let testsFailed: [Test]
-    let testsFailedBySystem: [Test]
-    let testsPassedRetring: [Test]
-    let testsFailedRetring: [Test]
-    let testsUniquelyFailed: [Test]
-    let testsRepeated: [[Test]]
-    let testsCrashCount: Int
-    let userInfo: UserInfo?
+    var identifier: String
+    var xcresultUrls: Set<URL>
+    var destinations: String
+    var testStartDate: Date
+    var testEndDate: Date
+    var totalExecutionTime: TimeInterval
+    var tests: [Test]
+    var testsPassed: [Test]
+    var testsFailed: [Test]
+    var testsFailedBySystem: [Test]
+    var testsPassedRetring: [Test]
+    var testsFailedRetring: [Test]
+    var testsUniquelyFailed: [Test]
+    var testsRepeated: [[Test]]
+    var testsCrashCount: Int
+    var userInfo: UserInfo?
 }
 
 extension ResultBundle.Test {
@@ -219,5 +219,16 @@ extension ResultBundle {
 
     var codeCoveragePerFolderJsonUrl: URL? {
         codeCoverageBaseUrl?.appendingPathComponent("coverage-folders.json")
+    }
+}
+
+extension ResultBundle.Test {
+    func with(groupName: String, groupIdentifier: String, name: String) -> Self {
+        var me = self
+        me.groupName = groupName
+        me.groupIdentifier = groupIdentifier
+        me.name = name
+
+        return me
     }
 }

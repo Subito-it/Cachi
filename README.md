@@ -41,7 +41,7 @@ The following keys can be added to the Info.plist in the .xcresult bundle which 
 - `commitMessage`
 - `githubBaseUrl`: used to generate links to specific code lines within GitHub repositories. This allows to easily navigate to specific code segments associated to test failures. Example: https://github.com/Subito-it/Cachi
 - `sourceBasePath`: used to cleanup file paths removing compilation base paths from source code locations. Example: /Users/someuser/path/to/repository will convert locations such as /Users/someuser/path/to/repository/modules/Somefile.swift into /modules/Somefile.swift.
-
+- `xcresultPathToFailedTestName`: This parameter helps to clean up **System Failures** that occur when UI tests fail early in the execution process which results in test name not being included in the .xcresult bundle. Provide a dictionary where the key represents the `.xcresult` file paths, relative to the `sourceBasePath` and the value corresponds to the failed test name in the format `testSuiteName/testName`. Note: this can be used only when having a single `.xcresult` file generated per test. 
 
 # Contributions
 

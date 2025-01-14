@@ -32,13 +32,14 @@ class Parser {
 
         var tests = [ResultBundle.Test]()
 
-        var userInfo: ResultBundle.UserInfo?
         var runDestinations = Set<String>()
         var testsCrashCount = 0
 
         let urlQueue = OperationQueue()
         let testQueue = OperationQueue()
         let syncQueue = DispatchQueue(label: "com.subito.cachi.parsing")
+
+        let userInfo = urls.lazy.compactMap { self.resultBundleUserInfoPlist(in: $0) }.first
 
         for url in urls {
             urlQueue.addOperation { [unowned self] in
@@ -64,9 +65,10 @@ class Parser {
                             return
                         }
 
-                        let extractedTests = extractTests(resultBundleUrl: url, actionTestableSummaries: testPlanSummaries.first?.testableSummaries, actionRecord: action)
+                        var extractedTests = extractTests(resultBundleUrl: url, actionTestableSummaries: testPlanSummaries.first?.testableSummaries, actionRecord: action)
                         let targetDevice = action.runDestination.targetDeviceRecord
                         let testDestination = "\(targetDevice.modelName) (\(targetDevice.operatingSystemVersion))"
+                        extractedTests = resolveSystemFailedTestNames(extractedTests, userInfo: userInfo)
 
                         syncQueue.sync {
                             tests += extractedTests
@@ -76,11 +78,9 @@ class Parser {
                 }
 
                 let invocationRecordCrashCount = optimisticCrashCount(in: invocationRecord)
-                let resultBundleUserInfo = resultBundleUserInfoPlist(in: url)
 
                 syncQueue.sync {
                     testsCrashCount += invocationRecordCrashCount
-                    userInfo = userInfo ?? resultBundleUserInfo
                 }
             }
         }
@@ -296,5 +296,25 @@ class Parser {
         guard let data = try? Data(contentsOf: resultBundleUrl.appendingPathComponent("Info.plist")) else { return nil }
 
         return try? PropertyListDecoder().decode(ResultBundle.UserInfo.self, from: data)
+    }
+
+    private func resolveSystemFailedTestNames(_ tests: [ResultBundle.Test], userInfo: ResultBundle.UserInfo?) -> [ResultBundle.Test] {
+        guard let userInfo else { return tests }
+
+        var updatedTests = [ResultBundle.Test]()
+
+        for test in tests {
+            if test.groupName == "System Failures",
+               let components = userInfo.xcresultPathToFailedTestName?[test.xcresultUrl.lastPathComponent]?.components(separatedBy: "/"),
+               components.count == 2 {
+                let suiteName = components[0]
+                let testName = components[1] + "()"
+                updatedTests.append(test.with(groupName: suiteName, groupIdentifier: suiteName, name: testName)) // groupName and groupIdentifier are expected to match
+            } else {
+                updatedTests.append(test)
+            }
+        }
+
+        return updatedTests
     }
 }

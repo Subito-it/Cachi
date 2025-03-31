@@ -125,7 +125,7 @@ struct TestStatRouteHTML: Routable {
         components.queryItems = [
             .init(name: "id", value: testSummaryIdentifier),
             .init(name: "source", value: source),
-            .init(name: "back_url", value: backUrl.hexadecimalRepresentation),
+            .init(name: "back_url", value: backUrl.hexadecimalRepresentation)
         ]
 
         components.queryItems = components.queryItems?.filter { !($0.value?.isEmpty ?? true) }

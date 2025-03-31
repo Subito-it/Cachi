@@ -55,7 +55,7 @@ struct CoverageRouteHTML: Routable {
         var components = URLComponents(string: path)!
         components.queryItems = [
             .init(name: "id", value: resultIdentifier),
-            .init(name: "back_url", value: backUrl.hexadecimalRepresentation),
+            .init(name: "back_url", value: backUrl.hexadecimalRepresentation)
         ]
 
         components.queryItems = components.queryItems?.filter { !($0.value?.isEmpty ?? true) }
@@ -115,7 +115,7 @@ struct CoverageRouteHTML: Routable {
         var components = URLComponents(string: Self.path)!
         components.queryItems = [
             .init(name: "id", value: result.identifier),
-            .init(name: "back_url", value: backUrl.hexadecimalRepresentation),
+            .init(name: "back_url", value: backUrl.hexadecimalRepresentation)
         ]
 
         components.queryItems = components.queryItems?.filter { !($0.value?.isEmpty ?? true) }
@@ -143,15 +143,14 @@ private extension CoverageRouteHTML {
         init(hexadecimalRepresentation: String?) {
             if let hexadecimalRepresentation,
                let data = Data(hexadecimalRepresentation: hexadecimalRepresentation),
-               let state = try? ZippyJSONDecoder().decode(RouteState.self, from: data)
-            {
-                showFilter = state.showFilter
-                filterQuery = state.filterQuery
-                hideFilters = state.hideFilters
+               let state = try? ZippyJSONDecoder().decode(RouteState.self, from: data) {
+                self.showFilter = state.showFilter
+                self.filterQuery = state.filterQuery
+                self.hideFilters = state.hideFilters
             } else {
-                showFilter = .files
-                filterQuery = ""
-                hideFilters = false
+                self.showFilter = .files
+                self.filterQuery = ""
+                self.hideFilters = false
             }
         }
 

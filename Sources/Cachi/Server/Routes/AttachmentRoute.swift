@@ -45,14 +45,13 @@ struct AttachmentRoute: Routable {
         }
 
         var headers = [
-            ("Content-Type", contentType),
+            ("Content-Type", contentType)
         ]
 
         if let filename = queryItems.first(where: { $0.name == "filename" })?.value?.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed),
            let fileAttributes = try? FileManager.default.attributesOfItem(atPath: destinationPath),
            let bytes = fileAttributes[.size] as? Int64,
-           bytes > 100 * 1024
-        {
+           bytes > 100 * 1_024 {
             headers.append(("Content-Disposition", value: "attachment; filename=\(filename)"))
         }
 
@@ -71,7 +70,7 @@ struct AttachmentRoute: Routable {
             .init(name: "id", value: identifier),
             .init(name: "test_id", value: testSummaryIdentifier),
             .init(name: "filename", value: filename),
-            .init(name: "content_type", value: contentType),
+            .init(name: "content_type", value: contentType)
         ]
 
         components.queryItems = components.queryItems?.filter { !($0.value?.isEmpty ?? true) }

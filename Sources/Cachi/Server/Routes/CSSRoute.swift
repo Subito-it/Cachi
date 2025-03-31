@@ -15,10 +15,9 @@ struct CSSRoute: Routable {
             return Response(status: .notFound, body: Response.Body(stringLiteral: "Not found..."))
         }
 
-        let cssContent: String?
-        switch imageIdentifier {
-        case "main": cssContent = mainCSS()
-        default: cssContent = nil
+        let cssContent: String? = switch imageIdentifier {
+        case "main": mainCSS()
+        default: nil
         }
 
         guard cssContent != nil else {

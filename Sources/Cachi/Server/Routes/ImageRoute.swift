@@ -15,20 +15,19 @@ struct ImageRoute: Routable {
             return Response(status: .notFound, body: Response.Body(stringLiteral: "Not found..."))
         }
 
-        let imageContent: StaticString?
-        switch imageIdentifier {
-        case "imageTestPass": imageContent = imageTestPass()
-        case "imageTestFail": imageContent = imageTestFail()
-        case "imageTestRetried": imageContent = imageTestRetried()
-        case "imageTestGray": imageContent = imageTestGray()
-        case "imageArrowLeft": imageContent = imageArrowLeft()
-        case "imageArrowRight": imageContent = imageArrowRight()
-        case "imageArrowDown": imageContent = imageArrowDown()
-        case "imageLink": imageContent = imageLink()
-        case "imagePlaceholder": imageContent = imagePlaceholder()
-        case "imageAttachment": imageContent = imageAttachment()
-        case "imageEmpty": imageContent = imageEmpty()
-        default: imageContent = nil
+        let imageContent: StaticString? = switch imageIdentifier {
+        case "imageTestPass": imageTestPass()
+        case "imageTestFail": imageTestFail()
+        case "imageTestRetried": imageTestRetried()
+        case "imageTestGray": imageTestGray()
+        case "imageArrowLeft": imageArrowLeft()
+        case "imageArrowRight": imageArrowRight()
+        case "imageArrowDown": imageArrowDown()
+        case "imageLink": imageLink()
+        case "imagePlaceholder": imagePlaceholder()
+        case "imageAttachment": imageAttachment()
+        case "imageEmpty": imageEmpty()
+        default: nil
         }
 
         if let imageContent {

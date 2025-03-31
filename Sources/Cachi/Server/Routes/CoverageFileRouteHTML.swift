@@ -48,7 +48,7 @@ struct CoverageFileRouteHTML: Routable {
         var components = URLComponents(string: path)!
         components.queryItems = [
             .init(name: "id", value: resultIdentifier),
-            .init(name: "path", value: path),
+            .init(name: "path", value: path)
         ]
 
         components.queryItems = components.queryItems?.filter { !($0.value?.isEmpty ?? true) }

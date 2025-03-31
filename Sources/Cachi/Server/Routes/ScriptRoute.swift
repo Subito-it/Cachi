@@ -23,16 +23,14 @@ struct ScriptRoute: Routable {
             let resultBundles = State.shared.resultBundles
 
             if let resultIdentifier = queryItems.first(where: { $0.name == "id" })?.value,
-               let resultBundle = resultBundles.first(where: { $0.identifier == resultIdentifier })
-            {
+               let resultBundle = resultBundles.first(where: { $0.identifier == resultIdentifier }) {
                 scriptContent = scriptFilesCoverage(resultBundle: resultBundle)
             }
         case "coverage-folders":
             let resultBundles = State.shared.resultBundles
 
             if let resultIdentifier = queryItems.first(where: { $0.name == "id" })?.value,
-               let resultBundle = resultBundles.first(where: { $0.identifier == resultIdentifier })
-            {
+               let resultBundle = resultBundles.first(where: { $0.identifier == resultIdentifier }) {
                 scriptContent = scriptFoldersCoverage(resultBundle: resultBundle)
             }
         case "result-stat":
@@ -68,7 +66,7 @@ struct ScriptRoute: Routable {
         var components = URLComponents(string: path)!
         components.queryItems = [
             .init(name: "id", value: resultIdentifier),
-            .init(name: "type", value: type),
+            .init(name: "type", value: type)
         ]
 
         components.queryItems = components.queryItems?.filter { !($0.value?.isEmpty ?? true) }

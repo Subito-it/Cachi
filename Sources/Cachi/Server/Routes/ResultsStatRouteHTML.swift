@@ -69,7 +69,7 @@ struct ResultsStatRouteHTML: Routable {
     static func urlString(backUrl: String) -> String {
         var components = URLComponents(string: path)!
         components.queryItems = [
-            .init(name: "back_url", value: backUrl.hexadecimalRepresentation),
+            .init(name: "back_url", value: backUrl.hexadecimalRepresentation)
         ]
 
         components.queryItems = components.queryItems?.filter { !($0.value?.isEmpty ?? true) }
@@ -172,7 +172,7 @@ struct ResultsStatRouteHTML: Routable {
             .init(name: "target", value: selectedTarget),
             .init(name: "device", value: selectedDevice),
             .init(name: "back_url", value: backUrl.hexadecimalRepresentation),
-            .init(name: type(of: statType).queryName, value: statType.rawValue),
+            .init(name: type(of: statType).queryName, value: statType.rawValue)
         ]
 
         components.queryItems = components.queryItems?.filter { !($0.value?.isEmpty ?? true) }

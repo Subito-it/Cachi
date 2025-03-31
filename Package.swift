@@ -6,14 +6,14 @@ import PackageDescription
 let package = Package(
     name: "Cachi",
     platforms: [
-        .macOS(.v13),
+        .macOS(.v13)
     ],
     dependencies: [
         .package(url: "https://github.com/Subito-it/CachiKit", branch: "master"),
         .package(url: "https://github.com/Subito-it/Bariloche", branch: "master"),
         .package(url: "https://github.com/tcamin/Vaux", branch: "cachi"),
         .package(url: "https://github.com/michaeleisel/ZippyJSON", branch: "master"),
-        .package(url: "https://github.com/vapor/vapor.git", from: "4.77.1"),
+        .package(url: "https://github.com/vapor/vapor.git", from: "4.77.1")
     ],
     targets: [
         .executableTarget(
@@ -23,6 +23,6 @@ let package = Package(
         .testTarget(
             name: "CachiTests",
             dependencies: ["Cachi"]
-        ),
+        )
     ]
 )

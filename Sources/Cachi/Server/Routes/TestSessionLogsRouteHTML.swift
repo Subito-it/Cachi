@@ -82,7 +82,7 @@ struct TestSessionLogsRouteHTML: Routable {
         components.queryItems = [
             .init(name: "id", value: testSummaryIdentifier),
             .init(name: "type", value: type),
-            .init(name: "back_url", value: backUrl.hexadecimalRepresentation),
+            .init(name: "back_url", value: backUrl.hexadecimalRepresentation)
         ]
 
         components.queryItems = components.queryItems?.filter { !($0.value?.isEmpty ?? true) }
@@ -95,12 +95,11 @@ struct TestSessionLogsRouteHTML: Routable {
         let testSubtitle = test.groupName
 
         let testDuration = hoursMinutesSeconds(in: test.duration)
-        let testDetail: String
-        switch test.status {
+        let testDetail = switch test.status {
         case .success:
-            testDetail = "Passed in \(testDuration)"
+            "Passed in \(testDuration)"
         case .failure:
-            testDetail = "Failed in \(testDuration)"
+            "Failed in \(testDuration)"
         }
 
         let testDevice = "\(test.deviceModel) (\(test.deviceOs))"

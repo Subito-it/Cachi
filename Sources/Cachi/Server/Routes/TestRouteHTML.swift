@@ -72,7 +72,7 @@ struct TestRouteHTML: Routable {
         components.queryItems = [
             .init(name: "id", value: testSummaryIdentifier),
             .init(name: "source", value: source),
-            .init(name: "back_url", value: backUrl.hexadecimalRepresentation),
+            .init(name: "back_url", value: backUrl.hexadecimalRepresentation)
         ]
 
         components.queryItems = components.queryItems?.filter { !($0.value?.isEmpty ?? true) }
@@ -85,12 +85,11 @@ struct TestRouteHTML: Routable {
         let testSubtitle = test.groupName
 
         let testDuration = hoursMinutesSeconds(in: test.duration)
-        let testDetail: String
-        switch test.status {
+        let testDetail = switch test.status {
         case .success:
-            testDetail = "Passed in \(testDuration)"
+            "Passed in \(testDuration)"
         case .failure:
-            testDetail = "Failed in \(testDuration)"
+            "Failed in \(testDuration)"
         }
 
         let testDevice = "\(test.deviceModel) (\(test.deviceOs))"
@@ -216,7 +215,7 @@ struct TestRouteHTML: Routable {
                                                     .class(rowData.hasChildren ? "bold" : "")
                                                     .style([
                                                         StyleAttribute(key: "white-space", value: "pre-line"),
-                                                        StyleAttribute(key: "margin-bottom", value: "15px"),
+                                                        StyleAttribute(key: "margin-bottom", value: "15px")
                                                     ])
                                             } else {
                                                 div { rowData.title }
@@ -258,20 +257,18 @@ struct TestRouteHTML: Routable {
                 tableData {
                     if let testSummaryIdentifier = test.summaryIdentifier {
                         if let videoCaptureAttachment = videoCapture?.attachment {
-                            return
-                                video {
-                                    source(mediaURL: VideoCaptureRoute.urlString(identifier: videoCaptureAttachment.identifier, resultIdentifier: result.identifier, testSummaryIdentifier: testSummaryIdentifier, filename: videoCaptureAttachment.filename, contentType: videoCaptureAttachment.contentType))
-                                }.id("screen-capture")
+                            video {
+                                source(mediaURL: VideoCaptureRoute.urlString(identifier: videoCaptureAttachment.identifier, resultIdentifier: result.identifier, testSummaryIdentifier: testSummaryIdentifier, filename: videoCaptureAttachment.filename, contentType: videoCaptureAttachment.contentType))
+                            }.id("screen-capture")
                         } else if let attachment = rowsData.compactMap(\.attachment).first(where: { $0.captureMedia.available }) {
-                            return
-                                div {
-                                    image(url: AttachmentRoute.urlString(identifier: attachment.identifier, resultIdentifier: result.identifier, testSummaryIdentifier: testSummaryIdentifier, filename: attachment.filename, contentType: attachment.contentType)).id("screen-capture")
-                                }
+                            div {
+                                image(url: AttachmentRoute.urlString(identifier: attachment.identifier, resultIdentifier: result.identifier, testSummaryIdentifier: testSummaryIdentifier, filename: attachment.filename, contentType: attachment.contentType)).id("screen-capture")
+                            }
                         } else {
-                            return image(url: ImageRoute.emptyImageUrl())
+                            image(url: ImageRoute.emptyImageUrl())
                         }
                     } else {
-                        return ""
+                        ""
                     }
                 }.id("capture-column")
             }
@@ -283,7 +280,7 @@ struct TestRouteHTML: Routable {
         components.queryItems = [
             .init(name: "id", value: test.summaryIdentifier),
             .init(name: "source", value: source),
-            .init(name: "back_url", value: backUrl.hexadecimalRepresentation),
+            .init(name: "back_url", value: backUrl.hexadecimalRepresentation)
         ]
 
         components.queryItems = components.queryItems?.filter { !($0.value?.isEmpty ?? true) }

@@ -1,9 +1,9 @@
 extension ResultBundle {
     func htmlTitle() -> String {
         if let branchName = userInfo?.branchName, let commitHash = userInfo?.commitHash {
-            return "\(branchName) - \(commitHash)"
+            "\(branchName) - \(commitHash)"
         } else {
-            return identifier
+            identifier
         }
     }
 
@@ -67,17 +67,17 @@ extension ResultBundle {
 
     func htmlStatusTitle() -> String {
         if testsUniquelyFailed.count > 0 {
-            return "Failed"
+            "Failed"
         } else {
-            return "Passed"
+            "Passed"
         }
     }
 
     func htmlTextColor() -> String {
         if testsUniquelyFailed.count > 0 {
-            return "color-error"
+            "color-error"
         } else {
-            return "color-text"
+            "color-text"
         }
     }
 }

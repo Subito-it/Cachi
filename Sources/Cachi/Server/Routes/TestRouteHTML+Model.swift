@@ -147,6 +147,12 @@ extension TestRouteHTML.TableRowModel {
                 self.contentType = "text/plain"
                 self.url = ImageRoute.attachmentImageUrl()
                 self.width = 14
+            case "public.log", "com.apple.log":
+                self.filename = "\(attachment.name ?? "log").log"
+                self.title = filename
+                self.contentType = "text/plain;charset=utf-8"
+                self.url = ImageRoute.attachmentImageUrl()
+                self.width = 14
             case "public.json":
                 self.title = (attachment.name ?? "User data") + ".json"
                 self.filename = attachment.filename ?? "JSON \(timestampString).json"

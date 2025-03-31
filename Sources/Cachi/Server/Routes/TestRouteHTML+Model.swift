@@ -195,6 +195,7 @@ extension TestRouteHTML.TableRowModel {
                 // screen capture where used did interact with the UI
                 return nil
             default:
+                assertionFailure("Unsupported attachment identifier: \(attachment.uniformTypeIdentifier)")
                 return nil
             }
         }

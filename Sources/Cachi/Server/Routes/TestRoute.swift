@@ -19,8 +19,7 @@ struct TestRoute: Routable {
         defer { os_log("Result bundle with id '%@' fetched in %fms", log: .default, type: .info, testSummaryIdentifier, benchmarkStop(benchId)) }
 
         if let summaries = State.shared.testActionActivitySummaries(summaryIdentifier: testSummaryIdentifier),
-           let bodyData = try? JSONEncoder().encode(summaries)
-        {
+           let bodyData = try? JSONEncoder().encode(summaries) {
             return Response(body: Response.Body(data: bodyData))
         } else {
             return Response(status: .internalServerError, body: Response.Body(stringLiteral: "Ouch..."))

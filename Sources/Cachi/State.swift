@@ -50,8 +50,8 @@ class State {
     private let operationQueue = OperationQueue()
 
     init() {
-        _resultBundles = []
-        _state = .ready
+        self._resultBundles = []
+        self._state = .ready
     }
 
     func reset() {

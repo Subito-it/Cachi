@@ -40,7 +40,7 @@ struct XcResultDownloadRoute: Routable {
         let headers = [
             ("Content-Type", "application/zip"),
             ("Accept-Ranges", "bytes"),
-            ("Content-Disposition", value: "attachment; filename=\(filename)"),
+            ("Content-Disposition", value: "attachment; filename=\(filename)")
         ]
 
         let response = req.fileio.streamFile(at: destinationUrl.path(percentEncoded: false))
@@ -54,7 +54,7 @@ struct XcResultDownloadRoute: Routable {
     static func urlString(testSummaryIdentifier: String?) -> String {
         var components = URLComponents(string: path)!
         components.queryItems = [
-            .init(name: "id", value: testSummaryIdentifier),
+            .init(name: "id", value: testSummaryIdentifier)
         ]
 
         components.queryItems = components.queryItems?.filter { !($0.value?.isEmpty ?? true) }
@@ -99,8 +99,7 @@ public extension URL {
         // for the duration of the block, so it needs to be copied out
         coord.coordinate(readingItemAt: srcDir,
                          options: NSFileCoordinator.ReadingOptions.forUploading,
-                         error: &readError)
-        {
+                         error: &readError) {
             (zippedURL: URL) in
             readSucceeded = true
             // assert: read succeeded

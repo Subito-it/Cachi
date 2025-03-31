@@ -59,7 +59,7 @@ struct VideoCaptureRoute: Routable {
 
         var headers = [
             ("Content-Type", contentType),
-            ("Accept-Ranges", "bytes"),
+            ("Accept-Ranges", "bytes")
         ]
         if let filename = queryItems.first(where: { $0.name == "filename" })?.value?.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) {
             headers.append(("Content-Disposition", value: "attachment; filename=\(filename)"))
@@ -80,7 +80,7 @@ struct VideoCaptureRoute: Routable {
             .init(name: "id", value: identifier),
             .init(name: "test_id", value: testSummaryIdentifier),
             .init(name: "filename", value: filename),
-            .init(name: "content_type", value: contentType),
+            .init(name: "content_type", value: contentType)
         ]
 
         components.queryItems = components.queryItems?.filter { !($0.value?.isEmpty ?? true) }
@@ -139,9 +139,9 @@ private extension VideoCaptureRoute {
             step.title = aggregatedSteps.enumerated().map { index, step in
                 switch index {
                 case 0:
-                    return step.title
+                    step.title
                 default:
-                    return String(repeating: " ", count: index) + "· \(step.title)"
+                    String(repeating: " ", count: index) + "· \(step.title)"
                 }
 
             }.joined(separator: "\n")
@@ -160,7 +160,7 @@ private extension VideoCaptureRoute {
             "::cue {",
             "  font-size: 80%",
             "}",
-            "",
+            ""
         ]
 
         let addStep: (String, Double, Double) -> Void = { title, startTime, stopTime in

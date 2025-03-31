@@ -66,7 +66,7 @@ struct ResultRouteHTML: Routable {
         var components = URLComponents(string: path)!
         components.queryItems = [
             .init(name: "id", value: resultIdentifier),
-            .init(name: "back_url", value: backUrl.hexadecimalRepresentation),
+            .init(name: "back_url", value: backUrl.hexadecimalRepresentation)
         ]
 
         components.queryItems = components.queryItems?.filter { !($0.value?.isEmpty ?? true) }
@@ -183,16 +183,15 @@ struct ResultRouteHTML: Routable {
     }
 
     private func resultsTableHTML(result: ResultBundle, state: RouteState, backUrl: String) -> HTML {
-        var tests: [ResultBundle.Test]
-        switch state.showFilter {
+        var tests: [ResultBundle.Test] = switch state.showFilter {
         case .failed:
-            tests = result.testsFailedExcludingRetries()
+            result.testsFailedExcludingRetries()
         case .passed:
-            tests = result.testsPassed
+            result.testsPassed
         case .retried:
-            tests = result.testsFailedRetring
+            result.testsFailedRetring
         default:
-            tests = result.tests
+            result.tests
         }
 
         if state.showSystemFailures, state.showFilter != .retried {
@@ -269,7 +268,7 @@ struct ResultRouteHTML: Routable {
         var components = URLComponents(string: path)!
         components.queryItems = [
             .init(name: "id", value: result.identifier),
-            .init(name: "back_url", value: backUrl.hexadecimalRepresentation),
+            .init(name: "back_url", value: backUrl.hexadecimalRepresentation)
         ]
 
         components.queryItems = components.queryItems?.filter { !($0.value?.isEmpty ?? true) }
@@ -301,15 +300,14 @@ private extension ResultRouteHTML {
         init(hexadecimalRepresentation: String?) {
             if let hexadecimalRepresentation,
                let data = Data(hexadecimalRepresentation: hexadecimalRepresentation),
-               let state = try? ZippyJSONDecoder().decode(RouteState.self, from: data)
-            {
-                showFilter = state.showFilter
-                showFailureMessage = state.showFailureMessage
-                showSystemFailures = state.showSystemFailures
+               let state = try? ZippyJSONDecoder().decode(RouteState.self, from: data) {
+                self.showFilter = state.showFilter
+                self.showFailureMessage = state.showFailureMessage
+                self.showSystemFailures = state.showSystemFailures
             } else {
-                showFilter = .all
-                showFailureMessage = false
-                showSystemFailures = false
+                self.showFilter = .all
+                self.showFailureMessage = false
+                self.showSystemFailures = false
             }
         }
 

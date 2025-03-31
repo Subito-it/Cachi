@@ -163,11 +163,10 @@ private extension ResultsRouteHTML {
         init(hexadecimalRepresentation: String?) {
             if let hexadecimalRepresentation,
                let data = Data(hexadecimalRepresentation: hexadecimalRepresentation),
-               let state = try? ZippyJSONDecoder().decode(RouteState.self, from: data)
-            {
-                showSystemFailures = state.showSystemFailures
+               let state = try? ZippyJSONDecoder().decode(RouteState.self, from: data) {
+                self.showSystemFailures = state.showSystemFailures
             } else {
-                showSystemFailures = false
+                self.showSystemFailures = false
             }
         }
 

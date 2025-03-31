@@ -9,13 +9,13 @@ class StreamReader {
     private let delimPattern: Data
     private var isAtEOF: Bool = false
 
-    init?(url: URL, delimeter: String = "\n", encoding: String.Encoding = .utf8, chunkSize: Int = 4096) {
+    init?(url: URL, delimeter: String = "\n", encoding: String.Encoding = .utf8, chunkSize: Int = 4_096) {
         guard let fileHandle = try? FileHandle(forReadingFrom: url) else { return nil }
         self.fileHandle = fileHandle
         self.chunkSize = chunkSize
         self.encoding = encoding
-        buffer = Data(capacity: chunkSize)
-        delimPattern = delimeter.data(using: .utf8)!
+        self.buffer = Data(capacity: chunkSize)
+        self.delimPattern = delimeter.data(using: .utf8)!
     }
 
     deinit {

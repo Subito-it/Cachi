@@ -36,7 +36,7 @@ struct Server {
             TestStatRouteHTML(baseUrl: baseUrl, depth: parseDepth),
             VersionRoute(),
             VideoCaptureRoute(),
-            XcResultDownloadRoute(),
+            XcResultDownloadRoute()
         ]
 
         routes.append(HelpRoute(routes: routes))

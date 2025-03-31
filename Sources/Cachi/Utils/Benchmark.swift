@@ -15,5 +15,5 @@ func benchmarkStop(_ uuid: String) -> TimeInterval {
         benchmark[uuid] = nil
         return start
     }
-    return (CFAbsoluteTimeGetCurrent() - start) * 1000
+    return (CFAbsoluteTimeGetCurrent() - start) * 1_000
 }

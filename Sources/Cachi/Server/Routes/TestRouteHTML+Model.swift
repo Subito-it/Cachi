@@ -95,8 +95,8 @@ extension TestRouteHTML.TableRowModel {
 
             var available: Bool {
                 switch self {
-                case .none: return false
-                case .child, .firstInGroup: return true
+                case .none: false
+                case .child, .firstInGroup: true
                 }
             }
         }
@@ -132,8 +132,8 @@ extension TestRouteHTML.TableRowModel {
         init?(from attachment: ActionTestAttachment) {
             guard let identifier = attachment.payloadRef?.id else { return nil }
             self.identifier = identifier
-            captureMedia = ["kXCTAttachmentLegacyScreenImageData", "kXCTAttachmentScreenRecording"].contains(attachment.name) ? .firstInGroup : .none
-            timestamp = attachment.timestamp?.timeIntervalSince1970
+            self.captureMedia = ["kXCTAttachmentLegacyScreenImageData", "kXCTAttachmentScreenRecording"].contains(attachment.name) ? .firstInGroup : .none
+            self.timestamp = attachment.timestamp?.timeIntervalSince1970
 
             var timestampString = ""
             if let timestamp = attachment.timestamp {
@@ -142,44 +142,44 @@ extension TestRouteHTML.TableRowModel {
 
             switch attachment.uniformTypeIdentifier {
             case "public.plain-text", "public.utf8-plain-text", "public.text":
-                filename = attachment.filename ?? "User data\(timestampString).txt"
-                title = filename
-                contentType = "text/plain"
-                url = ImageRoute.attachmentImageUrl()
-                width = 14
+                self.filename = attachment.filename ?? "User data\(timestampString).txt"
+                self.title = filename
+                self.contentType = "text/plain"
+                self.url = ImageRoute.attachmentImageUrl()
+                self.width = 14
             case "public.json":
-                title = (attachment.name ?? "User data") + ".json"
-                filename = attachment.filename ?? "JSON \(timestampString).json"
-                contentType = "application/json"
-                url = ImageRoute.attachmentImageUrl()
-                width = 14
+                self.title = (attachment.name ?? "User data") + ".json"
+                self.filename = attachment.filename ?? "JSON \(timestampString).json"
+                self.contentType = "application/json"
+                self.url = ImageRoute.attachmentImageUrl()
+                self.width = 14
             case "public.jpeg":
                 let title = attachment.name == "kXCTAttachmentLegacyScreenImageData" ? "Automatic Screenshot" : (attachment.name ?? "User image attachment")
                 self.title = title
-                filename = "\(title)\(timestampString).jpg"
-                contentType = "image/jpeg"
-                url = ImageRoute.placeholderImageUrl()
-                width = 18
+                self.filename = "\(title)\(timestampString).jpg"
+                self.contentType = "image/jpeg"
+                self.url = ImageRoute.placeholderImageUrl()
+                self.width = 18
             case "public.png":
                 let title = attachment.name == "kXCTAttachmentLegacyScreenImageData" ? "Automatic Screenshot" : (attachment.name ?? "User image attachment")
                 self.title = title
-                filename = "\(title)\(timestampString).png"
-                contentType = "image/png"
-                url = ImageRoute.placeholderImageUrl()
-                width = 18
+                self.filename = "\(title)\(timestampString).png"
+                self.contentType = "image/png"
+                self.url = ImageRoute.placeholderImageUrl()
+                self.width = 18
             case "public.data":
-                title = attachment.name ?? "Binary data"
-                filename = attachment.filename ?? "Data\(timestampString).bin"
-                contentType = "text/plain"
-                url = ImageRoute.attachmentImageUrl()
-                width = 14
+                self.title = attachment.name ?? "Binary data"
+                self.filename = attachment.filename ?? "Data\(timestampString).bin"
+                self.contentType = "text/plain"
+                self.url = ImageRoute.attachmentImageUrl()
+                self.width = 14
             case "public.mpeg-4" where attachment.name == "kXCTAttachmentScreenRecording":
                 let title = "Screen recording"
                 self.title = "\(title).mp4"
-                filename = "\(title)\(timestampString).mp4"
-                contentType = "video/mp4"
-                url = ImageRoute.attachmentImageUrl()
-                width = 14
+                self.filename = "\(title)\(timestampString).mp4"
+                self.contentType = "video/mp4"
+                self.url = ImageRoute.attachmentImageUrl()
+                self.width = 14
             case "com.apple.dt.xctest.element-snapshot":
                 // This is an unsupported key archived snapshot of the entire view hierarchy of the app
                 return nil

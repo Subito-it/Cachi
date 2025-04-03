@@ -13,7 +13,7 @@ let package = Package(
         .package(url: "https://github.com/Subito-it/Bariloche", branch: "master"),
         .package(url: "https://github.com/tcamin/Vaux", branch: "cachi"),
         .package(url: "https://github.com/michaeleisel/ZippyJSON", branch: "master"),
-        .package(url: "https://github.com/vapor/vapor.git", from: "4.77.1")
+        .package(url: "https://github.com/vapor/vapor.git", from: "4.114.1")
     ],
     targets: [
         .executableTarget(

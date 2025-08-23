@@ -20,9 +20,11 @@ struct ResultBundle: Codable {
         var average_s: TimeInterval
         var success_min_s: Double
         var success_max_s: Double
-        var success_ratio: Double
         var success_count: Int
+        var failure_min_s: Double
+        var failure_max_s: Double
         var failure_count: Int
+        var success_ratio: Double
         var execution_sequence: String
     }
 
@@ -106,7 +108,8 @@ struct ResultBundle: Codable {
                endDate == nil,
                sourceBasePath == nil,
                githubBaseUrl == nil,
-               xcresultPathToFailedTestName == nil {
+               xcresultPathToFailedTestName == nil
+            {
                 throw Error.empty
             }
         }

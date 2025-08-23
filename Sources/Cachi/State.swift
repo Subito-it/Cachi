@@ -239,6 +239,8 @@ class State {
             var failureDuration: Double = 0
             var minSuccessDuration: Double = .greatestFiniteMagnitude
             var maxSuccessDuration: Double = 0
+            var minFailureDuration: Double = .greatestFiniteMagnitude
+            var maxFailureDuration: Double = 0
 
             init(groupName: String, testName: String, firstSummaryIdentifier: String) {
                 self.groupName = groupName
@@ -275,6 +277,8 @@ class State {
                 testStat.executionSequence.append(false)
                 testStat.failureCount += 1
                 testStat.failureDuration += test.duration
+                testStat.minFailureDuration = min(testStat.minFailureDuration, test.duration)
+                testStat.maxFailureDuration = max(testStat.maxFailureDuration, test.duration)
             }
         }
 
@@ -301,9 +305,11 @@ class State {
                                                     average_s: averageDuration,
                                                     success_min_s: stat.minSuccessDuration == .greatestFiniteMagnitude ? 0 : stat.minSuccessDuration,
                                                     success_max_s: stat.maxSuccessDuration,
-                                                    success_ratio: successRatio,
                                                     success_count: stat.successCount,
+                                                    failure_min_s: stat.minFailureDuration,
+                                                    failure_max_s: stat.maxFailureDuration,
                                                     failure_count: stat.failureCount,
+                                                    success_ratio: successRatio,
                                                     execution_sequence: stat.executionSequence.map { $0 ? "S" : "F" }.joined())
             result.append(resultStat)
         }
@@ -316,7 +322,7 @@ class State {
         case .fastest:
             return result.sorted(by: { $0.average_s < $1.average_s })
         case .slowestFlaky:
-            return result.sorted(by: { $0.average_s / pow($0.success_ratio + Double.leastNonzeroMagnitude, 2.0) > $1.average_s / pow($1.success_ratio + Double.leastNonzeroMagnitude, 2.0) })
+            return result.sorted(by: { ($0.success_max_s + $0.failure_max_s) * (1.0 + Double($0.failure_count)) > ($1.success_max_s + $1.failure_max_s) * (1.0 + Double($1.failure_count)) })
         }
     }
 

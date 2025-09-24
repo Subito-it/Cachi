@@ -1,4 +1,3 @@
-import CachiKit
 import Foundation
 import os
 import Vapor
@@ -26,23 +25,14 @@ struct AttachmentRoute: Routable {
         let benchId = benchmarkStart()
         defer { os_log("Attachment with id '%@' in result bundle '%@' fetched in %fms", log: .default, type: .info, attachmentIdentifier, resultIdentifier, benchmarkStop(benchId)) }
 
-        guard let test = State.shared.test(summaryIdentifier: testSummaryIdentifier) else {
+        guard let destinationUrl = AttachmentFileLocator.exportedFileUrl(resultIdentifier: resultIdentifier,
+                                                                         testSummaryIdentifier: testSummaryIdentifier,
+                                                                         attachmentIdentifier: attachmentIdentifier) else {
             return Response(status: .notFound, body: Response.Body(stringLiteral: "Not found..."))
         }
 
-        let destinationUrl = Cachi.temporaryFolderUrl.appendingPathComponent(resultIdentifier).appendingPathComponent(attachmentIdentifier.md5Value)
         let destinationPath = destinationUrl.path
         let filemanager = FileManager.default
-
-        if !filemanager.fileExists(atPath: destinationPath) {
-            let cachi = CachiKit(url: test.xcresultUrl)
-            try? filemanager.createDirectory(at: destinationUrl.deletingLastPathComponent(), withIntermediateDirectories: true, attributes: nil)
-            try? cachi.export(identifier: attachmentIdentifier, destinationPath: destinationPath)
-        }
-
-        guard filemanager.fileExists(atPath: destinationPath) else {
-            return Response(status: .notFound, body: Response.Body(stringLiteral: "Not found..."))
-        }
 
         var headers = [
             ("Content-Type", contentType)

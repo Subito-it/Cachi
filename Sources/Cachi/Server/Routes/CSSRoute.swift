@@ -405,6 +405,10 @@ struct CSSRoute: Routable {
                     position: sticky;
                     top: 0;
                 }
+
+                .selected {
+                    background: #e3f2fd;        
+                }
         """
     }
 }

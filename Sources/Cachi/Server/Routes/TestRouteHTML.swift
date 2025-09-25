@@ -10,6 +10,12 @@ struct TestRouteHTML: Routable {
     let method = HTTPMethod.GET
     let description: String = "Test details in html (pass identifier)"
 
+    private let attachmentViewers: [String: AttachmentViewerConfiguration]
+
+    init(attachmentViewers: [String: AttachmentViewerConfiguration] = [:]) {
+        self.attachmentViewers = attachmentViewers
+    }
+
     func respond(to req: Request) throws -> Response {
         os_log("HTML test stats request received", log: .default, type: .info)
 
@@ -195,7 +201,10 @@ struct TestRouteHTML: Routable {
                                                 }
                                             }
                                         } else {
-                                            return link(url: AttachmentRoute.urlString(identifier: attachment.identifier, resultIdentifier: result.identifier, testSummaryIdentifier: testSummaryIdentifier, filename: attachment.filename, contentType: attachment.contentType)) {
+                                            let destinationUrl = attachmentDestinationUrl(for: attachment,
+                                                                                          resultIdentifier: result.identifier,
+                                                                                          testSummaryIdentifier: testSummaryIdentifier)
+                                            return link(url: destinationUrl) {
                                                 div { rowData.title }.class("color-subtext").inlineBlock()
                                                 image(url: attachment.url)
                                                     .iconStyleAttributes(width: attachment.width)
@@ -286,5 +295,35 @@ struct TestRouteHTML: Routable {
         components.queryItems = components.queryItems?.filter { !($0.value?.isEmpty ?? true) }
 
         return components.url!.absoluteString
+    }
+
+    private func attachmentDestinationUrl(for attachment: TableRowModel.Attachment,
+                                          resultIdentifier: String,
+                                          testSummaryIdentifier: String) -> String {
+        guard !attachmentViewers.isEmpty,
+              let filenameExtension = attachment.filename.split(separator: ".").last?.lowercased() else {
+            return AttachmentRoute.urlString(identifier: attachment.identifier,
+                                             resultIdentifier: resultIdentifier,
+                                             testSummaryIdentifier: testSummaryIdentifier,
+                                             filename: attachment.filename,
+                                             contentType: attachment.contentType)
+        }
+
+        let normalizedExtension = String(filenameExtension)
+        guard let viewer = attachmentViewers[normalizedExtension] else {
+            return AttachmentRoute.urlString(identifier: attachment.identifier,
+                                             resultIdentifier: resultIdentifier,
+                                             testSummaryIdentifier: testSummaryIdentifier,
+                                             filename: attachment.filename,
+                                             contentType: attachment.contentType)
+        }
+
+        return AttachmentViewerRoute.urlString(viewerExtension: viewer.fileExtension,
+                                               resultIdentifier: resultIdentifier,
+                                               testSummaryIdentifier: testSummaryIdentifier,
+                                               attachmentIdentifier: attachment.identifier,
+                                               filename: attachment.filename,
+                                               title: attachment.title,
+                                               contentType: attachment.contentType)
     }
 }

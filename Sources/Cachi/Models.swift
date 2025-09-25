@@ -108,8 +108,7 @@ struct ResultBundle: Codable {
                endDate == nil,
                sourceBasePath == nil,
                githubBaseUrl == nil,
-               xcresultPathToFailedTestName == nil
-            {
+               xcresultPathToFailedTestName == nil {
                 throw Error.empty
             }
         }

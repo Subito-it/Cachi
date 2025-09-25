@@ -27,12 +27,12 @@ struct AttachmentRoute: Routable {
 
         guard let destinationUrl = AttachmentFileLocator.exportedFileUrl(resultIdentifier: resultIdentifier,
                                                                          testSummaryIdentifier: testSummaryIdentifier,
-                                                                         attachmentIdentifier: attachmentIdentifier) else {
+                                                                         attachmentIdentifier: attachmentIdentifier)
+        else {
             return Response(status: .notFound, body: Response.Body(stringLiteral: "Not found..."))
         }
 
         let destinationPath = destinationUrl.path
-        let filemanager = FileManager.default
 
         var headers = [
             ("Content-Type", contentType)

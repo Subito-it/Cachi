@@ -1,7 +1,7 @@
 import CachiKit
 import Foundation
 
-struct AttachmentFileLocator {
+enum AttachmentFileLocator {
     static func exportedFileUrl(resultIdentifier: String, testSummaryIdentifier: String, attachmentIdentifier: String) -> URL? {
         guard let test = State.shared.test(summaryIdentifier: testSummaryIdentifier) else {
             return nil

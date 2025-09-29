@@ -82,7 +82,7 @@ struct AttachmentViewerRoute: Routable {
             <title>\(escapedTitle)</title>
           </head>
           <body>
-            <div id="app"></div>
+            <div id="app" class="main-container background"></div>
             <noscript>This app requires JavaScript.</noscript>
             <script>
               (function () {

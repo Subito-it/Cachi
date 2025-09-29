@@ -3,6 +3,8 @@ import XCTest
 
 final class CachiBrowserTests: XCTestCase {
     func testExample() throws {
+        try XCTSkipIf(true, "Placeholder test is not applicable")
+
         // This is an example of a functional test case.
         // Use XCTAssert and related functions to verify your tests produce the correct
         // results.

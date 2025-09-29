@@ -6,12 +6,16 @@ struct Server {
     private let port: Int
     private let hostname = "0.0.0.0"
     private let routes: [Routable]
+    private let attachmentViewers: [String: AttachmentViewerConfiguration]
 
-    init(port: Int, baseUrl: URL, parseDepth: Int, mergeResults: Bool) {
+    init(port: Int, baseUrl: URL, parseDepth: Int, mergeResults: Bool, attachmentViewers: [AttachmentViewerConfiguration]) {
         self.port = port
+        self.attachmentViewers = Dictionary(uniqueKeysWithValues: attachmentViewers.map { ($0.fileExtension, $0) })
 
         var routes: [Routable] = [
             AttachmentRoute(),
+            AttachmentViewerRoute(attachmentViewers: self.attachmentViewers),
+            AttachmentViewerScriptRoute(attachmentViewers: self.attachmentViewers),
             CoverageFileRouteHTML(),
             CoverageRoute(),
             CoverageRouteHTML(),
@@ -30,7 +34,7 @@ struct Server {
             ResultsStatRouteHTML(),
             ScriptRoute(),
             TestRoute(),
-            TestRouteHTML(),
+            TestRouteHTML(attachmentViewers: self.attachmentViewers),
             TestSessionLogsRouteHTML(),
             TestStatRoute(),
             TestStatRouteHTML(baseUrl: baseUrl, depth: parseDepth),

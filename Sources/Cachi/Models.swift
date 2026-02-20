@@ -55,6 +55,7 @@ struct ResultBundle: Codable {
         var identifier: String
         var routeIdentifier: String
         var url: String
+        var html_url: String
         var targetName: String
         var groupName: String
         var groupIdentifier: String

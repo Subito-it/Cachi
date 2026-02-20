@@ -262,6 +262,7 @@ class Parser {
                                              identifier: testIdentifier,
                                              routeIdentifier: routeIdentifier,
                                              url: "\(TestRoute.path)?\(summaryIdentifier)",
+                                             html_url: "\(TestRouteHTML.path)?id=\(summaryIdentifier)",
                                              targetName: targetName ?? "",
                                              groupName: group.name,
                                              groupIdentifier: group.identifier,

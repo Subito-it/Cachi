@@ -327,8 +327,8 @@ class State {
     }
 
     func testStats(md5Identifier: String) -> ResultBundle.Test.Stats {
-        var successfulTests = ArraySlice<ResultBundle.Test>()
-        var failedTests = ArraySlice<ResultBundle.Test>()
+        var successfulTests: [ResultBundle.Test] = []
+        var failedTests: [ResultBundle.Test] = []
 
         let sortedResultBundles = resultBundles.sorted { $0.testStartDate > $1.testStartDate }
 
@@ -338,25 +338,25 @@ class State {
             successfulTests += matchingTests.filter { $0.status == .success }
             failedTests += matchingTests.filter { $0.status == .failure }
 
-            if successfulTests.count + failedTests.count > 10 {
+            if successfulTests.count + failedTests.count > 50 {
                 break
             }
         }
 
-        successfulTests = successfulTests.prefix(3)
-        failedTests = failedTests.prefix(3)
+        let averageSuccessfulTests = successfulTests.prefix(3)
+        let averageFailedTests = failedTests.prefix(3)
 
-        let successfulCount = Double(successfulTests.count)
-        let failureCount = Double(failedTests.count)
+        let successfulCount = Double(averageSuccessfulTests.count)
+        let failureCount = Double(averageFailedTests.count)
 
         var successTotal: Double?
         if successfulCount > 0 {
-            successTotal = successfulTests.reduce(0) { $0 + $1.duration }
+            successTotal = averageSuccessfulTests.reduce(0) { $0 + $1.duration }
         }
 
         var failureTotal: Double?
         if failureCount > 0 {
-            failureTotal = failedTests.reduce(0) { $0 + $1.duration }
+            failureTotal = averageFailedTests.reduce(0) { $0 + $1.duration }
         }
 
         var executionAverage = 1.0
@@ -374,14 +374,14 @@ class State {
             failureAverage = failureTotal! / failureCount
         }
 
-        let allTests = successfulTests + failedTests
+        let allTests = (successfulTests + failedTests).sorted { $0.testStartDate > $1.testStartDate }
 
         let groupNames = Set(allTests.map(\.groupName))
         let testNames = Set(allTests.map(\.name))
         let deviceModels = Set(allTests.map(\.deviceModel))
         let deviceOses = Set(allTests.map(\.deviceOs))
 
-        guard groupNames.count == 1, testNames.count == 1, deviceModels.count == 1, deviceModels.count == 1 else {
+        guard groupNames.count == 1, testNames.count == 1, deviceModels.count == 1, deviceOses.count == 1 else {
             return ResultBundle.Test.Stats(group_name: "",
                                            test_name: "",
                                            device_model: "",
@@ -390,7 +390,8 @@ class State {
                                            success_average_s: -1,
                                            failure_average_s: -1,
                                            success_count: 0,
-                                           failure_count: 0)
+                                           failure_count: 0,
+                                           tests: [])
         }
 
         return ResultBundle.Test.Stats(group_name: groupNames.first!,
@@ -400,8 +401,9 @@ class State {
                                        average_s: executionAverage,
                                        success_average_s: successAverage,
                                        failure_average_s: failureAverage,
-                                       success_count: Int(successfulCount),
-                                       failure_count: Int(failureCount))
+                                       success_count: successfulTests.count,
+                                       failure_count: failedTests.count,
+                                       tests: allTests)
     }
 
     func dumpAttachments(in test: ResultBundle.Test, cachedActions: [ActionTestActivitySummary]?) {

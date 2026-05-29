@@ -45,6 +45,7 @@ struct ResultBundle: Codable {
             var failure_average_s: Double?
             var success_count: Int
             var failure_count: Int
+            var tests: [Test]
         }
 
         enum Status: String, Codable {

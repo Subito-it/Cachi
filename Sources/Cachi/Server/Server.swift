@@ -37,6 +37,7 @@ struct Server {
             TestRouteHTML(attachmentViewers: self.attachmentViewers),
             TestSessionLogsRouteHTML(),
             TestStatRoute(),
+            TestStatRouteV2(),
             TestStatRouteHTML(baseUrl: baseUrl, depth: parseDepth),
             VersionRoute(),
             VideoCaptureRoute(),

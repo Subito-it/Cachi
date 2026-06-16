@@ -1,0 +1,152 @@
+import CommonCrypto
+import Foundation
+import os
+
+/// Content-addressed blob store for large binaries kept out of SQLite: transcoded videos,
+/// gzipped session logs, and (if ever used) screenshots. Files live under
+/// `<results-path>/.cachi-data/blobs/<ab>/<full-hash>` keyed by the SHA-256 of their bytes,
+/// so identical content (e.g. the same failure frame across retries) is stored once.
+///
+/// SQLite holds the manifest (`blob` table + `*.blob_hash` columns); this type owns the bytes.
+final class BlobStore {
+    enum Kind: String {
+        case video
+        case sessionLog
+        case screenshot
+        case attachment
+    }
+
+    private let blobsUrl: URL
+    private let database: Database
+    private let writeLock = NSLock()
+
+    init(baseUrl: URL, database: Database) {
+        blobsUrl = Cachi.blobsUrl(baseUrl: baseUrl)
+        self.database = database
+        try? FileManager.default.createDirectory(at: blobsUrl, withIntermediateDirectories: true)
+    }
+
+    // MARK: - Hashing
+
+    static func hash(of data: Data) -> String {
+        var digest = [UInt8](repeating: 0, count: Int(CC_SHA256_DIGEST_LENGTH))
+        data.withUnsafeBytes { (buffer: UnsafeRawBufferPointer) in
+            _ = CC_SHA256(buffer.baseAddress, CC_LONG(buffer.count), &digest)
+        }
+        return digest.map { String(format: "%02x", $0) }.joined()
+    }
+
+    static func hash(ofFileAt url: URL) -> String? {
+        guard let stream = InputStream(url: url) else { return nil }
+        stream.open()
+        defer { stream.close() }
+
+        var context = CC_SHA256_CTX()
+        CC_SHA256_Init(&context)
+
+        let bufferSize = 1 << 20
+        var buffer = [UInt8](repeating: 0, count: bufferSize)
+        while stream.hasBytesAvailable {
+            let read = stream.read(&buffer, maxLength: bufferSize)
+            if read < 0 { return nil }
+            if read == 0 { break }
+            CC_SHA256_Update(&context, buffer, CC_LONG(read))
+        }
+
+        var digest = [UInt8](repeating: 0, count: Int(CC_SHA256_DIGEST_LENGTH))
+        CC_SHA256_Final(&digest, &context)
+        return digest.map { String(format: "%02x", $0) }.joined()
+    }
+
+    // MARK: - Paths
+
+    private func relativePath(for hash: String) -> String {
+        let prefix = String(hash.prefix(2))
+        return "\(prefix)/\(hash)"
+    }
+
+    func url(forHash hash: String) -> URL {
+        blobsUrl.appendingPathComponent(relativePath(for: hash))
+    }
+
+    func exists(hash: String) -> Bool {
+        FileManager.default.fileExists(atPath: url(forHash: hash).path)
+    }
+
+    // MARK: - Store
+
+    /// Stores `data`, returning its content hash. Deduplicates: if the hash already exists on
+    /// disk and in the manifest, the bytes are not rewritten.
+    @discardableResult
+    func store(_ data: Data, kind: Kind) throws -> String {
+        let hash = Self.hash(of: data)
+        try persist(hash: hash, byteCount: data.count, kind: kind) { destination in
+            try data.write(to: destination, options: .atomic)
+        }
+        return hash
+    }
+
+    /// Stores the file already produced at `fileUrl` (e.g. a transcoded video) by moving it into
+    /// the store under its content hash. The source file is removed on success.
+    @discardableResult
+    func store(fileAt fileUrl: URL, kind: Kind) throws -> String {
+        guard let hash = Self.hash(ofFileAt: fileUrl) else {
+            throw CocoaError(.fileReadUnknown)
+        }
+        try persist(hash: hash, byteCount: byteCount(of: fileUrl), kind: kind) { destination in
+            if FileManager.default.fileExists(atPath: destination.path) {
+                try? FileManager.default.removeItem(at: fileUrl)
+            } else {
+                try FileManager.default.moveItem(at: fileUrl, to: destination)
+            }
+        }
+        return hash
+    }
+
+    private func persist(hash: String, byteCount: Int, kind: Kind, write: (URL) throws -> Void) throws {
+        writeLock.lock()
+        defer { writeLock.unlock() }
+
+        let destination = url(forHash: hash)
+        let alreadyOnDisk = FileManager.default.fileExists(atPath: destination.path)
+
+        if !alreadyOnDisk {
+            try FileManager.default.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try write(destination)
+        }
+
+        let relPath = relativePath(for: hash)
+        try database.write { db in
+            try db.run(
+                "INSERT INTO blob (hash, rel_path, byte_size, created_at, kind) VALUES (?,?,?,?,?) ON CONFLICT(hash) DO NOTHING;",
+                [.text(hash), .text(relPath), .integer(Int64(byteCount)), SQLiteValue(Date()), .text(kind.rawValue)]
+            )
+        }
+    }
+
+    private func byteCount(of url: URL) -> Int {
+        (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int) ?? 0
+    }
+
+    // MARK: - Retention
+
+    /// Deletes blob files no longer referenced by any attachment or session_log row, and removes
+    /// their manifest rows. Wired to a retention policy in a later phase.
+    func collectGarbage() {
+        let referenced = Set(
+            database.query("SELECT blob_hash AS h FROM attachment WHERE blob_hash IS NOT NULL").compactMap { $0.string("h") }
+                + database.query("SELECT blob_hash AS h FROM session_log WHERE blob_hash IS NOT NULL").compactMap { $0.string("h") }
+        )
+
+        let all = database.query("SELECT hash, rel_path FROM blob")
+        for row in all {
+            guard let hash = row.string("hash"), !referenced.contains(hash) else { continue }
+            if let relPath = row.string("rel_path") {
+                try? FileManager.default.removeItem(at: blobsUrl.appendingPathComponent(relPath))
+            }
+            try? database.write { db in
+                try db.run("DELETE FROM blob WHERE hash = ?;", [.text(hash)])
+            }
+        }
+    }
+}

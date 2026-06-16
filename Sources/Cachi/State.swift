@@ -35,10 +35,11 @@ class State {
 
     static let defaultStatWindowSize = 20
 
-    private var _resultBundles: [ResultBundle]
-    var resultBundles: [ResultBundle] {
-        syncQueue.sync { _resultBundles }
-    }
+    /// The persistent SQLite-backed store. Configured once on first parse (it needs the results
+    /// `baseUrl`). All structured reads/writes go through it — there is no in-memory bundle corpus.
+    private var store: ResultStore?
+    private var database: Database?
+    private(set) var baseUrl: URL?
 
     enum Status { case ready, parsing(progress: Double) }
     private var _state: Status
@@ -47,40 +48,58 @@ class State {
     }
 
     private let syncQueue = DispatchQueue(label: String(describing: State.self), attributes: .concurrent)
-    private let operationQueue = OperationQueue()
 
     init() {
-        self._resultBundles = []
         self._state = .ready
     }
 
-    func reset() {
+    /// Lazily opens the database/store rooted at the results path. Safe to call repeatedly.
+    private func configureStoreIfNeeded(baseUrl: URL) -> ResultStore? {
         syncQueue.sync(flags: .barrier) {
-            _resultBundles = []
-            _state = .ready
+            if let store { return store }
+            do {
+                let database = try Database(baseUrl: baseUrl)
+                let store = ResultStore(database: database)
+                self.database = database
+                self.store = store
+                self.baseUrl = baseUrl
+                return store
+            } catch {
+                os_log("Failed opening database at '%@': %@", log: .default, type: .error, baseUrl.path, "\(error)")
+                return nil
+            }
         }
     }
 
-    func allTargets() -> [String] {
-        let tests = resultBundles.flatMap(\.tests)
-        let targets = tests.map(\.targetName)
+    private var resultStore: ResultStore? {
+        syncQueue.sync { store }
+    }
 
-        return Array(Set(targets)).sorted()
+    var resultBundles: [ResultBundle] {
+        resultStore?.allResultBundles() ?? []
+    }
+
+    func reset() {
+        resultStore?.deleteAll()
+        syncQueue.sync(flags: .barrier) { _state = .ready }
+    }
+
+    func allTargets() -> [String] {
+        resultStore?.allTargets() ?? []
     }
 
     func allDevices(in target: String) -> [Device] {
-        let targetTests = allTests(in: target)
-        let targetDevices = targetTests.map { Device(model: $0.deviceModel, os: $0.deviceOs) }
-
-        return Array(Set(targetDevices)).sorted(by: { $0.description < $1.description })
+        let devices = resultStore?.devices(inTarget: target) ?? []
+        return Array(Set(devices.map { Device(model: $0.model, os: $0.os) })).sorted(by: { $0.description < $1.description })
     }
 
     func allTests(in target: String) -> [ResultBundle.Test] {
-        let tests = resultBundles.flatMap(\.tests)
-        return tests.filter { $0.targetName == target }
+        resultStore?.statsTests(forTarget: target) ?? []
     }
 
     func pendingResultBundles(baseUrl: URL, depth: Int, mergeResults: Bool) -> [PendingResultBundle] {
+        let store = configureStoreIfNeeded(baseUrl: baseUrl)
+
         let benchId = benchmarkStart()
         let bundleUrls = findResultBundles(at: baseUrl, depth: depth, mergeResults: mergeResults)
         os_log("Found %ld test bundles searching '%@' with depth %ld in %fms", log: .default, type: .info, bundleUrls.count, baseUrl.absoluteString, depth, benchmarkStop(benchId))
@@ -88,24 +107,24 @@ class State {
         var results = [(result: PendingResultBundle, creationDate: Date)]()
 
         let queue = OperationQueue()
-        let syncQueue = DispatchQueue(label: "com.subito.cachi.pending.result.bundles")
+        let localSyncQueue = DispatchQueue(label: "com.subito.cachi.pending.result.bundles")
 
         for urls in bundleUrls {
-            queue.addOperation { [unowned self] in
+            queue.addOperation {
                 let bundlePath = (urls.count > 1 ? urls.first?.deletingLastPathComponent() : urls.first)?.path ?? ""
 
                 let benchId = benchmarkStart()
                 let creationDate = ((try? FileManager.default.attributesOfItem(atPath: bundlePath))?[.creationDate] as? Date) ?? Date()
 
-                if let cachedResultBundle = cachedResultBundle(urls: urls) {
-                    os_log("Restored partial result bundle '%@' from cache in %fms", log: .default, type: .info, bundlePath, benchmarkStop(benchId))
-                    let result = (result: PendingResultBundle(identifier: cachedResultBundle.identifier, resultUrls: urls), creationDate: creationDate)
-                    syncQueue.sync { results.append(result) }
+                if let identifier = store?.runIdentifier(forSourceUrls: urls) {
+                    os_log("Restored partial result bundle '%@' from db in %fms", log: .default, type: .info, bundlePath, benchmarkStop(benchId))
+                    let result = (result: PendingResultBundle(identifier: identifier, resultUrls: urls), creationDate: creationDate)
+                    localSyncQueue.sync { results.append(result) }
                 } else {
                     let parser = Parser()
                     if let pendingResultBundle = parser.parsePendingResultBundle(urls: urls) {
                         let result = (result: pendingResultBundle, creationDate: creationDate)
-                        syncQueue.sync { results.append(result) }
+                        localSyncQueue.sync { results.append(result) }
                     }
                     os_log("Parsed partial result bundle '%@' in %fms", log: .default, type: .info, bundlePath, benchmarkStop(benchId))
                 }
@@ -118,56 +137,25 @@ class State {
     }
 
     func parse(baseUrl: URL, depth: Int, mergeResults: Bool) {
+        guard let store = configureStoreIfNeeded(baseUrl: baseUrl) else { return }
+
         syncQueue.sync(flags: .barrier) { _state = .parsing(progress: 0) }
 
         var benchId = benchmarkStart()
         var bundleUrls = findResultBundles(at: baseUrl, depth: depth, mergeResults: mergeResults)
         os_log("Found %ld test bundles searching '%@' with depth %ld in %fms", log: .default, type: .info, bundleUrls.count, baseUrl.absoluteString, depth, benchmarkStop(benchId))
 
-        let queue = OperationQueue()
-        let syncQueue = DispatchQueue(label: "com.subito.cachi.pending.result.bundles")
-
-        var resultBundles = [ResultBundle]()
-        var parsedIndexes = [Int]()
-        for (index, urls) in bundleUrls.enumerated() {
-            queue.addOperation { [unowned self] in
-                let bundlePath = (urls.count > 1 ? urls.first?.deletingLastPathComponent() : urls.first)?.absoluteString ?? ""
-
-                guard !self.resultBundles.contains(where: { $0.xcresultUrls == Set(urls) }) else {
-                    os_log("Already parsed, skipping test bundle '%@'", log: .default, type: .info, bundlePath)
-                    return syncQueue.sync { parsedIndexes.append(index) }
-                }
-
-                let benchId = benchmarkStart()
-                if let cachedResultBundle = cachedResultBundle(urls: urls) {
-                    os_log("Restored test bundle '%@' from cache in %fms", log: .default, type: .info, bundlePath, benchmarkStop(benchId))
-                    syncQueue.sync {
-                        resultBundles.append(cachedResultBundle)
-                        parsedIndexes.append(index)
-                    }
-                }
-            }
-        }
-
-        queue.waitUntilAllOperationsAreFinished()
-
-        parsedIndexes.sorted().reversed().forEach { bundleUrls.remove(at: $0) }
-
-        syncQueue.sync(flags: .barrier) {
-            _resultBundles += resultBundles
-            _resultBundles.sort(by: { $0.testStartDate > $1.testStartDate })
-        }
+        // Skip bundles already ingested into the database.
+        bundleUrls = bundleUrls.filter { store.runIdentifier(forSourceUrls: $0) == nil }
 
         let parser = Parser()
         benchId = benchmarkStart()
         for (index, urls) in bundleUrls.enumerated() {
             autoreleasepool {
                 if let resultBundle = parser.parseResultBundles(urls: urls) {
+                    store.upsert(resultBundle)
                     syncQueue.sync(flags: .barrier) {
-                        _resultBundles.append(resultBundle)
-                        _resultBundles.sort(by: { $0.testStartDate > $1.testStartDate })
                         _state = .parsing(progress: Double(index) / Double(bundleUrls.count))
-                        writeCachedResultBundle(resultBundle)
                     }
                     DispatchQueue.global(qos: .userInitiated).async {
                         // This can be done asynchronously as it doesn't contain data that is immediately needed
@@ -183,11 +171,11 @@ class State {
     }
 
     func result(identifier: String) -> ResultBundle? {
-        resultBundles.first { $0.identifier == identifier }
+        resultStore?.resultBundle(identifier: identifier)
     }
 
     func test(summaryIdentifier: String) -> ResultBundle.Test? {
-        resultBundles.flatMap(\.tests).first { $0.summaryIdentifier == summaryIdentifier }
+        resultStore?.test(summaryIdentifier: summaryIdentifier)
     }
 
     func testActionSummary(test: ResultBundle.Test?) -> ActionTestSummary? {
@@ -217,7 +205,7 @@ class State {
     }
 
     func testSessionLogs(diagnosticsIdentifier: String) -> ResultBundle.Test.SessionLogs? {
-        guard let test = resultBundles.flatMap(\.tests).first(where: { $0.diagnosticsIdentifier == diagnosticsIdentifier }) else {
+        guard let test = resultStore?.test(diagnosticsIdentifier: diagnosticsIdentifier) else {
             return nil
         }
 
@@ -250,8 +238,7 @@ class State {
         }
 
         let windowSize = windowSize ?? Self.defaultStatWindowSize
-        let targetTests = allTests(in: target).sorted(by: { $0.testStartDate > $1.testStartDate }).filter { $0.groupName != "System Failures" }
-        let deviceTests = targetTests.filter { $0.deviceModel == device.model && $0.deviceOs == device.os }
+        let deviceTests = resultStore?.statsTests(target: target, deviceModel: device.model, deviceOs: device.os) ?? []
 
         let stats = NSMutableDictionary()
 
@@ -326,22 +313,20 @@ class State {
         }
     }
 
-    func testStats(md5Identifier: String) -> ResultBundle.Test.Stats {
-        var successfulTests: [ResultBundle.Test] = []
-        var failedTests: [ResultBundle.Test] = []
-
-        let sortedResultBundles = resultBundles.sorted { $0.testStartDate > $1.testStartDate }
-
-        for resultBundle in sortedResultBundles {
-            let matchingTests = resultBundle.tests.filter { $0.routeIdentifier == md5Identifier }
-
-            successfulTests += matchingTests.filter { $0.status == .success }
-            failedTests += matchingTests.filter { $0.status == .failure }
-
-            if successfulTests.count + failedTests.count > 50 {
-                break
-            }
+    func testStats(summaryIdentifier: String) -> ResultBundle.Test.Stats? {
+        guard let test = test(summaryIdentifier: summaryIdentifier) else {
+            return nil
         }
+
+        return testStats(md5Identifier: test.routeIdentifier)
+    }
+
+    func testStats(md5Identifier: String) -> ResultBundle.Test.Stats {
+        // Newest-first, capped: the route index serves the order + limit directly.
+        let matchingTests = resultStore?.tests(routeIdentifier: md5Identifier, limit: 51) ?? []
+
+        let successfulTests = matchingTests.filter { $0.status == .success }
+        let failedTests = matchingTests.filter { $0.status == .failure }
 
         let averageSuccessfulTests = successfulTests.prefix(3)
         let averageFailedTests = failedTests.prefix(3)
@@ -407,12 +392,6 @@ class State {
     }
 
     func dumpAttachments(in test: ResultBundle.Test, cachedActions: [ActionTestActivitySummary]?) {
-        guard let resultBundle = resultBundles.first(where: { $0.tests.contains(where: { $0.identifier == test.identifier }) }),
-              let test = resultBundle.tests.first(where: { $0.identifier == test.identifier })
-        else {
-            return
-        }
-
         let cachi = CachiKit(url: test.xcresultUrl)
 
         let actions = cachedActions ?? State.shared.testActionActivitySummaries(test: test) ?? []
@@ -436,57 +415,6 @@ class State {
         }
     }
 
-    private func writeCachedResultBundle(_ bundle: ResultBundle) {
-        guard let data = try? JSONEncoder().encode(bundle) else { return }
-
-        let baseUrl: URL
-
-        if bundle.xcresultUrls.count == 0 {
-            return
-        } else if bundle.xcresultUrls.count == 1 {
-            baseUrl = Array(bundle.xcresultUrls)[0]
-        } else {
-            baseUrl = Array(bundle.xcresultUrls)[0].deletingLastPathComponent()
-        }
-
-        let cacheUrl = makeCacheUrl(baseUrl: baseUrl).appendingPathComponent("cached_result.json")
-        try? data.write(to: cacheUrl)
-    }
-
-    private func cachedResultBundle(urls: [URL]) -> ResultBundle? {
-        let baseUrl: URL
-
-        if urls.count == 0 {
-            return nil
-        } else if urls.count == 1 {
-            baseUrl = urls[0]
-        } else {
-            baseUrl = urls[0].deletingLastPathComponent()
-        }
-
-        let cacheUrl = makeCacheUrl(baseUrl: baseUrl).appendingPathComponent("cached_result.json")
-        guard let data = try? Foundation.Data(contentsOf: cacheUrl) else { return nil }
-
-        if let cache = try? ZippyJSONDecoder().decode(ResultBundle.self, from: data) {
-            for url in cache.xcresultUrls {
-                if !urls.contains(url) {
-                    return nil
-                }
-            }
-
-            return cache
-        }
-
-        return nil
-    }
-
-    private func makeCacheUrl(baseUrl: URL) -> URL {
-        let url = baseUrl.appendingPathComponent(Cachi.cacheFolderName)
-
-        try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: false, attributes: nil)
-        return url
-    }
-
     private func findResultBundles(at url: URL, depth: Int, mergeResults: Bool) -> [[URL]] {
         guard depth > 0 else { return [] }
 
@@ -506,7 +434,9 @@ class State {
             }
 
             if isDirectory {
-                if name.hasSuffix(".xcresult") {
+                if name == Cachi.dataFolderName {
+                    enumerator.skipDescendants()
+                } else if name.hasSuffix(".xcresult") {
                     testBundleUrls.append(item as URL)
                     enumerator.skipDescendants()
                 } else if enumerator.level >= depth {

@@ -39,6 +39,8 @@ class RootCommand: Command {
             return false
         }
 
+        Cachi.createDataStore(baseUrl: baseUrl)
+
         DispatchQueue.global(qos: .userInteractive).async {
             State.shared.parse(baseUrl: baseUrl, depth: parseDepth, mergeResults: mergeResults)
         }

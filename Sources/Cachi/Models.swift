@@ -85,6 +85,20 @@ struct ResultBundle: Codable {
         var endDate: Date?
         var xcresultPathToFailedTestName: [String: String]?
 
+        init(branchName: String?, commitMessage: String?, commitHash: String?, metadata: String?,
+             sourceBasePath: String?, githubBaseUrl: String?, startDate: Date?, endDate: Date?,
+             xcresultPathToFailedTestName: [String: String]?) {
+            self.branchName = branchName
+            self.commitMessage = commitMessage
+            self.commitHash = commitHash
+            self.metadata = metadata
+            self.sourceBasePath = sourceBasePath
+            self.githubBaseUrl = githubBaseUrl
+            self.startDate = startDate
+            self.endDate = endDate
+            self.xcresultPathToFailedTestName = xcresultPathToFailedTestName
+        }
+
         init(from decoder: Decoder) throws {
             let container = try decoder.container(keyedBy: CodingKeys.self)
 
@@ -132,6 +146,57 @@ struct ResultBundle: Codable {
     var testsRepeated: [[Test]]
     var testsCrashCount: Int
     var userInfo: UserInfo?
+}
+
+extension ResultBundle {
+    /// Builds a `ResultBundle` from run-level scalars plus the flat list of tests, deriving all
+    /// the grouped collections (passed/failed/retried/uniquely-failed/repeated). Shared by the
+    /// xcresult parser and the SQLite reconstruction so the derivation logic lives in one place.
+    static func make(identifier: String,
+                     xcresultUrls: Set<URL>,
+                     destinations: String,
+                     totalExecutionTime: TimeInterval,
+                     tests: [Test],
+                     testsCrashCount: Int,
+                     userInfo: UserInfo?) -> ResultBundle {
+        var minStartDate = Date.distantFuture
+        var maxEndDate = Date.distantPast
+        for test in tests {
+            minStartDate = min(minStartDate, test.testStartDate)
+            maxEndDate = max(maxEndDate, test.testStartDate.addingTimeInterval(test.duration))
+        }
+        if tests.isEmpty {
+            minStartDate = Date(timeIntervalSince1970: 0)
+            maxEndDate = Date(timeIntervalSince1970: 0)
+        }
+
+        let testsExcludingFailedBySystem = tests.filter { $0.groupName != "System Failures" }
+        let testsPassed = tests.filter { $0.status == .success }
+        let testsFailed = testsExcludingFailedBySystem.filter { $0.status == .failure }
+        let testsFailedBySystem = tests.filter { $0.status == .failure && $0.groupName == "System Failures" }
+        let testsGrouped = Array(Dictionary(grouping: testsExcludingFailedBySystem, by: { "\($0.groupName)-\($0.name)-\($0.deviceModel)-\($0.deviceOs)" }).values)
+        let testsRepeated = testsGrouped.filter { $0.count > 1 }
+        let testsPassedRetring = testsRepeated.compactMap { $0.first(where: { $0.status == .success }) }
+        let testsFailedRetring = testsGrouped.filter { $0.contains(where: { $0.status == .success }) }.flatMap { $0 }.filter { $0.status == .failure }
+        let testsUniquelyFailed = testsGrouped.filter { $0.allSatisfy { $0.status == .failure } }.compactMap(\.first)
+
+        return ResultBundle(identifier: identifier,
+                            xcresultUrls: xcresultUrls,
+                            destinations: destinations,
+                            testStartDate: minStartDate,
+                            testEndDate: maxEndDate,
+                            totalExecutionTime: totalExecutionTime,
+                            tests: tests,
+                            testsPassed: testsPassed,
+                            testsFailed: testsFailed,
+                            testsFailedBySystem: testsFailedBySystem,
+                            testsPassedRetring: testsPassedRetring,
+                            testsFailedRetring: testsFailedRetring,
+                            testsUniquelyFailed: testsUniquelyFailed,
+                            testsRepeated: testsRepeated,
+                            testsCrashCount: testsCrashCount,
+                            userInfo: userInfo)
+    }
 }
 
 extension ResultBundle.Test {

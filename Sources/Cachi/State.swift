@@ -217,15 +217,102 @@ class State {
         return testSummary?.activitySummaries
     }
 
+    /// Resolves a serve-ready base video for an attachment to a local file at `destinationUrl`.
+    /// Read-through: copies the transcoded blob if present, otherwise exports the raw video from
+    /// the xcresult, transcodes it (sync, ~2-5s, acceptable), stores the blob, and writes it out.
+    /// Returns false if no video could be produced.
+    func materializeVideo(test: ResultBundle.Test, attachmentIdentifier: String, destinationUrl: URL) -> Bool {
+        let fileManager = FileManager.default
+        if fileManager.fileExists(atPath: destinationUrl.path) { return true }
+        try? fileManager.createDirectory(at: destinationUrl.deletingLastPathComponent(), withIntermediateDirectories: true)
+
+        // Hit: copy the already-transcoded blob.
+        if let summaryIdentifier = test.summaryIdentifier,
+           let blobStore = sharedBlobStore,
+           let hash = resultStore?.videoBlobHash(summaryIdentifier: summaryIdentifier) {
+            let blobUrl = blobStore.url(forHash: hash)
+            if (try? fileManager.copyItem(at: blobUrl, to: destinationUrl)) != nil {
+                return true
+            }
+        }
+
+        // Miss: export raw + transcode now, store the blob, and update the manifest if present.
+        let scratch = Cachi.temporaryFolderUrl.appendingPathComponent("serve-\(UUID().uuidString)")
+        let rawUrl = scratch.appendingPathComponent("raw.mp4")
+        try? fileManager.createDirectory(at: scratch, withIntermediateDirectories: true)
+        defer { try? fileManager.removeItem(at: scratch) }
+
+        let cachi = CachiKit(url: test.xcresultUrl)
+        do {
+            try cachi.export(identifier: attachmentIdentifier, destinationPath: rawUrl.path)
+            try VideoTranscoder.transcode(sourceUrl: rawUrl, destinationUrl: destinationUrl)
+        } catch {
+            return false
+        }
+
+        if let blobStore = sharedBlobStore,
+           let store = resultStore,
+           let summaryIdentifier = test.summaryIdentifier,
+           let rowId = store.testRowId(summaryIdentifier: summaryIdentifier),
+           let hash = try? blobStore.store(Data(contentsOf: destinationUrl), kind: .video) {
+            for video in store.videoAttachmentsNeedingBlob(testRowId: rowId) where video.payloadRef == attachmentIdentifier {
+                store.setAttachmentBlobHash(attachmentId: video.attachmentId, hash: hash, contentType: "video/mp4")
+            }
+        }
+
+        return fileManager.fileExists(atPath: destinationUrl.path)
+    }
+
     func testSessionLogs(diagnosticsIdentifier: String) -> ResultBundle.Test.SessionLogs? {
-        guard let test = resultStore?.test(diagnosticsIdentifier: diagnosticsIdentifier) else {
+        guard let store = resultStore, let test = store.test(diagnosticsIdentifier: diagnosticsIdentifier) else {
             return nil
         }
 
-        let cachi = CachiKit(url: test.xcresultUrl)
-        let sessionLogs = try? cachi.actionInvocationSessionLogs(identifier: diagnosticsIdentifier, sessionLogs: .all)
+        // Read-through: serve from the blob store if the channels were already materialized.
+        if let blobStore = sharedBlobStore {
+            let app = storedSessionLog(diagnosticsIdentifier: diagnosticsIdentifier, kind: "app", store: store, blobStore: blobStore)
+            let runner = storedSessionLog(diagnosticsIdentifier: diagnosticsIdentifier, kind: "runner", store: store, blobStore: blobStore)
+            let session = storedSessionLog(diagnosticsIdentifier: diagnosticsIdentifier, kind: "session", store: store, blobStore: blobStore)
+            if app != nil || runner != nil || session != nil {
+                return .init(appStandardOutput: app, runerAppStandardOutput: runner, sessionLogs: session)
+            }
+        }
 
-        return .init(appStandardOutput: sessionLogs?[.appStdOutErr], runerAppStandardOutput: sessionLogs?[.runnerAppStdOutErr], sessionLogs: sessionLogs?[.session])
+        // Miss: extract live from the xcresult now (and store for next time if possible).
+        let cachi = CachiKit(url: test.xcresultUrl)
+        guard let sessionLogs = try? cachi.actionInvocationSessionLogs(identifier: diagnosticsIdentifier, sessionLogs: .all) else {
+            return nil
+        }
+
+        if let blobStore = sharedBlobStore, let rowId = store.testRowId(summaryIdentifier: test.summaryIdentifier ?? "") {
+            persistSessionLogs(sessionLogs, testRowId: rowId, store: store, blobStore: blobStore)
+        }
+
+        return .init(appStandardOutput: sessionLogs[.appStdOutErr], runerAppStandardOutput: sessionLogs[.runnerAppStdOutErr], sessionLogs: sessionLogs[.session])
+    }
+
+    private func storedSessionLog(diagnosticsIdentifier: String, kind: String, store: ResultStore, blobStore: BlobStore) -> String? {
+        guard let hash = store.sessionLogBlobHash(diagnosticsIdentifier: diagnosticsIdentifier, kind: kind),
+              let gzipped = try? Data(contentsOf: blobStore.url(forHash: hash)),
+              let data = gzipped.cachiGunzipped()
+        else {
+            return nil
+        }
+        return String(decoding: data, as: UTF8.self)
+    }
+
+    private func persistSessionLogs(_ logs: [CachiKit.SessionLogs: String], testRowId: Int, store: ResultStore, blobStore: BlobStore) {
+        let mapping: [(CachiKit.SessionLogs, String)] = [(.appStdOutErr, "app"), (.runnerAppStdOutErr, "runner"), (.session, "session"), (.scheduling, "scheduling")]
+        let pending = Dictionary(uniqueKeysWithValues: store.sessionLogsNeedingBlob(testRowId: testRowId).map { ($0.kind, $0.logId) })
+        for (key, kind) in mapping {
+            guard let logId = pending[kind], let text = logs[key], !text.isEmpty,
+                  let gzipped = Data(text.utf8).cachiGzipped(),
+                  let hash = try? blobStore.store(gzipped, kind: .sessionLog)
+            else {
+                continue
+            }
+            store.setSessionLogBlobHash(logId: logId, hash: hash, byteSize: text.utf8.count)
+        }
     }
 
     func resultsTestStats(target: String, device: Device, type: ResultBundle.TestStatsType, windowSize: Int?) -> [ResultBundle.TestStats] {

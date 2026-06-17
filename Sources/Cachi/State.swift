@@ -39,6 +39,8 @@ class State {
     /// `baseUrl`). All structured reads/writes go through it — there is no in-memory bundle corpus.
     private var store: ResultStore?
     private var database: Database?
+    private var blobStore: BlobStore?
+    private var backgroundIngest: BackgroundIngest?
     private(set) var baseUrl: URL?
 
     enum Status { case ready, parsing(progress: Double) }
@@ -60,8 +62,11 @@ class State {
             do {
                 let database = try Database(baseUrl: baseUrl)
                 let store = ResultStore(database: database)
+                let blobStore = BlobStore(baseUrl: baseUrl, database: database)
                 self.database = database
                 self.store = store
+                self.blobStore = blobStore
+                self.backgroundIngest = BackgroundIngest(store: store, blobStore: blobStore)
                 self.baseUrl = baseUrl
                 return store
             } catch {
@@ -73,6 +78,10 @@ class State {
 
     private var resultStore: ResultStore? {
         syncQueue.sync { store }
+    }
+
+    var sharedBlobStore: BlobStore? {
+        syncQueue.sync { blobStore }
     }
 
     var resultBundles: [ResultBundle] {
@@ -168,6 +177,10 @@ class State {
         os_log("Parsed %ld test bundles in %fms", log: .default, type: .info, bundleUrls.count, benchmarkStop(benchId))
 
         syncQueue.sync(flags: .barrier) { _state = .ready }
+
+        // Deferred, low-priority: extract failure detail + materialize video/log blobs. Off the
+        // parse critical path so a failure flood grows a backlog rather than blocking.
+        syncQueue.sync { backgroundIngest }?.runAsync()
     }
 
     func result(identifier: String) -> ResultBundle? {

@@ -97,7 +97,22 @@ final class Database {
             try db.run("INSERT INTO schema_version (version) VALUES (?);", [.integer(2)])
             os_log("Applied SQLite schema v2", log: .default, type: .info)
         }
+
+        if current < 3 {
+            try db.execute(Self.schemaV3)
+            try db.run("DELETE FROM schema_version;")
+            try db.run("INSERT INTO schema_version (version) VALUES (?);", [.integer(3)])
+            os_log("Applied SQLite schema v3", log: .default, type: .info)
+        }
     }
+
+    /// v3: make `summary_identifier` unique. A summary id identifies a single test execution, so
+    /// duplicates indicate corrupt ingest. SQLite permits multiple NULLs in a UNIQUE index, so the
+    /// system-failure tests that lack a summary id are unaffected.
+    private static let schemaV3 = """
+    DROP INDEX IF EXISTS idx_test_summary;
+    CREATE UNIQUE INDEX idx_test_summary ON test(summary_identifier);
+    """
 
     /// v2: per-run rollup of the bytes occupied by its blobs (videos, session logs). Kept in the
     /// `result_bundle` row so the disk-size enforcement can attribute usage to runs and evict whole
@@ -218,7 +233,7 @@ final class Database {
     CREATE INDEX idx_rb_start ON result_bundle(test_start_date DESC);
 
     CREATE INDEX idx_test_result ON test(result_identifier);
-    CREATE INDEX idx_test_summary ON test(summary_identifier);
+    CREATE UNIQUE INDEX idx_test_summary ON test(summary_identifier);
     CREATE INDEX idx_test_diag ON test(diagnostics_identifier);
     CREATE INDEX idx_test_route ON test(route_identifier, start_date DESC);
     CREATE INDEX idx_test_target_device ON test(target_name, device_model, device_os, start_date DESC);

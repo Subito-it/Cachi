@@ -71,6 +71,7 @@ struct VideoCaptureRoute: Routable {
         for header in headers {
             response.headers.add(name: header.0, value: header.1)
         }
+        response.disableServerCompression() // mp4 is already compressed
 
         return response
     }

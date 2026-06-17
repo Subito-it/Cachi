@@ -43,12 +43,13 @@ struct XcResultDownloadRoute: Routable {
             ("Content-Disposition", value: "attachment; filename=\(filename)")
         ]
 
-        let response = req.fileio.streamFile(at: destinationUrl.path(percentEncoded: false))
+        let response = try Response(body: Response.Body(data: Data(contentsOf: destinationUrl, options: [.alwaysMapped])))
         for header in headers {
             response.headers.add(name: header.0, value: header.1)
         }
+        response.disableServerCompression() // xcresult zip is already compressed
 
-        return try Response(body: Response.Body(data: Data(contentsOf: destinationUrl, options: [.alwaysMapped])))
+        return response
     }
 
     static func urlString(testSummaryIdentifier: String?) -> String {

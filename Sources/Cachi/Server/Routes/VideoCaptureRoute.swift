@@ -37,10 +37,12 @@ struct VideoCaptureRoute: Routable {
         try? filemanager.createDirectory(at: videoCaptureUrl.deletingLastPathComponent(), withIntermediateDirectories: true, attributes: nil)
 
         if !filemanager.fileExists(atPath: videoCaptureUrl.path) {
+            // Read-through: transcoded blob if present, else export+transcode from the xcresult.
             let videoUrl = Cachi.temporaryFolderUrl.appendingPathComponent(resultIdentifier).appendingPathComponent("\(attachmentIdentifier.md5Value).mp4")
             if !filemanager.fileExists(atPath: videoUrl.path) {
-                let cachi = CachiKit(url: test.xcresultUrl)
-                try? cachi.export(identifier: attachmentIdentifier, destinationPath: videoUrl.path)
+                guard State.shared.materializeVideo(test: test, attachmentIdentifier: attachmentIdentifier, destinationUrl: videoUrl) else {
+                    return Response(status: .notFound, body: Response.Body(stringLiteral: "Failed retrieving video capture..."))
+                }
             }
 
             let activitySummary = State.shared.testActionSummary(test: test)

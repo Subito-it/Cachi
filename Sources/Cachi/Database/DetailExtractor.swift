@@ -24,10 +24,18 @@ struct DetailExtractor {
         flatten(summary.activitySummaries, parentUuid: nil, into: &activities, attachments: &attachments)
 
         let failures = summary.failureSummaries.map {
-            ResultStore.FailureRow(message: $0.message,
+            ResultStore.FailureRow(uuid: $0.uuid,
+                                   message: $0.message,
                                    file: $0.fileName,
                                    line: $0.lineNumber,
-                                   detail: $0.detailedDescription)
+                                   detail: $0.detailedDescription,
+                                   timestamp: $0.timestamp)
+        }
+
+        for failure in summary.failureSummaries {
+            for attachment in failure.attachments {
+                attachments.append(attachmentRow(attachment, owner: .failure(failure.uuid)))
+            }
         }
 
         let performanceMetrics = summary.performanceMetrics.map {
@@ -60,19 +68,25 @@ struct DetailExtractor {
                                                       title: summary.title,
                                                       type: summary.activityType,
                                                       start: summary.start,
-                                                      finish: summary.finish))
+                                                      finish: summary.finish,
+                                                      failureSummaryIDs: summary.failureSummaryIDs))
 
             for attachment in summary.attachments {
-                attachments.append(ResultStore.AttachmentRow(activityUuid: summary.uuid,
-                                                             filename: attachment.filename,
-                                                             uti: attachment.uniformTypeIdentifier,
-                                                             name: attachment.name,
-                                                             payloadRef: attachment.payloadRef?.id,
-                                                             payloadSize: attachment.payloadSize,
-                                                             contentType: nil))
+                attachments.append(attachmentRow(attachment, owner: .activity(summary.uuid)))
             }
 
             flatten(summary.subactivities, parentUuid: summary.uuid, into: &activities, attachments: &attachments)
         }
+    }
+
+    private func attachmentRow(_ attachment: ActionTestAttachment, owner: ResultStore.AttachmentRow.Owner) -> ResultStore.AttachmentRow {
+        ResultStore.AttachmentRow(owner: owner,
+                                  filename: attachment.filename,
+                                  uti: attachment.uniformTypeIdentifier,
+                                  name: attachment.name,
+                                  payloadRef: attachment.payloadRef?.id,
+                                  payloadSize: attachment.payloadSize,
+                                  contentType: nil,
+                                  timestamp: attachment.timestamp)
     }
 }

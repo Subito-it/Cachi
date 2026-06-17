@@ -104,7 +104,27 @@ final class Database {
             try db.run("INSERT INTO schema_version (version) VALUES (?);", [.integer(3)])
             os_log("Applied SQLite schema v3", log: .default, type: .info)
         }
+
+        if current < 4 {
+            try db.execute(Self.schemaV4)
+            try db.run("DELETE FROM schema_version;")
+            try db.run("INSERT INTO schema_version (version) VALUES (?);", [.integer(4)])
+            os_log("Applied SQLite schema v4", log: .default, type: .info)
+        }
     }
+
+    /// v4: fields needed to rebuild the CachiKit test summary (activity tree) from SQLite so the
+    /// test-detail page works after the `.xcresult` is pruned: attachment timestamps, failure uuid
+    /// + timestamp, the activity→failure references, and failure-owned attachments (a `failure_id`
+    /// alongside the existing `activity_id` on the attachment row). Older rows extracted before this
+    /// migration lack the data and self-heal via the read-through fallback on next access.
+    private static let schemaV4 = """
+    ALTER TABLE activity ADD COLUMN failure_summary_ids TEXT;
+    ALTER TABLE failure ADD COLUMN uuid TEXT;
+    ALTER TABLE failure ADD COLUMN timestamp REAL;
+    ALTER TABLE attachment ADD COLUMN timestamp REAL;
+    ALTER TABLE attachment ADD COLUMN failure_id INTEGER;
+    """
 
     /// v3: make `summary_identifier` unique. A summary id identifies a single test execution, so
     /// duplicates indicate corrupt ingest. SQLite permits multiple NULLs in a UNIQUE index, so the

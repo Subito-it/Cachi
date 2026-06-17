@@ -1,3 +1,4 @@
+import CachiKit
 import Foundation
 import os
 
@@ -202,12 +203,15 @@ final class ResultStore {
                 try db.run("DELETE FROM session_log WHERE test_id = ?;", [.integer(Int64(testRowId))])
 
                 // Activities: insert depth-first so parent rows exist before children reference them.
-                var dbIdByUuid = [String: Int64]()
+                var activityDbIdByUuid = [String: Int64]()
                 for activity in activities {
-                    let parentDbId = activity.parentUuid.flatMap { dbIdByUuid[$0] }
+                    let parentDbId = activity.parentUuid.flatMap { activityDbIdByUuid[$0] }
+                    let failureIdsJson = activity.failureSummaryIDs.isEmpty
+                        ? nil
+                        : (try? String(decoding: JSONEncoder().encode(activity.failureSummaryIDs), as: UTF8.self))
                     try db.run("""
-                    INSERT INTO activity (test_id, parent_id, uuid, title, type, start, finish)
-                    VALUES (?,?,?,?,?,?,?);
+                    INSERT INTO activity (test_id, parent_id, uuid, title, type, start, finish, failure_summary_ids)
+                    VALUES (?,?,?,?,?,?,?,?);
                     """, [
                         .integer(Int64(testRowId)),
                         parentDbId.map { SQLiteValue.integer($0) } ?? .null,
@@ -216,22 +220,27 @@ final class ResultStore {
                         SQLiteValue(activity.type),
                         SQLiteValue(activity.start),
                         SQLiteValue(activity.finish),
+                        SQLiteValue(failureIdsJson),
                     ])
                     if let uuid = activity.uuid {
-                        dbIdByUuid[uuid] = db.lastInsertRowId
+                        activityDbIdByUuid[uuid] = db.lastInsertRowId
                     }
                 }
 
+                var failureDbIdByUuid = [String: Int64]()
                 for failure in failures {
                     try db.run("""
-                    INSERT INTO failure (test_id, message, file, line, detail) VALUES (?,?,?,?,?);
+                    INSERT INTO failure (test_id, message, file, line, detail, uuid, timestamp) VALUES (?,?,?,?,?,?,?);
                     """, [
                         .integer(Int64(testRowId)),
                         SQLiteValue(failure.message),
                         SQLiteValue(failure.file),
                         SQLiteValue(failure.line),
                         SQLiteValue(failure.detail),
+                        .text(failure.uuid),
+                        SQLiteValue(failure.timestamp),
                     ])
+                    failureDbIdByUuid[failure.uuid] = db.lastInsertRowId
                 }
 
                 for metric in performanceMetrics {
@@ -247,18 +256,30 @@ final class ResultStore {
                 }
 
                 for attachment in attachments {
+                    let activityId: SQLiteValue
+                    let failureId: SQLiteValue
+                    switch attachment.owner {
+                    case let .activity(uuid):
+                        activityId = activityDbIdByUuid[uuid].map { SQLiteValue.integer($0) } ?? .null
+                        failureId = .null
+                    case let .failure(uuid):
+                        activityId = .null
+                        failureId = failureDbIdByUuid[uuid].map { SQLiteValue.integer($0) } ?? .null
+                    }
                     try db.run("""
-                    INSERT INTO attachment (test_id, activity_id, filename, uti, name, payload_ref, payload_size, content_type, blob_hash)
-                    VALUES (?,?,?,?,?,?,?,?,NULL);
+                    INSERT INTO attachment (test_id, activity_id, failure_id, filename, uti, name, payload_ref, payload_size, content_type, timestamp, blob_hash)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,NULL);
                     """, [
                         .integer(Int64(testRowId)),
-                        attachment.activityUuid.flatMap { dbIdByUuid[$0] }.map { SQLiteValue.integer($0) } ?? .null,
+                        activityId,
+                        failureId,
                         SQLiteValue(attachment.filename),
                         SQLiteValue(attachment.uti),
                         SQLiteValue(attachment.name),
                         SQLiteValue(attachment.payloadRef),
                         SQLiteValue(attachment.payloadSize),
                         SQLiteValue(attachment.contentType),
+                        SQLiteValue(attachment.timestamp),
                     ])
                 }
 
@@ -281,13 +302,16 @@ final class ResultStore {
         let type: String?
         let start: Date?
         let finish: Date?
+        let failureSummaryIDs: [String]
     }
 
     struct FailureRow {
+        let uuid: String
         let message: String?
         let file: String?
         let line: Int?
         let detail: String?
+        let timestamp: Date?
     }
 
     struct PerformanceMetricRow {
@@ -297,13 +321,127 @@ final class ResultStore {
     }
 
     struct AttachmentRow {
-        let activityUuid: String?
+        enum Owner {
+            case activity(String)  // activity uuid
+            case failure(String)   // failure uuid
+        }
+
+        let owner: Owner
         let filename: String?
         let uti: String?
         let name: String?
         let payloadRef: String?
         let payloadSize: Int?
         let contentType: String?
+        let timestamp: Date?
+    }
+
+    // MARK: - Summary reconstruction
+
+    /// Rebuilds the CachiKit `ActionTestSummary` (activity tree, failures, attachments, performance
+    /// metrics) from the structured detail tables, so the test-detail routes can serve it without
+    /// the `.xcresult`. Returns nil when no detail has been extracted for the test yet (the caller
+    /// then falls back to live extraction from the bundle).
+    func reconstructTestSummary(summaryIdentifier: String) -> ActionTestSummary? {
+        guard let testRowId = testRowId(summaryIdentifier: summaryIdentifier) else { return nil }
+
+        let activityRows = database.query("""
+        SELECT id, parent_id, uuid, title, type, start, finish, failure_summary_ids
+        FROM activity WHERE test_id = ? ORDER BY id ASC;
+        """, [.integer(Int64(testRowId))])
+
+        let failureRows = database.query("""
+        SELECT id, uuid, message, file, line, detail, timestamp FROM failure WHERE test_id = ?;
+        """, [.integer(Int64(testRowId))])
+
+        // No structured detail materialized yet → signal a miss so the caller reads live.
+        guard !activityRows.isEmpty || !failureRows.isEmpty else { return nil }
+
+        let attachmentRows = database.query("""
+        SELECT activity_id, failure_id, filename, uti, name, payload_ref, payload_size, timestamp
+        FROM attachment WHERE test_id = ?;
+        """, [.integer(Int64(testRowId))])
+
+        let metricRows = database.query("""
+        SELECT display_name, unit, measurements_json FROM performance_metric WHERE test_id = ?;
+        """, [.integer(Int64(testRowId))])
+
+        // Group attachments by their owning activity / failure db row id.
+        var attachmentsByActivityId = [Int: [ActionTestAttachment]]()
+        var attachmentsByFailureId = [Int: [ActionTestAttachment]]()
+        for row in attachmentRows {
+            let attachment = attachment(from: row)
+            if let activityId = row.int("activity_id") {
+                attachmentsByActivityId[activityId, default: []].append(attachment)
+            } else if let failureId = row.int("failure_id") {
+                attachmentsByFailureId[failureId, default: []].append(attachment)
+            }
+        }
+
+        // Rebuild the activity tree from the flat parent_id-linked rows.
+        var childrenByParentId = [Int: [SQLiteRow]]()
+        var roots = [SQLiteRow]()
+        for row in activityRows {
+            if let parentId = row.int("parent_id") {
+                childrenByParentId[parentId, default: []].append(row)
+            } else {
+                roots.append(row)
+            }
+        }
+
+        func buildActivity(_ row: SQLiteRow) -> ActionTestActivitySummary {
+            let id = row.int("id") ?? -1
+            let subactivities = (childrenByParentId[id] ?? []).map(buildActivity)
+            let failureSummaryIDs = row.string("failure_summary_ids")
+                .flatMap { try? JSONDecoder().decode([String].self, from: Data($0.utf8)) } ?? []
+            return ActionTestActivitySummary(title: row.string("title"),
+                                             activityType: row.string("type") ?? "",
+                                             uuid: row.string("uuid") ?? "",
+                                             start: row.date("start"),
+                                             finish: row.date("finish"),
+                                             attachments: attachmentsByActivityId[id] ?? [],
+                                             subactivities: subactivities,
+                                             failureSummaryIDs: failureSummaryIDs)
+        }
+
+        let activitySummaries = roots.map(buildActivity)
+
+        let failureSummaries = failureRows.map { row -> ActionTestFailureSummary in
+            let id = row.int("id") ?? -1
+            return ActionTestFailureSummary(message: row.string("message"),
+                                            fileName: row.string("file"),
+                                            lineNumber: row.int("line"),
+                                            uuid: row.string("uuid") ?? "missing-uuid",
+                                            detailedDescription: row.string("detail"),
+                                            attachments: attachmentsByFailureId[id] ?? [],
+                                            timestamp: row.date("timestamp"))
+        }
+
+        let performanceMetrics = metricRows.map { row -> ActionTestPerformanceMetricSummary in
+            let measurements = row.string("measurements_json")
+                .flatMap { try? JSONDecoder().decode([Double].self, from: Data($0.utf8)) } ?? []
+            return ActionTestPerformanceMetricSummary(displayName: row.string("display_name") ?? "",
+                                                      unitOfMeasurement: row.string("unit") ?? "",
+                                                      measurements: measurements)
+        }
+
+        return ActionTestSummary(identifier: summaryIdentifier,
+                                 name: "",
+                                 testStatus: "",
+                                 duration: nil,
+                                 performanceMetrics: performanceMetrics,
+                                 failureSummaries: failureSummaries,
+                                 activitySummaries: activitySummaries)
+    }
+
+    private func attachment(from row: SQLiteRow) -> ActionTestAttachment {
+        let payloadRef = row.string("payload_ref").map { Reference(id: $0) }
+        return ActionTestAttachment(uniformTypeIdentifier: row.string("uti") ?? "",
+                                    name: row.string("name"),
+                                    timestamp: row.date("timestamp"),
+                                    filename: row.string("filename"),
+                                    payloadRef: payloadRef,
+                                    payloadSize: row.int("payload_size"))
     }
 
     // MARK: - Read

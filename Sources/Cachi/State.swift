@@ -205,10 +205,13 @@ class State {
     func testActionSummary(test: ResultBundle.Test?) -> ActionTestSummary? {
         guard let test, let summaryIdentifier = test.summaryIdentifier else { return nil }
 
-        let cachi = CachiKit(url: test.xcresultUrl)
-        let testSummary = try? cachi.actionTestSummary(identifier: summaryIdentifier)
+        // Read-through: rebuild from SQLite if detail was extracted; else read live from the bundle.
+        if let stored = resultStore?.reconstructTestSummary(summaryIdentifier: summaryIdentifier) {
+            return stored
+        }
 
-        return testSummary
+        let cachi = CachiKit(url: test.xcresultUrl)
+        return try? cachi.actionTestSummary(identifier: summaryIdentifier)
     }
 
     func testActionActivitySummaries(summaryIdentifier: String) -> [ActionTestActivitySummary]? {
@@ -220,12 +223,7 @@ class State {
     }
 
     func testActionActivitySummaries(test: ResultBundle.Test?) -> [ActionTestActivitySummary]? {
-        guard let test, let summaryIdentifier = test.summaryIdentifier else { return nil }
-
-        let cachi = CachiKit(url: test.xcresultUrl)
-        let testSummary = try? cachi.actionTestSummary(identifier: summaryIdentifier)
-
-        return testSummary?.activitySummaries
+        testActionSummary(test: test)?.activitySummaries
     }
 
     /// Resolves a serve-ready base video for an attachment to a local file at `destinationUrl`.

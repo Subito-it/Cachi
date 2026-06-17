@@ -68,6 +68,16 @@ final class Database {
         }
     }
 
+    // MARK: - Maintenance
+
+    /// Cheap periodic hygiene: refresh query-planner stats and run incremental WAL checkpointing.
+    func performMaintenance() {
+        try? write { db in
+            try db.execute("PRAGMA optimize;")
+            try db.execute("PRAGMA wal_checkpoint(TRUNCATE);")
+        }
+    }
+
     // MARK: - Migrations
 
     private static func migrate(_ db: SQLiteConnection) throws {

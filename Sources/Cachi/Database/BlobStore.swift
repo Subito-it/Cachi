@@ -131,7 +131,7 @@ final class BlobStore {
     // MARK: - Retention
 
     /// Deletes blob files no longer referenced by any attachment or session_log row, and removes
-    /// their manifest rows. Wired to a retention policy in a later phase.
+    /// their manifest rows.
     func collectGarbage() {
         let referenced = Set(
             database.query("SELECT blob_hash AS h FROM attachment WHERE blob_hash IS NOT NULL").compactMap { $0.string("h") }
@@ -148,5 +148,33 @@ final class BlobStore {
                 try db.run("DELETE FROM blob WHERE hash = ?;", [.text(hash)])
             }
         }
+    }
+
+    /// Tiered retention: drops heavy blobs (videos, logs) for runs older than `maxAgeDays`, while
+    /// keeping all structured rows forever (the cheap history). Clears the referencing `blob_hash`
+    /// columns so the model stays consistent, then GCs the now-unreferenced blob files.
+    /// A miss on a pruned blob self-heals via the read-through fallback (re-extracts from the
+    /// xcresult if it still exists).
+    func enforceRetention(maxAgeDays: Int) {
+        guard maxAgeDays > 0 else { return }
+        let cutoff = Date().timeIntervalSince1970 - Double(maxAgeDays) * 86_400
+
+        // Null out references on tests belonging to runs older than the cutoff.
+        try? database.write { db in
+            try db.run("""
+            UPDATE attachment SET blob_hash = NULL WHERE test_id IN (
+                SELECT t.id FROM test t JOIN result_bundle r ON r.identifier = t.result_identifier
+                WHERE r.ingested_at < ?
+            );
+            """, [.real(cutoff)])
+            try db.run("""
+            UPDATE session_log SET blob_hash = NULL WHERE test_id IN (
+                SELECT t.id FROM test t JOIN result_bundle r ON r.identifier = t.result_identifier
+                WHERE r.ingested_at < ?
+            );
+            """, [.real(cutoff)])
+        }
+
+        collectGarbage()
     }
 }

@@ -178,6 +178,9 @@ class State {
 
         syncQueue.sync(flags: .barrier) { _state = .ready }
 
+        // Cheap DB hygiene after a parse pass.
+        syncQueue.sync { database }?.performMaintenance()
+
         // Deferred, low-priority: extract failure detail + materialize video/log blobs. Off the
         // parse critical path so a failure flood grows a backlog rather than blocking.
         syncQueue.sync { backgroundIngest }?.runAsync()

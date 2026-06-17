@@ -190,12 +190,14 @@ final class ResultStore {
     func writeDetail(testRowId: Int,
                      activities: [ActivityRow],
                      failures: [FailureRow],
+                     performanceMetrics: [PerformanceMetricRow],
                      attachments: [AttachmentRow],
                      sessionLogKinds: [String]) {
         do {
             try database.transaction { db in
                 try db.run("DELETE FROM activity WHERE test_id = ?;", [.integer(Int64(testRowId))])
                 try db.run("DELETE FROM failure WHERE test_id = ?;", [.integer(Int64(testRowId))])
+                try db.run("DELETE FROM performance_metric WHERE test_id = ?;", [.integer(Int64(testRowId))])
                 try db.run("DELETE FROM attachment WHERE test_id = ?;", [.integer(Int64(testRowId))])
                 try db.run("DELETE FROM session_log WHERE test_id = ?;", [.integer(Int64(testRowId))])
 
@@ -229,6 +231,18 @@ final class ResultStore {
                         SQLiteValue(failure.file),
                         SQLiteValue(failure.line),
                         SQLiteValue(failure.detail),
+                    ])
+                }
+
+                for metric in performanceMetrics {
+                    let measurementsJson = (try? String(decoding: JSONEncoder().encode(metric.measurements), as: UTF8.self)) ?? "[]"
+                    try db.run("""
+                    INSERT INTO performance_metric (test_id, display_name, unit, measurements_json) VALUES (?,?,?,?);
+                    """, [
+                        .integer(Int64(testRowId)),
+                        .text(metric.displayName),
+                        .text(metric.unit),
+                        .text(measurementsJson),
                     ])
                 }
 
@@ -274,6 +288,12 @@ final class ResultStore {
         let file: String?
         let line: Int?
         let detail: String?
+    }
+
+    struct PerformanceMetricRow {
+        let displayName: String
+        let unit: String
+        let measurements: [Double]
     }
 
     struct AttachmentRow {

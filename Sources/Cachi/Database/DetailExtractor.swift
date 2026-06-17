@@ -30,6 +30,12 @@ struct DetailExtractor {
                                    detail: $0.detailedDescription)
         }
 
+        let performanceMetrics = summary.performanceMetrics.map {
+            ResultStore.PerformanceMetricRow(displayName: $0.displayName,
+                                             unit: $0.unitOfMeasurement,
+                                             measurements: $0.measurements)
+        }
+
         // Session-log channels available for this test (diagnostics present → all four kinds).
         let sessionLogKinds = test.diagnosticsIdentifier != nil
             ? ["app", "runner", "session", "scheduling"]
@@ -38,6 +44,7 @@ struct DetailExtractor {
         store.writeDetail(testRowId: testRowId,
                           activities: activities,
                           failures: failures,
+                          performanceMetrics: performanceMetrics,
                           attachments: attachments,
                           sessionLogKinds: sessionLogKinds)
         return true

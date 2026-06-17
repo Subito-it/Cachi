@@ -104,6 +104,188 @@ final class ResultStore {
         }
     }
 
+    // MARK: - Detail extraction tracking
+
+    /// Failed tests (incl. system failures) that still need detail extraction (activity tree,
+    /// failures, attachment/session-log manifests). A test is considered done once it has any
+    /// activity rows OR a session_log row — i.e. detail has been materialized at least once.
+    func testsNeedingDetailExtraction() -> [(rowId: Int, test: ResultBundle.Test)] {
+        let rows = database.query("""
+        SELECT t.* FROM test t
+        WHERE t.status = 'failure'
+          AND NOT EXISTS (SELECT 1 FROM activity a WHERE a.test_id = t.id)
+          AND NOT EXISTS (SELECT 1 FROM session_log s WHERE s.test_id = t.id)
+        ORDER BY t.start_date DESC;
+        """)
+        return rows.compactMap { row in
+            guard let id = row.int("id") else { return nil }
+            return (id, test(from: row))
+        }
+    }
+
+    func testRowId(summaryIdentifier: String) -> Int? {
+        database.query("SELECT id FROM test WHERE summary_identifier = ? LIMIT 1;", [.text(summaryIdentifier)])
+            .first?.int("id")
+    }
+
+    // MARK: - Blob materialization
+
+    /// Video attachments (by UTI) for a test that have not yet been transcoded into the blob store.
+    func videoAttachmentsNeedingBlob(testRowId: Int) -> [(attachmentId: Int, payloadRef: String)] {
+        database.query("""
+        SELECT id, payload_ref FROM attachment
+        WHERE test_id = ? AND uti = 'public.mpeg-4' AND payload_ref IS NOT NULL AND blob_hash IS NULL;
+        """, [.integer(Int64(testRowId))]).compactMap { row in
+            guard let id = row.int("id"), let ref = row.string("payload_ref") else { return nil }
+            return (id, ref)
+        }
+    }
+
+    func sessionLogsNeedingBlob(testRowId: Int) -> [(logId: Int, kind: String)] {
+        database.query("SELECT id, kind FROM session_log WHERE test_id = ? AND blob_hash IS NULL;",
+                       [.integer(Int64(testRowId))]).compactMap { row in
+            guard let id = row.int("id"), let kind = row.string("kind") else { return nil }
+            return (id, kind)
+        }
+    }
+
+    func setAttachmentBlobHash(attachmentId: Int, hash: String, contentType: String?) {
+        try? database.write { db in
+            try db.run("UPDATE attachment SET blob_hash = ?, content_type = ? WHERE id = ?;",
+                       [.text(hash), SQLiteValue(contentType), .integer(Int64(attachmentId))])
+        }
+    }
+
+    func setSessionLogBlobHash(logId: Int, hash: String, byteSize: Int) {
+        try? database.write { db in
+            try db.run("UPDATE session_log SET blob_hash = ?, byte_size = ? WHERE id = ?;",
+                       [.text(hash), .integer(Int64(byteSize)), .integer(Int64(logId))])
+        }
+    }
+
+    /// Looks up the stored blob hash for a test's video attachment / session-log channel, if any.
+    func videoBlobHash(summaryIdentifier: String) -> String? {
+        database.query("""
+        SELECT a.blob_hash AS h FROM attachment a
+        JOIN test t ON t.id = a.test_id
+        WHERE t.summary_identifier = ? AND a.uti = 'public.mpeg-4' AND a.blob_hash IS NOT NULL
+        LIMIT 1;
+        """, [.text(summaryIdentifier)]).first?.string("h")
+    }
+
+    func sessionLogBlobHash(diagnosticsIdentifier: String, kind: String) -> String? {
+        database.query("""
+        SELECT s.blob_hash AS h FROM session_log s
+        JOIN test t ON t.id = s.test_id
+        WHERE t.diagnostics_identifier = ? AND s.kind = ? AND s.blob_hash IS NOT NULL
+        LIMIT 1;
+        """, [.text(diagnosticsIdentifier), .text(kind)]).first?.string("h")
+    }
+
+    // MARK: - Detail writes
+
+    /// Persists the structured detail (activity tree, failures, perf metrics, attachment + session
+    /// log manifests) for one test. Blob bytes are not stored here — `blob_hash` stays NULL until a
+    /// background or on-demand pass materializes them.
+    func writeDetail(testRowId: Int,
+                     activities: [ActivityRow],
+                     failures: [FailureRow],
+                     attachments: [AttachmentRow],
+                     sessionLogKinds: [String]) {
+        do {
+            try database.transaction { db in
+                try db.run("DELETE FROM activity WHERE test_id = ?;", [.integer(Int64(testRowId))])
+                try db.run("DELETE FROM failure WHERE test_id = ?;", [.integer(Int64(testRowId))])
+                try db.run("DELETE FROM attachment WHERE test_id = ?;", [.integer(Int64(testRowId))])
+                try db.run("DELETE FROM session_log WHERE test_id = ?;", [.integer(Int64(testRowId))])
+
+                // Activities: insert depth-first so parent rows exist before children reference them.
+                var dbIdByUuid = [String: Int64]()
+                for activity in activities {
+                    let parentDbId = activity.parentUuid.flatMap { dbIdByUuid[$0] }
+                    try db.run("""
+                    INSERT INTO activity (test_id, parent_id, uuid, title, type, start, finish)
+                    VALUES (?,?,?,?,?,?,?);
+                    """, [
+                        .integer(Int64(testRowId)),
+                        parentDbId.map { SQLiteValue.integer($0) } ?? .null,
+                        SQLiteValue(activity.uuid),
+                        SQLiteValue(activity.title),
+                        SQLiteValue(activity.type),
+                        SQLiteValue(activity.start),
+                        SQLiteValue(activity.finish),
+                    ])
+                    if let uuid = activity.uuid {
+                        dbIdByUuid[uuid] = db.lastInsertRowId
+                    }
+                }
+
+                for failure in failures {
+                    try db.run("""
+                    INSERT INTO failure (test_id, message, file, line, detail) VALUES (?,?,?,?,?);
+                    """, [
+                        .integer(Int64(testRowId)),
+                        SQLiteValue(failure.message),
+                        SQLiteValue(failure.file),
+                        SQLiteValue(failure.line),
+                        SQLiteValue(failure.detail),
+                    ])
+                }
+
+                for attachment in attachments {
+                    try db.run("""
+                    INSERT INTO attachment (test_id, activity_id, filename, uti, name, payload_ref, payload_size, content_type, blob_hash)
+                    VALUES (?,?,?,?,?,?,?,?,NULL);
+                    """, [
+                        .integer(Int64(testRowId)),
+                        attachment.activityUuid.flatMap { dbIdByUuid[$0] }.map { SQLiteValue.integer($0) } ?? .null,
+                        SQLiteValue(attachment.filename),
+                        SQLiteValue(attachment.uti),
+                        SQLiteValue(attachment.name),
+                        SQLiteValue(attachment.payloadRef),
+                        SQLiteValue(attachment.payloadSize),
+                        SQLiteValue(attachment.contentType),
+                    ])
+                }
+
+                for kind in sessionLogKinds {
+                    try db.run("INSERT INTO session_log (test_id, kind, blob_hash) VALUES (?,?,NULL);",
+                               [.integer(Int64(testRowId)), .text(kind)])
+                }
+            }
+        } catch {
+            os_log("Failed writing detail for test row %ld: %@", log: .default, type: .error, testRowId, "\(error)")
+        }
+    }
+
+    // MARK: - Row models for detail writes
+
+    struct ActivityRow {
+        let uuid: String?
+        let parentUuid: String?
+        let title: String?
+        let type: String?
+        let start: Date?
+        let finish: Date?
+    }
+
+    struct FailureRow {
+        let message: String?
+        let file: String?
+        let line: Int?
+        let detail: String?
+    }
+
+    struct AttachmentRow {
+        let activityUuid: String?
+        let filename: String?
+        let uti: String?
+        let name: String?
+        let payloadRef: String?
+        let payloadSize: Int?
+        let contentType: String?
+    }
+
     // MARK: - Read
 
     /// Reconstructs all result bundles, newest first.

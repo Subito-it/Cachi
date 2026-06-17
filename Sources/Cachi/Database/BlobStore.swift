@@ -177,4 +177,57 @@ final class BlobStore {
 
         collectGarbage()
     }
+
+    /// Recomputes the per-run blob byte rollup (`result_bundle.blob_byte_size`) from the current
+    /// manifest. Cheap: it sums the indexed `blob.byte_size` column, never stats the filesystem.
+    /// Runs that share a deduplicated blob each count its full size — a deliberate simplification
+    /// (the model assumes disk is consumed only by blobs, attributed per run).
+    func recomputeRunBlobSizes() {
+        try? database.write { db in
+            try db.run("""
+            UPDATE result_bundle SET blob_byte_size = (
+                SELECT COALESCE(SUM(b.byte_size), 0) FROM blob b WHERE b.hash IN (
+                    SELECT a.blob_hash FROM attachment a JOIN test t ON t.id = a.test_id
+                    WHERE t.result_identifier = result_bundle.identifier AND a.blob_hash IS NOT NULL
+                    UNION
+                    SELECT s.blob_hash FROM session_log s JOIN test t ON t.id = s.test_id
+                    WHERE t.result_identifier = result_bundle.identifier AND s.blob_hash IS NOT NULL
+                )
+            );
+            """)
+        }
+    }
+
+    /// Caps total blob disk usage at `maxBytes` by deleting whole runs oldest-first (by
+    /// `ingested_at`) until the rollup is under the limit, then GCs the now-unreferenced blobs.
+    /// Deleting a `result_bundle` row cascades to its tests/activities/attachments/session logs, so
+    /// the entire session is removed — not just its heavy blobs. Refreshes the per-run rollup first
+    /// so the decision uses up-to-date sizes (blobs materialize asynchronously after parse).
+    func enforceDiskLimit(maxBytes: Int) {
+        guard maxBytes > 0 else { return }
+
+        recomputeRunBlobSizes()
+
+        var total = database.query("SELECT COALESCE(SUM(blob_byte_size), 0) AS total FROM result_bundle;")
+            .first?.int("total") ?? 0
+        guard total > maxBytes else { return }
+
+        let runs = database.query("SELECT identifier, blob_byte_size FROM result_bundle ORDER BY ingested_at ASC;")
+        var evicted = 0
+        for run in runs {
+            guard total > maxBytes else { break }
+            guard let identifier = run.string("identifier") else { continue }
+            let size = run.int("blob_byte_size") ?? 0
+            try? database.write { db in
+                try db.run("DELETE FROM result_bundle WHERE identifier = ?;", [.text(identifier)])
+            }
+            total -= size
+            evicted += 1
+        }
+
+        if evicted > 0 {
+            os_log("Disk limit (%ld bytes) exceeded: evicted %ld oldest run(s)", log: .default, type: .info, maxBytes, evicted)
+            collectGarbage()
+        }
+    }
 }

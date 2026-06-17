@@ -90,7 +90,31 @@ final class Database {
             try db.run("INSERT INTO schema_version (version) VALUES (?);", [.integer(1)])
             os_log("Applied SQLite schema v1", log: .default, type: .info)
         }
+
+        if current < 2 {
+            try db.execute(Self.schemaV2)
+            try db.run("DELETE FROM schema_version;")
+            try db.run("INSERT INTO schema_version (version) VALUES (?);", [.integer(2)])
+            os_log("Applied SQLite schema v2", log: .default, type: .info)
+        }
     }
+
+    /// v2: per-run rollup of the bytes occupied by its blobs (videos, session logs). Kept in the
+    /// `result_bundle` row so the disk-size enforcement can attribute usage to runs and evict whole
+    /// sessions without scanning the filesystem. Backfilled from the existing blob manifest.
+    private static let schemaV2 = """
+    ALTER TABLE result_bundle ADD COLUMN blob_byte_size INTEGER NOT NULL DEFAULT 0;
+
+    UPDATE result_bundle SET blob_byte_size = (
+        SELECT COALESCE(SUM(b.byte_size), 0) FROM blob b WHERE b.hash IN (
+            SELECT a.blob_hash FROM attachment a JOIN test t ON t.id = a.test_id
+            WHERE t.result_identifier = result_bundle.identifier AND a.blob_hash IS NOT NULL
+            UNION
+            SELECT s.blob_hash FROM session_log s JOIN test t ON t.id = s.test_id
+            WHERE t.result_identifier = result_bundle.identifier AND s.blob_hash IS NOT NULL
+        )
+    );
+    """
 
     private static let schemaV1 = """
     CREATE TABLE result_bundle (

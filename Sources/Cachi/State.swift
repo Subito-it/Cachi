@@ -35,6 +35,10 @@ class State {
 
     static let defaultStatWindowSize = 20
 
+    /// Optional cap (bytes) on total blob disk usage, set once from the launch argument. When set,
+    /// each parse pass evicts whole runs oldest-first until usage is under this limit. nil = no cap.
+    var maxDiskSizeBytes: Int?
+
     /// The persistent SQLite-backed store. Configured once on first parse (it needs the results
     /// `baseUrl`). All structured reads/writes go through it — there is no in-memory bundle corpus.
     private var store: ResultStore?
@@ -182,8 +186,12 @@ class State {
         syncQueue.sync { database }?.performMaintenance()
 
         // Deferred, low-priority: extract failure detail + materialize video/log blobs. Off the
-        // parse critical path so a failure flood grows a backlog rather than blocking.
-        syncQueue.sync { backgroundIngest }?.runAsync()
+        // parse critical path so a failure flood grows a backlog rather than blocking. Once blobs
+        // are fully materialized, enforce the optional disk-size cap (evict whole runs oldest-first).
+        syncQueue.sync { backgroundIngest }?.runAsync { [weak self] in
+            guard let self, let maxBytes = self.maxDiskSizeBytes else { return }
+            self.syncQueue.sync { self.blobStore }?.enforceDiskLimit(maxBytes: maxBytes)
+        }
     }
 
     func result(identifier: String) -> ResultBundle? {

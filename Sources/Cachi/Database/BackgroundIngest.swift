@@ -49,10 +49,12 @@ final class BackgroundIngest {
         os_log("Background ingest completed in %fms", log: .default, type: .info, benchmarkStop(benchId))
     }
 
-    /// Runs `run()` off the calling thread.
-    func runAsync() {
+    /// Runs `run()` off the calling thread, invoking `completion` once all work has finished
+    /// (blobs are then fully materialized on disk).
+    func runAsync(completion: (() -> Void)? = nil) {
         DispatchQueue.global(qos: .utility).async { [weak self] in
             self?.run()
+            completion?()
         }
     }
 

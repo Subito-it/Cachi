@@ -77,13 +77,19 @@ final class Database {
 
     /// Runs a read query on a borrowed pooled connection. Concurrent callers each get their own
     /// connection (up to the pool size) and execute in parallel; the lock only guards borrow/return.
+    ///
+    /// On failure this returns an empty array so a single bad query degrades to an empty page rather
+    /// than taking down request serving. The downside is that a genuine error (lock timeout, malformed
+    /// SQL) then looks identical to "no rows" to the caller — so the failure is logged loudly with the
+    /// offending SQL, and trips an assertion in debug builds to surface it during development.
     func query(_ sql: String, _ bindings: [SQLiteValue] = []) -> [SQLiteRow] {
         let reader = borrowReader()
         defer { returnReader(reader) }
         do {
             return try reader.query(sql, bindings)
         } catch {
-            os_log("DB query failed: %@", log: .default, type: .error, "\(error)")
+            os_log("DB query failed (returning no rows): %@ — SQL: %@", log: .default, type: .fault, "\(error)", sql)
+            assertionFailure("DB query failed: \(error) — SQL: \(sql)")
             return []
         }
     }

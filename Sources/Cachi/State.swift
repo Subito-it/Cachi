@@ -246,15 +246,30 @@ class State {
     }
 
     /// Resolves a serve-ready base video for an attachment to a local file at `destinationUrl`.
-    /// Read-through: copies the transcoded blob if present, otherwise exports the raw video from
-    /// the xcresult, transcodes it (sync, ~2-5s, acceptable), stores the blob, and writes it out.
-    /// Returns false if no video could be produced.
+    ///
+    /// Prefers the **original high-quality** recording exported straight from the `.xcresult`, so the
+    /// step-by-step playback stays sharp. Only when the bundle is no longer on disk (e.g. pruned)
+    /// does it fall back to the stored transcoded blob, which is intentionally smaller and lower
+    /// quality. The blob itself is materialized off the request path by `BackgroundIngest` after each
+    /// parse, so the fallback is available once the xcresult is gone. Returns false if neither source
+    /// can produce a video.
     func materializeVideo(test: ResultBundle.Test, attachmentIdentifier: String, destinationUrl: URL) -> Bool {
         let fileManager = FileManager.default
         if fileManager.fileExists(atPath: destinationUrl.path) { return true }
         try? fileManager.createDirectory(at: destinationUrl.deletingLastPathComponent(), withIntermediateDirectories: true)
 
-        // Hit: copy the already-transcoded blob.
+        // 1. Preferred: export the original high-quality video directly from the xcresult.
+        let cachi = CachiKit(url: test.xcresultUrl)
+        do {
+            try cachi.export(identifier: attachmentIdentifier, destinationPath: destinationUrl.path)
+            if fileManager.fileExists(atPath: destinationUrl.path) {
+                return true
+            }
+        } catch {
+            try? fileManager.removeItem(at: destinationUrl)
+        }
+
+        // 2. Fallback: the stored transcoded blob (lower quality, but survives xcresult pruning).
         if let summaryIdentifier = test.summaryIdentifier,
            let blobStore = sharedBlobStore,
            let hash = resultStore?.videoBlobHash(summaryIdentifier: summaryIdentifier) {
@@ -264,31 +279,7 @@ class State {
             }
         }
 
-        // Miss: export raw + transcode now, store the blob, and update the manifest if present.
-        let scratch = Cachi.temporaryFolderUrl.appendingPathComponent("serve-\(UUID().uuidString)")
-        let rawUrl = scratch.appendingPathComponent("raw.mp4")
-        try? fileManager.createDirectory(at: scratch, withIntermediateDirectories: true)
-        defer { try? fileManager.removeItem(at: scratch) }
-
-        let cachi = CachiKit(url: test.xcresultUrl)
-        do {
-            try cachi.export(identifier: attachmentIdentifier, destinationPath: rawUrl.path)
-            try VideoTranscoder.transcode(sourceUrl: rawUrl, destinationUrl: destinationUrl)
-        } catch {
-            return false
-        }
-
-        if let blobStore = sharedBlobStore,
-           let store = resultStore,
-           let summaryIdentifier = test.summaryIdentifier,
-           let rowId = store.testRowId(summaryIdentifier: summaryIdentifier),
-           let hash = try? blobStore.store(Data(contentsOf: destinationUrl), kind: .video) {
-            for video in store.videoAttachmentsNeedingBlob(testRowId: rowId) where video.payloadRef == attachmentIdentifier {
-                store.setAttachmentBlobHash(attachmentId: video.attachmentId, hash: hash, contentType: "video/mp4")
-            }
-        }
-
-        return fileManager.fileExists(atPath: destinationUrl.path)
+        return false
     }
 
     func testSessionLogs(diagnosticsIdentifier: String) -> ResultBundle.Test.SessionLogs? {

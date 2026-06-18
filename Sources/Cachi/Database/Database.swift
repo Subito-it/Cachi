@@ -111,32 +111,31 @@ final class Database {
         try db.execute("CREATE TABLE IF NOT EXISTS schema_version (version INTEGER NOT NULL);")
         let current = (try db.query("SELECT version FROM schema_version LIMIT 1;").first?.int("version")) ?? 0
 
-        if current < 1 {
-            try db.execute(Self.schemaV1)
-            try db.run("DELETE FROM schema_version;")
-            try db.run("INSERT INTO schema_version (version) VALUES (?);", [.integer(1)])
-            os_log("Applied SQLite schema v1", log: .default, type: .info)
-        }
+        try applyMigration(db, version: 1, ifBelow: current, sql: Self.schemaV1)
+        try applyMigration(db, version: 2, ifBelow: current, sql: Self.schemaV2)
+        try applyMigration(db, version: 3, ifBelow: current, sql: Self.schemaV3)
+        try applyMigration(db, version: 4, ifBelow: current, sql: Self.schemaV4)
+    }
 
-        if current < 2 {
-            try db.execute(Self.schemaV2)
-            try db.run("DELETE FROM schema_version;")
-            try db.run("INSERT INTO schema_version (version) VALUES (?);", [.integer(2)])
-            os_log("Applied SQLite schema v2", log: .default, type: .info)
-        }
+    /// Applies one migration step atomically: the schema DDL/DML **and** the `schema_version` bump
+    /// commit together, or roll back together on any failure. This prevents a half-applied migration
+    /// (e.g. an `ALTER` that succeeded before a backfill threw) from wedging the DB — without the
+    /// version advancing, the next launch would otherwise re-run the `ALTER` and fail on a duplicate
+    /// column. Runs on the writer connection at init, before the writer queue serves anything, so
+    /// driving `BEGIN`/`COMMIT` directly on the connection is safe.
+    private static func applyMigration(_ db: SQLiteConnection, version: Int, ifBelow current: Int, sql: String) throws {
+        guard current < version else { return }
 
-        if current < 3 {
-            try db.execute(Self.schemaV3)
+        try db.execute("BEGIN IMMEDIATE;")
+        do {
+            try db.execute(sql)
             try db.run("DELETE FROM schema_version;")
-            try db.run("INSERT INTO schema_version (version) VALUES (?);", [.integer(3)])
-            os_log("Applied SQLite schema v3", log: .default, type: .info)
-        }
-
-        if current < 4 {
-            try db.execute(Self.schemaV4)
-            try db.run("DELETE FROM schema_version;")
-            try db.run("INSERT INTO schema_version (version) VALUES (?);", [.integer(4)])
-            os_log("Applied SQLite schema v4", log: .default, type: .info)
+            try db.run("INSERT INTO schema_version (version) VALUES (?);", [.integer(Int64(version))])
+            try db.execute("COMMIT;")
+            os_log("Applied SQLite schema v%ld", log: .default, type: .info, version)
+        } catch {
+            try? db.execute("ROLLBACK;")
+            throw error
         }
     }
 

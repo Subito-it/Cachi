@@ -21,7 +21,7 @@ struct ResultsRoute: Routable {
     func respond(to _: Request) throws -> Response {
         os_log("Results request received", log: .default, type: .info)
 
-        let results = State.shared.resultBundles
+        let results = State.shared.allResultBundlesFullScan
 
         var resultInfos = [ResultInfo]()
 

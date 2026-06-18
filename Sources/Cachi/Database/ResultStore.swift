@@ -462,9 +462,37 @@ final class ResultStore {
         return bundle(from: runRow, tests: testRows.map(test(from:)))
     }
 
+    /// Fully reconstructs the (at most `limit`) most recent runs that contain a test matching
+    /// `routeIdentifier`, newest first. Each returned bundle has its complete test list so the
+    /// derived collections (e.g. `testsUniquelyFailed`) the HTML stats page renders are correct.
+    func resultBundles(containingRouteIdentifier routeIdentifier: String, limit: Int) -> [ResultBundle] {
+        let runIdRows = database.query("""
+        SELECT DISTINCT t.result_identifier AS rid, r.test_start_date AS sd
+        FROM test t JOIN result_bundle r ON r.identifier = t.result_identifier
+        WHERE t.route_identifier = ?
+        ORDER BY r.test_start_date DESC
+        LIMIT ?;
+        """, [.text(routeIdentifier), .integer(Int64(limit))])
+
+        return runIdRows.compactMap { $0.string("rid") }.compactMap { resultBundle(identifier: $0) }
+    }
+
     func test(summaryIdentifier: String) -> ResultBundle.Test? {
         database.query("SELECT * FROM test WHERE summary_identifier = ? LIMIT 1;", [.text(summaryIdentifier)])
             .first.map(test(from:))
+    }
+
+    /// A test plus the fully reconstructed run it belongs to, found by summary identifier. The
+    /// detail/session-log HTML pages need both (the run supplies `userInfo`, `identifier`, and the
+    /// derived collections used for prev/next navigation). Indexed lookups, no corpus scan.
+    func testWithResultBundle(summaryIdentifier: String) -> (test: ResultBundle.Test, resultBundle: ResultBundle)? {
+        guard let row = database.query("SELECT * FROM test WHERE summary_identifier = ? LIMIT 1;", [.text(summaryIdentifier)]).first,
+              let runId = row.string("result_identifier"),
+              let resultBundle = resultBundle(identifier: runId)
+        else {
+            return nil
+        }
+        return (test(from: row), resultBundle)
     }
 
     func test(diagnosticsIdentifier: String) -> ResultBundle.Test? {

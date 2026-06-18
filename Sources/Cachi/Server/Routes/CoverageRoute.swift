@@ -12,12 +12,10 @@ struct CoverageRoute: Routable {
     func respond(to req: Request) throws -> Response {
         os_log("Coverage request received", log: .default, type: .info)
 
-        let resultBundles = State.shared.resultBundles
-
         guard let components = req.urlComponents(),
               let queryItems = components.queryItems,
               let resultIdentifier = queryItems.first(where: { $0.name == "id" })?.value,
-              let resultBundle = resultBundles.first(where: { $0.identifier == resultIdentifier }),
+              let resultBundle = State.shared.result(identifier: resultIdentifier),
               var pathCoverages = pathCoveragesForResult(resultBundle, for: Kind(queryItems: queryItems))
         else {
             return Response(status: .notFound, body: Response.Body(stringLiteral: "Not found..."))

@@ -88,8 +88,18 @@ class State {
         syncQueue.sync { blobStore }
     }
 
-    var resultBundles: [ResultBundle] {
+    /// Reconstructs **every** run in the database (full `SELECT * FROM test` + per-run rebuild).
+    /// Cost scales with total history, so this is only for the results-list endpoints that
+    /// genuinely need all runs. For single-run or single-test lookups use the indexed
+    /// `result(identifier:)` / `test(summaryIdentifier:)` instead.
+    var allResultBundlesFullScan: [ResultBundle] {
         resultStore?.allResultBundles() ?? []
+    }
+
+    /// The (at most `limit`) most recent runs containing a test with the given route identifier,
+    /// newest first. Indexed lookup — does not scan the whole corpus.
+    func resultBundles(containingRouteIdentifier routeIdentifier: String, limit: Int) -> [ResultBundle] {
+        resultStore?.resultBundles(containingRouteIdentifier: routeIdentifier, limit: limit) ?? []
     }
 
     func allTargets() -> [String] {
@@ -195,6 +205,12 @@ class State {
 
     func test(summaryIdentifier: String) -> ResultBundle.Test? {
         resultStore?.test(summaryIdentifier: summaryIdentifier)
+    }
+
+    /// A test plus its owning run, by summary identifier. Indexed lookup (no corpus scan); used by
+    /// the test-detail and session-log HTML pages that need the run for `userInfo`/navigation.
+    func testWithResultBundle(summaryIdentifier: String) -> (test: ResultBundle.Test, resultBundle: ResultBundle)? {
+        resultStore?.testWithResultBundle(summaryIdentifier: summaryIdentifier)
     }
 
     func testActionSummary(test: ResultBundle.Test?) -> ActionTestSummary? {

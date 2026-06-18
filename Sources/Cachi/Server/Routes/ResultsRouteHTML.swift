@@ -13,7 +13,7 @@ struct ResultsRouteHTML: Routable {
     func respond(to req: Request) throws -> Response {
         os_log("HTML results request received", log: .default, type: .info)
 
-        let results = State.shared.resultBundles
+        let results = State.shared.allResultBundlesFullScan
 
         guard let components = req.urlComponents() else {
             return Response(status: .notFound, body: Response.Body(stringLiteral: "Not found..."))

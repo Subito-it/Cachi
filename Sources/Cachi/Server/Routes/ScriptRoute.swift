@@ -20,17 +20,13 @@ struct ScriptRoute: Routable {
         case "capture":
             scriptContent = scriptCapture()
         case "coverage-files":
-            let resultBundles = State.shared.resultBundles
-
             if let resultIdentifier = queryItems.first(where: { $0.name == "id" })?.value,
-               let resultBundle = resultBundles.first(where: { $0.identifier == resultIdentifier }) {
+               let resultBundle = State.shared.result(identifier: resultIdentifier) {
                 scriptContent = scriptFilesCoverage(resultBundle: resultBundle)
             }
         case "coverage-folders":
-            let resultBundles = State.shared.resultBundles
-
             if let resultIdentifier = queryItems.first(where: { $0.name == "id" })?.value,
-               let resultBundle = resultBundles.first(where: { $0.identifier == resultIdentifier }) {
+               let resultBundle = State.shared.result(identifier: resultIdentifier) {
                 scriptContent = scriptFoldersCoverage(resultBundle: resultBundle)
             }
         case "result-stat":

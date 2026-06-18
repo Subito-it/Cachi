@@ -24,11 +24,7 @@ struct TestSessionLogsRouteHTML: Routable {
         let benchId = benchmarkStart()
         defer { os_log("Test session logs with summaryIdentifier '%@' fetched in %fms", log: .default, type: .info, testSummaryIdentifier, benchmarkStop(benchId)) }
 
-        let resultBundles = State.shared.resultBundles
-
-        guard let resultBundle = resultBundles.first(where: { $0.tests.contains(where: { $0.summaryIdentifier == testSummaryIdentifier }) }),
-              let test = resultBundle.tests.first(where: { $0.summaryIdentifier == testSummaryIdentifier })
-        else {
+        guard let (test, resultBundle) = State.shared.testWithResultBundle(summaryIdentifier: testSummaryIdentifier) else {
             return Response(status: .notFound, body: Response.Body(stringLiteral: "Not found..."))
         }
 

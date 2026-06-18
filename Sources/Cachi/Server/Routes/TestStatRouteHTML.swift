@@ -31,19 +31,17 @@ struct TestStatRouteHTML: Routable {
         let benchId = benchmarkStart()
         defer { os_log("Test with summaryIdentifier '%@' fetched in %fms", log: .default, type: .info, testSummaryIdentifier, benchmarkStop(benchId)) }
 
-        let resultBundles = State.shared.resultBundles
-
-        guard let resultBundle = resultBundles.first(where: { $0.tests.contains(where: { $0.summaryIdentifier == testSummaryIdentifier }) }),
-              let test = resultBundle.tests.first(where: { $0.summaryIdentifier == testSummaryIdentifier })
-        else {
+        guard let test = State.shared.test(summaryIdentifier: testSummaryIdentifier) else {
             return Response(status: .notFound, body: Response.Body(stringLiteral: "Not found..."))
         }
 
-        var matchingResults = [(resultBundle: ResultBundle, tests: [ResultBundle.Test])]()
-        for resultBundle in resultBundles {
-            if matchingResults.count > 50 { break }
+        // Indexed cross-run lookup: the most recent runs containing this logical test (same
+        // route identifier = same target/group/name/device), newest first.
+        let matchingBundles = State.shared.resultBundles(containingRouteIdentifier: test.routeIdentifier, limit: 51)
 
-            let tests = resultBundle.tests.filter { $0.targetIdentifier == test.targetIdentifier }
+        var matchingResults = [(resultBundle: ResultBundle, tests: [ResultBundle.Test])]()
+        for resultBundle in matchingBundles {
+            let tests = resultBundle.tests.filter { $0.routeIdentifier == test.routeIdentifier }
             if tests.count > 0 {
                 matchingResults.append((resultBundle: resultBundle, tests: tests))
             }
@@ -52,8 +50,6 @@ struct TestStatRouteHTML: Routable {
         guard matchingResults.count > 0 else {
             return Response(status: .notFound, body: Response.Body(stringLiteral: "Something went really wrong..."))
         }
-
-        matchingResults = matchingResults.sorted(by: { $0.resultBundle.testStartDate > $1.resultBundle.testStartDate })
 
         let allTests = matchingResults.map(\.tests).flatMap { $0 }
         let allTestsAverageDuration = allTests.reduce(0) { $0 + $1.duration } / Double(max(1, allTests.count))

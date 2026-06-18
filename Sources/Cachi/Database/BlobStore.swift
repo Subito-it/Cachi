@@ -93,13 +93,13 @@ final class BlobStore {
         guard let hash = Self.hash(ofFileAt: fileUrl) else {
             throw CocoaError(.fileReadUnknown)
         }
+        // `persist` invokes the closure only when the hash isn't already stored, so the move always
+        // targets a free path. On a dedup hit the closure is skipped and the source is left behind —
+        // remove it afterwards so callers don't have to.
         try persist(hash: hash, byteCount: byteCount(of: fileUrl), kind: kind) { destination in
-            if FileManager.default.fileExists(atPath: destination.path) {
-                try? FileManager.default.removeItem(at: fileUrl)
-            } else {
-                try FileManager.default.moveItem(at: fileUrl, to: destination)
-            }
+            try FileManager.default.moveItem(at: fileUrl, to: destination)
         }
+        try? FileManager.default.removeItem(at: fileUrl)
         return hash
     }
 

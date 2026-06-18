@@ -3,16 +3,19 @@ import os
 
 /// The single SQLite-backed store for all structured data and blob manifests.
 ///
-/// Concurrency model: one serial writer queue (all mutations funnel through it) plus a
-/// dedicated read connection guarded by its own lock. WAL mode lets readers proceed while
-/// the writer is active. This mirrors the previous `State` barrier-write design but backed
-/// by SQLite instead of an in-memory array.
+/// Concurrency model: one serial writer queue (all mutations funnel through it) plus a pool of
+/// read-only connections. WAL mode lets all readers proceed concurrently with each other and with
+/// the writer. Vapor serves requests concurrently, so a pool (rather than one shared reader) keeps
+/// a slow query from blocking unrelated reads. The free-list lock only guards connection handoff —
+/// query execution happens outside it.
 final class Database {
     private let writer: SQLiteConnection
     private let writerQueue = DispatchQueue(label: "com.subito.cachi.db.writer")
 
-    private let reader: SQLiteConnection
-    private let readerLock = NSLock()
+    private let readers: [SQLiteConnection]
+    private var availableReaders: [SQLiteConnection]
+    private let readerPoolLock = NSLock()
+    private let readerPoolSemaphore: DispatchSemaphore
 
     let databaseUrl: URL
 
@@ -28,8 +31,17 @@ final class Database {
 
         try Self.migrate(writer)
 
-        reader = try SQLiteConnection(path: databaseUrl.path, readonly: true)
-        try reader.execute("PRAGMA foreign_keys=ON;")
+        let readerCount = min(8, max(2, ProcessInfo.processInfo.activeProcessorCount))
+        var pool = [SQLiteConnection]()
+        for _ in 0 ..< readerCount {
+            let reader = try SQLiteConnection(path: databaseUrl.path, readonly: true)
+            try reader.execute("PRAGMA foreign_keys=ON;")
+            try reader.execute("PRAGMA busy_timeout=5000;")
+            pool.append(reader)
+        }
+        readers = pool
+        availableReaders = pool
+        readerPoolSemaphore = DispatchSemaphore(value: readerCount)
     }
 
     // MARK: - Write access
@@ -56,16 +68,31 @@ final class Database {
 
     // MARK: - Read access
 
-    /// Runs a read query. Serialized on the reader connection (WAL allows concurrency with the writer).
+    /// Runs a read query on a borrowed pooled connection. Concurrent callers each get their own
+    /// connection (up to the pool size) and execute in parallel; the lock only guards borrow/return.
     func query(_ sql: String, _ bindings: [SQLiteValue] = []) -> [SQLiteRow] {
-        readerLock.lock()
-        defer { readerLock.unlock() }
+        let reader = borrowReader()
+        defer { returnReader(reader) }
         do {
             return try reader.query(sql, bindings)
         } catch {
             os_log("DB query failed: %@", log: .default, type: .error, "\(error)")
             return []
         }
+    }
+
+    private func borrowReader() -> SQLiteConnection {
+        readerPoolSemaphore.wait()
+        readerPoolLock.lock()
+        defer { readerPoolLock.unlock() }
+        return availableReaders.removeLast()
+    }
+
+    private func returnReader(_ reader: SQLiteConnection) {
+        readerPoolLock.lock()
+        availableReaders.append(reader)
+        readerPoolLock.unlock()
+        readerPoolSemaphore.signal()
     }
 
     // MARK: - Maintenance

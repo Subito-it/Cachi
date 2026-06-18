@@ -115,6 +115,7 @@ final class Database {
         try applyMigration(db, version: 2, ifBelow: current, sql: Self.schemaV2)
         try applyMigration(db, version: 3, ifBelow: current, sql: Self.schemaV3)
         try applyMigration(db, version: 4, ifBelow: current, sql: Self.schemaV4)
+        try applyMigration(db, version: 5, ifBelow: current, sql: Self.schemaV5)
     }
 
     /// Applies one migration step atomically: the schema DDL/DML **and** the `schema_version` bump
@@ -138,6 +139,23 @@ final class Database {
             throw error
         }
     }
+
+    /// v5: per-run derived rollups for the results-list endpoints, so the list view never has to
+    /// reconstruct every `Test` and re-run `ResultBundle.make`'s grouping on each request. The counts
+    /// (uniquely-failed / failed-retrying) come from `make`'s grouping logic, which can't be expressed
+    /// as a plain SQL `GROUP BY`, so they're written at ingest in `upsert` and backfilled for existing
+    /// rows by `ResultStore.backfillSummaryRollups()` (the DDL only adds the columns).
+    private static let schemaV5 = """
+    ALTER TABLE result_bundle ADD COLUMN passed_count            INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE result_bundle ADD COLUMN uniquely_failed_count   INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE result_bundle ADD COLUMN failed_by_system_count  INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE result_bundle ADD COLUMN failed_retrying_count   INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE result_bundle ADD COLUMN total_count             INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE result_bundle ADD COLUMN summary_rollup_done      INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE result_bundle ADD COLUMN first_target_name       TEXT;
+    ALTER TABLE result_bundle ADD COLUMN first_device_model      TEXT;
+    ALTER TABLE result_bundle ADD COLUMN first_device_os         TEXT;
+    """
 
     /// v4: fields needed to rebuild the CachiKit test summary (activity tree) from SQLite so the
     /// test-detail page works after the `.xcresult` is pruned: attachment timestamps, failure uuid

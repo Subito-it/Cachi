@@ -13,7 +13,7 @@ struct ResultsRouteHTML: Routable {
     func respond(to req: Request) throws -> Response {
         os_log("HTML results request received", log: .default, type: .info)
 
-        let results = State.shared.allResultBundlesFullScan
+        let results = State.shared.resultSummaries()
 
         guard let components = req.urlComponents() else {
             return Response(status: .notFound, body: Response.Body(stringLiteral: "Not found..."))
@@ -38,7 +38,7 @@ struct ResultsRouteHTML: Routable {
         return document.httpResponse()
     }
 
-    private func floatingHeaderHTML(results: [ResultBundle], state: RouteState) -> HTML {
+    private func floatingHeaderHTML(results: [ResultStore.ResultSummary], state: RouteState) -> HTML {
         var blocks = [HTML]()
 
         switch State.shared.state {
@@ -66,7 +66,7 @@ struct ResultsRouteHTML: Routable {
         return HTMLBuilder.buildBlocks(blocks)
     }
 
-    private func resultsTableHTML(results: [ResultBundle], state: RouteState) -> HTML {
+    private func resultsTableHTML(results: [ResultStore.ResultSummary], state: RouteState) -> HTML {
         let days = results.map { DateFormatter.dayMonthFormatter.string(from: $0.testStartDate) }.uniques
 
         if days.count == 0 {
@@ -92,34 +92,34 @@ struct ResultsRouteHTML: Routable {
                         }.class("dark-bordered-container"),
                         forEach(dayResults) { result in
                             tableRow {
-                                let resultTitle = result.htmlTitle()
-                                let resultSubtitle = result.htmlSubtitle()
-                                let resultDevice = "\(result.tests.first!.deviceModel) (\(result.tests.first!.deviceOs))"
+                                let resultTitle = result.htmlTitle
+                                let resultSubtitle = result.htmlSubtitle
+                                let resultDevice = "\(result.firstDeviceModel ?? "") (\(result.firstDeviceOs ?? ""))"
 
-                                let testsPassed = result.testsPassed
-                                let testsFailed = result.testsUniquelyFailed
-                                let testsFailedBySystem = state.showSystemFailures ? result.testsFailedBySystem : []
-                                let testsRetried = result.testsFailedRetring
-                                let testsCount = testsPassed.count + testsFailed.count
-                                let testCrashCount = result.testsCrashCount
+                                let passedCount = result.passedCount
+                                let failedCount = result.uniquelyFailedCount
+                                let failedBySystemCount = state.showSystemFailures ? result.failedBySystemCount : 0
+                                let retriedCount = result.failedRetryingCount
+                                let testsCount = passedCount + failedCount
+                                let testCrashCount = result.crashCount
 
-                                let testPassedString = testsPassed.count > 0 ? "\(testsPassed.count) passed (\(testsPassed.count.percentageString(total: testsCount, decimalDigits: 1)))" : ""
-                                let testFailedString = testsFailed.count > 0 ? "\(testsFailed.count) failed (\(testsFailed.count.percentageString(total: testsCount, decimalDigits: 1)))" : ""
-                                let testFailedBySystemString = testsFailedBySystem.count > 0 ? "\(testsFailedBySystem.count) system failures (\(testsFailedBySystem.count.percentageString(total: testsCount, decimalDigits: 1)))" : ""
-                                let testRetriedString = testsRetried.count > 0 ? "\(testsRetried.count) retries (\(testsRetried.count.percentageString(total: testsCount + testsRetried.count, decimalDigits: 1)))" : ""
+                                let testPassedString = passedCount > 0 ? "\(passedCount) passed (\(passedCount.percentageString(total: testsCount, decimalDigits: 1)))" : ""
+                                let testFailedString = failedCount > 0 ? "\(failedCount) failed (\(failedCount.percentageString(total: testsCount, decimalDigits: 1)))" : ""
+                                let testFailedBySystemString = failedBySystemCount > 0 ? "\(failedBySystemCount) system failures (\(failedBySystemCount.percentageString(total: testsCount, decimalDigits: 1)))" : ""
+                                let testRetriedString = retriedCount > 0 ? "\(retriedCount) retries (\(retriedCount.percentageString(total: testsCount + retriedCount, decimalDigits: 1)))" : ""
                                 let testCrashCountString = testCrashCount > 0 ? "\(testCrashCount) crashes (\(testCrashCount.percentageString(total: testsCount, decimalDigits: 1)))" : ""
 
                                 return HTMLBuilder.buildBlock(
                                     tableData {
                                         linkToResultDetail(result: result, state: state) {
                                             image(url: result.htmlStatusImageUrl(includeSystemFailures: state.showSystemFailures))
-                                                .attr("title", result.htmlStatusTitle())
+                                                .attr("title", result.htmlStatusTitle)
                                                 .iconStyleAttributes(width: 14)
                                                 .class("icon")
                                             resultTitle
                                             div { resultSubtitle }.class("color-subtext indent2")
                                             div { resultDevice }.class("color-subtext indent2")
-                                        }.class(result.htmlTextColor())
+                                        }.class(result.htmlTextColor)
                                     }.class("row indent3"),
                                     tableData {
                                         linkToResultDetail(result: result, state: state) {
@@ -143,7 +143,7 @@ struct ResultsRouteHTML: Routable {
         "/?\(state)"
     }
 
-    private func linkToResultDetail(result: ResultBundle, state: RouteState, @HTMLBuilder child: () -> HTML) -> HTML {
+    private func linkToResultDetail(result: ResultStore.ResultSummary, state: RouteState, @HTMLBuilder child: () -> HTML) -> HTML {
         link(url: ResultRouteHTML.urlString(resultIdentifier: result.identifier, backUrl: currentUrl(state: state))) {
             child()
         }

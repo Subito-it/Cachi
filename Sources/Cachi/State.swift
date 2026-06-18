@@ -72,6 +72,8 @@ class State {
                 self.blobStore = blobStore
                 self.backgroundIngest = BackgroundIngest(store: store, blobStore: blobStore)
                 self.baseUrl = baseUrl
+                // One-shot: fill summary rollups for runs ingested before schema v5.
+                store.backfillSummaryRollups()
                 return store
             } catch {
                 os_log("Failed opening database at '%@': %@", log: .default, type: .error, baseUrl.path, "\(error)")
@@ -100,6 +102,12 @@ class State {
     /// newest first. Indexed lookup — does not scan the whole corpus.
     func resultBundles(containingRouteIdentifier routeIdentifier: String, limit: Int) -> [ResultBundle] {
         resultStore?.resultBundles(containingRouteIdentifier: routeIdentifier, limit: limit) ?? []
+    }
+
+    /// Lightweight per-run summaries (newest first) for the results-list endpoints. Reads only
+    /// `result_bundle` rollup columns — no test rows, no `ResultBundle.make`.
+    func resultSummaries() -> [ResultStore.ResultSummary] {
+        resultStore?.resultSummaries() ?? []
     }
 
     func allTargets() -> [String] {

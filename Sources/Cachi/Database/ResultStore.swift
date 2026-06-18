@@ -26,12 +26,15 @@ final class ResultStore {
                 // Replace any prior rows for this run so re-ingest is clean (CASCADE clears children).
                 try db.run("DELETE FROM result_bundle WHERE identifier = ?;", [.text(bundle.identifier)])
 
+                let firstTest = bundle.tests.first
                 try db.run("""
                 INSERT INTO result_bundle
                     (identifier, test_start_date, test_end_date, total_execution_time, destinations,
                      branch, commit_hash, commit_message, metadata, source_base_path, github_base_url,
-                     user_start_date, user_end_date, crash_count, ingested_at, source_xcresult_paths)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
+                     user_start_date, user_end_date, crash_count, ingested_at, source_xcresult_paths,
+                     passed_count, uniquely_failed_count, failed_by_system_count, failed_retrying_count,
+                     total_count, summary_rollup_done, first_target_name, first_device_model, first_device_os)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1,?,?,?);
                 """, [
                     .text(bundle.identifier),
                     SQLiteValue(bundle.testStartDate),
@@ -49,6 +52,14 @@ final class ResultStore {
                     .integer(Int64(bundle.testsCrashCount)),
                     SQLiteValue(Date()),
                     .text(sourcePaths),
+                    .integer(Int64(bundle.testsPassed.count)),
+                    .integer(Int64(bundle.testsUniquelyFailed.count)),
+                    .integer(Int64(bundle.testsFailedBySystem.count)),
+                    .integer(Int64(bundle.testsFailedRetring.count)),
+                    .integer(Int64(bundle.tests.count)),
+                    SQLiteValue(firstTest?.targetName),
+                    SQLiteValue(firstTest?.deviceModel),
+                    SQLiteValue(firstTest?.deviceOs),
                 ])
 
                 for test in bundle.tests {
@@ -457,6 +468,105 @@ final class ResultStore {
                                     filename: row.string("filename"),
                                     payloadRef: payloadRef,
                                     payloadSize: row.int("payload_size"))
+    }
+
+    // MARK: - Result summaries (results-list endpoints)
+
+    /// Lightweight per-run rollup for the results-list views. Read straight from `result_bundle`
+    /// (no `test` join, no `ResultBundle.make`), so list cost scales with the number of runs, not the
+    /// total number of tests across all history.
+    struct ResultSummary {
+        let identifier: String
+        let testStartDate: Date
+        let testEndDate: Date
+        let startDate: Date
+        let endDate: Date
+        let destinations: String
+        let branchName: String?
+        let commitHash: String?
+        let commitMessage: String?
+        let metadata: String?
+        let firstTargetName: String?
+        let firstDeviceModel: String?
+        let firstDeviceOs: String?
+        let passedCount: Int
+        let uniquelyFailedCount: Int
+        let failedBySystemCount: Int
+        let failedRetryingCount: Int
+        let totalCount: Int
+        let crashCount: Int
+        let hasCoverage: Bool
+    }
+
+    /// All run summaries, newest first. One indexed scan of `result_bundle`; no test rows touched.
+    func resultSummaries() -> [ResultSummary] {
+        database.query("SELECT * FROM result_bundle ORDER BY test_start_date DESC;").map(summary(from:))
+    }
+
+    private func summary(from row: SQLiteRow) -> ResultSummary {
+        let coveragePath = (row.string("source_xcresult_paths") ?? "")
+            .split(separator: "\n").first
+            .map { URL(fileURLWithPath: String($0)).deletingLastPathComponent().appendingPathComponent("coverage-folders.json").path }
+        let hasCoverage = coveragePath.map { FileManager.default.fileExists(atPath: $0) } ?? false
+
+        return ResultSummary(
+            identifier: row.string("identifier") ?? "",
+            testStartDate: row.date("test_start_date") ?? Date(timeIntervalSince1970: 0),
+            testEndDate: row.date("test_end_date") ?? Date(timeIntervalSince1970: 0),
+            startDate: row.date("user_start_date") ?? row.date("test_start_date") ?? Date(timeIntervalSince1970: 0),
+            endDate: row.date("user_end_date") ?? row.date("test_end_date") ?? Date(timeIntervalSince1970: 0),
+            destinations: row.string("destinations") ?? "",
+            branchName: row.string("branch"),
+            commitHash: row.string("commit_hash"),
+            commitMessage: row.string("commit_message"),
+            metadata: row.string("metadata"),
+            firstTargetName: row.string("first_target_name"),
+            firstDeviceModel: row.string("first_device_model"),
+            firstDeviceOs: row.string("first_device_os"),
+            passedCount: row.int("passed_count") ?? 0,
+            uniquelyFailedCount: row.int("uniquely_failed_count") ?? 0,
+            failedBySystemCount: row.int("failed_by_system_count") ?? 0,
+            failedRetryingCount: row.int("failed_retrying_count") ?? 0,
+            totalCount: row.int("total_count") ?? 0,
+            crashCount: row.int("crash_count") ?? 0,
+            hasCoverage: hasCoverage
+        )
+    }
+
+    /// Backfills the v5 summary rollup columns for runs ingested before schema v5 (marked by
+    /// `summary_rollup_done = 0`). The counts derive from `ResultBundle.make`'s grouping, which can't
+    /// be expressed in SQL, so each such run is reconstructed once and its rollup written back. Cheap
+    /// and one-shot: after the first run nothing matches the filter. New ingests set the columns
+    /// directly in `upsert` (with `summary_rollup_done = 1`), so they're skipped here.
+    func backfillSummaryRollups() {
+        let pending = database.query("SELECT identifier FROM result_bundle WHERE summary_rollup_done = 0;")
+            .compactMap { $0.string("identifier") }
+        guard !pending.isEmpty else { return }
+
+        os_log("Backfilling summary rollups for %ld run(s)", log: .default, type: .info, pending.count)
+        for identifier in pending {
+            guard let bundle = resultBundle(identifier: identifier) else { continue }
+            let firstTest = bundle.tests.first
+            try? database.write { db in
+                try db.run("""
+                UPDATE result_bundle SET
+                    passed_count = ?, uniquely_failed_count = ?, failed_by_system_count = ?,
+                    failed_retrying_count = ?, total_count = ?, first_target_name = ?,
+                    first_device_model = ?, first_device_os = ?, summary_rollup_done = 1
+                WHERE identifier = ?;
+                """, [
+                    .integer(Int64(bundle.testsPassed.count)),
+                    .integer(Int64(bundle.testsUniquelyFailed.count)),
+                    .integer(Int64(bundle.testsFailedBySystem.count)),
+                    .integer(Int64(bundle.testsFailedRetring.count)),
+                    .integer(Int64(bundle.tests.count)),
+                    SQLiteValue(firstTest?.targetName),
+                    SQLiteValue(firstTest?.deviceModel),
+                    SQLiteValue(firstTest?.deviceOs),
+                    .text(identifier),
+                ])
+            }
+        }
     }
 
     // MARK: - Read

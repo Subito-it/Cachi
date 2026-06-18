@@ -21,30 +21,30 @@ struct ResultsRoute: Routable {
     func respond(to _: Request) throws -> Response {
         os_log("Results request received", log: .default, type: .info)
 
-        let results = State.shared.allResultBundlesFullScan
+        let results = State.shared.resultSummaries()
 
         var resultInfos = [ResultInfo]()
 
         for result in results {
-            let info = ResultInfo(target_name: result.tests.first?.targetName ?? "",
+            let info = ResultInfo(target_name: result.firstTargetName ?? "",
                                   identifier: result.identifier,
                                   url: "\(ResultRoute.path)?\(result.identifier)",
-                                  coverage_url: result.codeCoveragePerFolderJsonUrl != nil ? "\(CoverageRoute.path)?id=\(result.identifier)" : nil,
+                                  coverage_url: result.hasCoverage ? "\(CoverageRoute.path)?id=\(result.identifier)" : nil,
                                   html_url: "\(ResultRouteHTML.path)?id=\(result.identifier)",
-                                  start_time: result.userInfo?.startDate ?? result.testStartDate,
-                                  end_time: result.userInfo?.endDate ?? result.testEndDate,
+                                  start_time: result.startDate,
+                                  end_time: result.endDate,
                                   test_start_time: result.testStartDate,
                                   test_end_time: result.testEndDate,
-                                  success_count: result.testsPassed.count,
-                                  failure_count: result.testsUniquelyFailed.count,
-                                  failure_by_system_count: result.testsFailedBySystem.count,
-                                  count: result.tests.count,
-                                  has_crashes: result.testsCrashCount > 0,
+                                  success_count: result.passedCount,
+                                  failure_count: result.uniquelyFailedCount,
+                                  failure_by_system_count: result.failedBySystemCount,
+                                  count: result.totalCount,
+                                  has_crashes: result.crashCount > 0,
                                   destinations: result.destinations,
-                                  branch: result.userInfo?.branchName,
-                                  commit_hash: result.userInfo?.commitHash,
-                                  commit_message: result.userInfo?.commitMessage,
-                                  metadata: result.userInfo?.metadata)
+                                  branch: result.branchName,
+                                  commit_hash: result.commitHash,
+                                  commit_message: result.commitMessage,
+                                  metadata: result.metadata)
 
             resultInfos.append(info)
         }

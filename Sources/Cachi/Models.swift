@@ -165,10 +165,6 @@ extension ResultBundle {
             minStartDate = min(minStartDate, test.testStartDate)
             maxEndDate = max(maxEndDate, test.testStartDate.addingTimeInterval(test.duration))
         }
-        if tests.isEmpty {
-            minStartDate = Date(timeIntervalSince1970: 0)
-            maxEndDate = Date(timeIntervalSince1970: 0)
-        }
 
         let testsExcludingFailedBySystem = tests.filter { $0.groupName != "System Failures" }
         let testsPassed = tests.filter { $0.status == .success }

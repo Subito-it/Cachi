@@ -21,6 +21,13 @@ final class BackgroundIngest {
 
     private let workQueue = OperationQueue()
 
+    /// Guards against overlapping passes: repeated `/v1/parse` (or a parse during an in-flight
+    /// background pass) would otherwise launch a second `run()` over the same pending set and
+    /// redo the same transcodes/extractions concurrently. Work is idempotent, so this only avoids
+    /// wasted CPU, not corruption.
+    private let runLock = NSLock()
+    private var isRunning = false
+
     init(store: ResultStore, blobStore: BlobStore) {
         self.store = store
         self.blobStore = blobStore
@@ -28,8 +35,23 @@ final class BackgroundIngest {
         workQueue.maxConcurrentOperationCount = maxConcurrent
     }
 
-    /// Processes all failed tests still needing detail/blobs. Safe to call repeatedly.
+    /// Processes all failed tests still needing detail/blobs. Safe to call repeatedly: concurrent
+    /// invocations after the first return immediately (see `runLock`/`isRunning`).
     func run() {
+        runLock.lock()
+        guard !isRunning else {
+            runLock.unlock()
+            os_log("Background ingest already running; skipping overlapping pass", log: .default, type: .info)
+            return
+        }
+        isRunning = true
+        runLock.unlock()
+        defer {
+            runLock.lock()
+            isRunning = false
+            runLock.unlock()
+        }
+
         let pending = store.testsNeedingDetailExtraction()
         guard !pending.isEmpty else { return }
 

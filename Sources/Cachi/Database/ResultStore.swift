@@ -144,16 +144,38 @@ final class ResultStore {
     }
 
     func setAttachmentBlobHash(attachmentId: Int, hash: String, contentType: String?) {
-        try? database.write { db in
+        try? database.transaction { db in
+            // Only fold the blob's size into the run rollup on the NULL→set transition, so an
+            // idempotent re-set (e.g. serve-path materialization) never double-counts.
+            let wasUnset = try !db.query("SELECT 1 FROM attachment WHERE id = ? AND blob_hash IS NULL;",
+                                         [.integer(Int64(attachmentId))]).isEmpty
             try db.run("UPDATE attachment SET blob_hash = ?, content_type = ? WHERE id = ?;",
                        [.text(hash), SQLiteValue(contentType), .integer(Int64(attachmentId))])
+            if wasUnset {
+                try db.run("""
+                UPDATE result_bundle SET blob_byte_size = blob_byte_size +
+                    (SELECT COALESCE(byte_size, 0) FROM blob WHERE hash = ?)
+                WHERE identifier =
+                    (SELECT t.result_identifier FROM attachment a JOIN test t ON t.id = a.test_id WHERE a.id = ?);
+                """, [.text(hash), .integer(Int64(attachmentId))])
+            }
         }
     }
 
     func setSessionLogBlobHash(logId: Int, hash: String, byteSize: Int) {
-        try? database.write { db in
+        try? database.transaction { db in
+            let wasUnset = try !db.query("SELECT 1 FROM session_log WHERE id = ? AND blob_hash IS NULL;",
+                                         [.integer(Int64(logId))]).isEmpty
             try db.run("UPDATE session_log SET blob_hash = ?, byte_size = ? WHERE id = ?;",
                        [.text(hash), .integer(Int64(byteSize)), .integer(Int64(logId))])
+            if wasUnset {
+                try db.run("""
+                UPDATE result_bundle SET blob_byte_size = blob_byte_size +
+                    (SELECT COALESCE(byte_size, 0) FROM blob WHERE hash = ?)
+                WHERE identifier =
+                    (SELECT t.result_identifier FROM session_log s JOIN test t ON t.id = s.test_id WHERE s.id = ?);
+                """, [.text(hash), .integer(Int64(logId))])
+            }
         }
     }
 

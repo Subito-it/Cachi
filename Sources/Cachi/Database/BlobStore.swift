@@ -150,63 +150,19 @@ final class BlobStore {
         }
     }
 
-    /// Tiered retention: drops heavy blobs (videos, logs) for runs older than `maxAgeDays`, while
-    /// keeping all structured rows forever (the cheap history). Clears the referencing `blob_hash`
-    /// columns so the model stays consistent, then GCs the now-unreferenced blob files.
-    /// A miss on a pruned blob self-heals via the read-through fallback (re-extracts from the
-    /// xcresult if it still exists).
-    func enforceRetention(maxAgeDays: Int) {
-        guard maxAgeDays > 0 else { return }
-        let cutoff = Date().timeIntervalSince1970 - Double(maxAgeDays) * 86_400
-
-        // Null out references on tests belonging to runs older than the cutoff.
-        try? database.write { db in
-            try db.run("""
-            UPDATE attachment SET blob_hash = NULL WHERE test_id IN (
-                SELECT t.id FROM test t JOIN result_bundle r ON r.identifier = t.result_identifier
-                WHERE r.ingested_at < ?
-            );
-            """, [.real(cutoff)])
-            try db.run("""
-            UPDATE session_log SET blob_hash = NULL WHERE test_id IN (
-                SELECT t.id FROM test t JOIN result_bundle r ON r.identifier = t.result_identifier
-                WHERE r.ingested_at < ?
-            );
-            """, [.real(cutoff)])
-        }
-
-        collectGarbage()
-    }
-
-    /// Recomputes the per-run blob byte rollup (`result_bundle.blob_byte_size`) from the current
-    /// manifest. Cheap: it sums the indexed `blob.byte_size` column, never stats the filesystem.
-    /// Runs that share a deduplicated blob each count its full size — a deliberate simplification
-    /// (the model assumes disk is consumed only by blobs, attributed per run).
-    func recomputeRunBlobSizes() {
-        try? database.write { db in
-            try db.run("""
-            UPDATE result_bundle SET blob_byte_size = (
-                SELECT COALESCE(SUM(b.byte_size), 0) FROM blob b WHERE b.hash IN (
-                    SELECT a.blob_hash FROM attachment a JOIN test t ON t.id = a.test_id
-                    WHERE t.result_identifier = result_bundle.identifier AND a.blob_hash IS NOT NULL
-                    UNION
-                    SELECT s.blob_hash FROM session_log s JOIN test t ON t.id = s.test_id
-                    WHERE t.result_identifier = result_bundle.identifier AND s.blob_hash IS NOT NULL
-                )
-            );
-            """)
-        }
-    }
-
     /// Caps total blob disk usage at `maxBytes` by deleting whole runs oldest-first (by
-    /// `ingested_at`) until the rollup is under the limit, then GCs the now-unreferenced blobs.
+    /// `ingested_at`) until usage is under the limit, then GCs the now-unreferenced blobs.
     /// Deleting a `result_bundle` row cascades to its tests/activities/attachments/session logs, so
-    /// the entire session is removed — not just its heavy blobs. Refreshes the per-run rollup first
-    /// so the decision uses up-to-date sizes (blobs materialize asynchronously after parse).
+    /// the entire session is removed — not just its heavy blobs.
+    ///
+    /// Usage is read from the per-run `blob_byte_size` rollup, which is maintained incrementally as
+    /// blobs materialize (see the blob-hash setters in `ResultStore`). The cap is **approximate**: a blob
+    /// deduplicated across runs is counted once per referencing run, so the rollup over-attributes
+    /// shared content. This is deliberate — it keeps accounting to a single cheap counter and never
+    /// scans the filesystem. A pruned blob whose source xcresult still exists self-heals via the
+    /// read-through fallback.
     func enforceDiskLimit(maxBytes: Int) {
         guard maxBytes > 0 else { return }
-
-        recomputeRunBlobSizes()
 
         var total = database.query("SELECT COALESCE(SUM(blob_byte_size), 0) AS total FROM result_bundle;")
             .first?.int("total") ?? 0

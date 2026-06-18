@@ -98,13 +98,6 @@ final class ResultStore {
             .first?.string("identifier")
     }
 
-    func deleteAll() {
-        try? database.write { db in
-            try db.run("DELETE FROM result_bundle;")
-            try db.run("DELETE FROM blob;")
-        }
-    }
-
     // MARK: - Detail extraction tracking
 
     /// Failed tests (incl. system failures) that still need detail extraction (activity tree,

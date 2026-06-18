@@ -24,7 +24,6 @@ struct Server {
             ImageRoute(),
             KillRoute(),
             ParseRoute(baseUrl: baseUrl, depth: parseDepth, mergeResults: mergeResults),
-            ResetRoute(baseUrl: baseUrl, depth: parseDepth, mergeResults: mergeResults),
             ResultRoute(),
             ResultRouteHTML(baseUrl: baseUrl, depth: parseDepth, mergeResults: mergeResults),
             ResultsIdentifiersRoute(baseUrl: baseUrl, depth: parseDepth, mergeResults: mergeResults),

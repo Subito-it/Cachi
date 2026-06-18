@@ -92,11 +92,6 @@ class State {
         resultStore?.allResultBundles() ?? []
     }
 
-    func reset() {
-        resultStore?.deleteAll()
-        syncQueue.sync(flags: .barrier) { _state = .ready }
-    }
-
     func allTargets() -> [String] {
         resultStore?.allTargets() ?? []
     }

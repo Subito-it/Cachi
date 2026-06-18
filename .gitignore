@@ -82,7 +82,6 @@ hb.sh
 # Cachi data store (SQLite DB + blob store) written inside the results path
 .cachi-data/
 # Stray sqlite files
-sqlite.
 *.sqlite
 *.sqlite-shm
 *.sqlite-wal

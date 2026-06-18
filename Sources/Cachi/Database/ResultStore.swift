@@ -499,15 +499,44 @@ final class ResultStore {
     }
 
     /// All run summaries, newest first. One indexed scan of `result_bundle`; no test rows touched.
+    /// Resolves any rows whose `has_coverage` is still unknown (-1) with a one-time filesystem
+    /// probe, caching the answer back so subsequent requests never touch the filesystem.
     func resultSummaries() -> [ResultSummary] {
-        database.query("SELECT * FROM result_bundle ORDER BY test_start_date DESC;").map(summary(from:))
+        let rows = database.query("SELECT * FROM result_bundle ORDER BY test_start_date DESC;")
+        resolveUnknownCoverage(in: rows)
+        return rows.map(summary(from:))
     }
 
-    private func summary(from row: SQLiteRow) -> ResultSummary {
+    /// Records whether a run's per-folder coverage JSON exists on disk, so the results list reads a
+    /// cached flag instead of probing the filesystem per request. Called when coverage generation
+    /// finishes (and during the lazy backfill of pre-v6 rows).
+    func setHasCoverage(identifier: String, hasCoverage: Bool) {
+        try? database.write { db in
+            try db.run("UPDATE result_bundle SET has_coverage = ? WHERE identifier = ?;",
+                       [.integer(hasCoverage ? 1 : 0), .text(identifier)])
+        }
+    }
+
+    /// One-time probe for rows still marked unknown (-1, i.e. ingested before v6 or before their
+    /// coverage finished generating). Resolves and caches each so the hot path stays filesystem-free.
+    private func resolveUnknownCoverage(in rows: [SQLiteRow]) {
+        for row in rows where (row.int("has_coverage") ?? -1) < 0 {
+            guard let identifier = row.string("identifier") else { continue }
+            setHasCoverage(identifier: identifier, hasCoverage: coverageExistsOnDisk(row: row))
+        }
+    }
+
+    private func coverageExistsOnDisk(row: SQLiteRow) -> Bool {
         let coveragePath = (row.string("source_xcresult_paths") ?? "")
             .split(separator: "\n").first
             .map { URL(fileURLWithPath: String($0)).deletingLastPathComponent().appendingPathComponent("coverage-folders.json").path }
-        let hasCoverage = coveragePath.map { FileManager.default.fileExists(atPath: $0) } ?? false
+        return coveragePath.map { FileManager.default.fileExists(atPath: $0) } ?? false
+    }
+
+    private func summary(from row: SQLiteRow) -> ResultSummary {
+        // -1 (unknown) is resolved by `resolveUnknownCoverage` before mapping; treat any leftover
+        // negative as "no coverage".
+        let hasCoverage = (row.int("has_coverage") ?? 0) == 1
 
         return ResultSummary(
             identifier: row.string("identifier") ?? "",

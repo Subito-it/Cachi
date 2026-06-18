@@ -123,6 +123,7 @@ final class Database {
         try applyMigration(db, version: 3, ifBelow: current, sql: Self.schemaV3)
         try applyMigration(db, version: 4, ifBelow: current, sql: Self.schemaV4)
         try applyMigration(db, version: 5, ifBelow: current, sql: Self.schemaV5)
+        try applyMigration(db, version: 6, ifBelow: current, sql: Self.schemaV6)
     }
 
     /// Applies one migration step atomically: the schema DDL/DML **and** the `schema_version` bump
@@ -146,6 +147,14 @@ final class Database {
             throw error
         }
     }
+
+    /// v6: cached "does this run have per-folder coverage on disk" flag, so the results-list view
+    /// stops doing a `FileManager.fileExists` probe per run on every request. -1 = unknown (not yet
+    /// checked), 0 = no coverage, 1 = coverage present. Backfilled lazily by `ResultStore` (it
+    /// resolves the unknowns once and caches the result) and set when coverage generation finishes.
+    private static let schemaV6 = """
+    ALTER TABLE result_bundle ADD COLUMN has_coverage INTEGER NOT NULL DEFAULT -1;
+    """
 
     /// v5: per-run derived rollups for the results-list endpoints, so the list view never has to
     /// reconstruct every `Test` and re-run `ResultBundle.make`'s grouping on each request. The counts

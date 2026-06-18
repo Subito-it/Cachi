@@ -183,10 +183,15 @@ class State {
                     syncQueue.sync(flags: .barrier) {
                         _state = .parsing(progress: Double(index) / Double(bundleUrls.count))
                     }
-                    DispatchQueue.global(qos: .userInitiated).async {
+                    DispatchQueue.global(qos: .userInitiated).async { [weak self] in
                         // This can be done asynchronously as it doesn't contain data that is immediately needed
                         try? parser.splitHtmlCoverageFile(resultBundle: resultBundle)
                         try? parser.generagePerFolderLineCoverage(resultBundle: resultBundle, destinationUrl: resultBundle.codeCoveragePerFolderJsonUrl)
+                        // Cache the coverage-presence flag so the results list never probes the
+                        // filesystem per request (it's resolved once here, after generation).
+                        let hasCoverage = resultBundle.codeCoveragePerFolderJsonUrl
+                            .map { FileManager.default.fileExists(atPath: $0.path) } ?? false
+                        self?.resultStore?.setHasCoverage(identifier: resultBundle.identifier, hasCoverage: hasCoverage)
                     }
                 }
             }

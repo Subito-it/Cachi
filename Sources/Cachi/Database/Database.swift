@@ -45,13 +45,20 @@ final class Database {
     }
 
     // MARK: - Write access
+    //
+    // NOT reentrant: `write`/`transaction` funnel through the serial `writerQueue` via `sync`, so a
+    // `body` that calls back into `write`/`transaction` (directly or through a helper like
+    // `blobStore.store`) deadlocks the queue on itself. Inside a `body`, operate on the passed
+    // `SQLiteConnection` directly; never re-enter these methods.
 
-    /// Runs `body` on the serial writer queue. All mutations go through here.
+    /// Runs `body` on the serial writer queue. All mutations go through here. See the reentrancy
+    /// note above — `body` must not call `write`/`transaction` again.
     func write<T>(_ body: (SQLiteConnection) throws -> T) rethrows -> T {
         try writerQueue.sync { try body(writer) }
     }
 
-    /// Wraps `body` in a transaction on the writer queue.
+    /// Wraps `body` in a transaction on the writer queue. See the reentrancy note above — `body`
+    /// must not call `write`/`transaction` again.
     func transaction<T>(_ body: (SQLiteConnection) throws -> T) throws -> T {
         try writerQueue.sync {
             try writer.execute("BEGIN IMMEDIATE;")

@@ -19,15 +19,12 @@ final class BackgroundIngest {
     /// Cap on concurrent heavy work so transcoding doesn't starve request serving.
     private let maxConcurrent = max(1, ProcessInfo.processInfo.activeProcessorCount / 2)
 
-    private let queue = DispatchQueue(label: "com.subito.cachi.background.ingest", attributes: .concurrent)
-    private let gate: DispatchSemaphore
     private let workQueue = OperationQueue()
 
     init(store: ResultStore, blobStore: BlobStore) {
         self.store = store
         self.blobStore = blobStore
         extractor = DetailExtractor(store: store)
-        gate = DispatchSemaphore(value: maxConcurrent)
         workQueue.maxConcurrentOperationCount = maxConcurrent
     }
 

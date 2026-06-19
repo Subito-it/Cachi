@@ -97,10 +97,6 @@ final class ResultStore {
         }
     }
 
-    func contains(identifier: String) -> Bool {
-        !database.query("SELECT 1 FROM result_bundle WHERE identifier = ? LIMIT 1;", [.text(identifier)]).isEmpty
-    }
-
     /// Looks up an already-ingested run by its source xcresult paths (the merge group). Used to
     /// skip re-parsing bundles already in the database. `urls` need not be pre-sorted.
     func runIdentifier(forSourceUrls urls: [URL]) -> String? {
@@ -569,21 +565,6 @@ final class ResultStore {
 
     // MARK: - Read
 
-    /// Reconstructs all result bundles, newest first.
-    func allResultBundles() -> [ResultBundle] {
-        let runRows = database.query("SELECT * FROM result_bundle ORDER BY test_start_date DESC;")
-        guard !runRows.isEmpty else { return [] }
-
-        let testRows = database.query("SELECT * FROM test;")
-        var testsByRun = [String: [ResultBundle.Test]]()
-        for row in testRows {
-            guard let runId = row.string("result_identifier") else { continue }
-            testsByRun[runId, default: []].append(test(from: row))
-        }
-
-        return runRows.compactMap { bundle(from: $0, tests: testsByRun[$0.string("identifier") ?? ""] ?? []) }
-    }
-
     func resultBundle(identifier: String) -> ResultBundle? {
         guard let runRow = database.query("SELECT * FROM result_bundle WHERE identifier = ?;", [.text(identifier)]).first else {
             return nil
@@ -646,12 +627,6 @@ final class ResultStore {
                 guard let model = row.string("device_model"), let os = row.string("device_os") else { return nil }
                 return (model, os)
             }
-    }
-
-    /// All tests for a target (newest first). Backs `allTests(in:)`.
-    func statsTests(forTarget target: String) -> [ResultBundle.Test] {
-        database.query("SELECT * FROM test WHERE target_name = ? ORDER BY start_date DESC;", [.text(target)])
-            .map(test(from:))
     }
 
     /// Tests for the stats window: a given target/device, excluding system failures, newest first.

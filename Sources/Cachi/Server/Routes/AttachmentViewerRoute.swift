@@ -98,15 +98,6 @@ struct AttachmentViewerRoute: Routable {
         """
     }
 
-    private func escapeHtmlAttribute(_ value: String) -> String {
-        value
-            .replacingOccurrences(of: "&", with: "&amp;")
-            .replacingOccurrences(of: "\"", with: "&quot;")
-            .replacingOccurrences(of: "'", with: "&#39;")
-            .replacingOccurrences(of: "<", with: "&lt;")
-            .replacingOccurrences(of: ">", with: "&gt;")
-    }
-
     static func urlString(viewerExtension: String,
                           resultIdentifier: String,
                           testSummaryIdentifier: String,

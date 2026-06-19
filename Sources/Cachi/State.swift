@@ -88,14 +88,6 @@ class State {
         syncQueue.sync { blobStore }
     }
 
-    /// Reconstructs **every** run in the database (full `SELECT * FROM test` + per-run rebuild).
-    /// Cost scales with total history, so this is only for the results-list endpoints that
-    /// genuinely need all runs. For single-run or single-test lookups use the indexed
-    /// `result(identifier:)` / `test(summaryIdentifier:)` instead.
-    var allResultBundlesFullScan: [ResultBundle] {
-        resultStore?.allResultBundles() ?? []
-    }
-
     /// The (at most `limit`) most recent runs containing a test with the given route identifier,
     /// newest first. Indexed lookup — does not scan the whole corpus.
     func resultBundles(containingRouteIdentifier routeIdentifier: String, limit: Int) -> [ResultBundle] {
@@ -115,10 +107,6 @@ class State {
     func allDevices(in target: String) -> [Device] {
         let devices = resultStore?.devices(inTarget: target) ?? []
         return Array(Set(devices.map { Device(model: $0.model, os: $0.os) })).sorted(by: { $0.description < $1.description })
-    }
-
-    func allTests(in target: String) -> [ResultBundle.Test] {
-        resultStore?.statsTests(forTarget: target) ?? []
     }
 
     func pendingResultBundles(baseUrl: URL, depth: Int, mergeResults: Bool) -> [PendingResultBundle] {
@@ -511,30 +499,6 @@ class State {
                                        success_count: successfulTests.count,
                                        failure_count: failedTests.count,
                                        tests: allTests)
-    }
-
-    func dumpAttachments(in test: ResultBundle.Test, cachedActions: [ActionTestActivitySummary]?) {
-        let cachi = CachiKit(url: test.xcresultUrl)
-
-        let actions = cachedActions ?? State.shared.testActionActivitySummaries(test: test) ?? []
-
-        let filemanager = FileManager.default
-
-        let destinationUrl = Cachi.temporaryFolderUrl.appendingPathComponent(test.identifier)
-        try? filemanager.createDirectory(at: destinationUrl, withIntermediateDirectories: true, attributes: nil)
-
-        for attachment in actions.flatten().flatMap(\.attachments) {
-            guard let filename = attachment.filename,
-                  let attachmentIdentifier = attachment.payloadRef?.id
-            else {
-                continue
-            }
-
-            let attachmentDestinationPath = destinationUrl.appendingPathComponent(filename).path
-            guard filemanager.fileExists(atPath: attachmentDestinationPath) == false else { continue }
-
-            try? cachi.export(identifier: attachmentIdentifier, destinationPath: attachmentDestinationPath)
-        }
     }
 
     private func findResultBundles(at url: URL, depth: Int, mergeResults: Bool) -> [[URL]] {

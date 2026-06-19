@@ -273,10 +273,6 @@ extension ResultBundle {
         xcresultUrls.first?.deletingLastPathComponent()
     }
 
-    var codeCoverageJsonUrl: URL? {
-        codeCoverageBaseUrl?.appendingPathComponent("coverage.json")
-    }
-
     var codeCoverageJsonSummaryUrl: URL? {
         codeCoverageBaseUrl?.appendingPathComponent("coverage-summary.json")
     }

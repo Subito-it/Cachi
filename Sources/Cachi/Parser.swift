@@ -185,25 +185,6 @@ class Parser {
         return metaData.uniqueIdentifier
     }
 
-    private func crashCount(_ cachi: CachiKit, in tests: [ResultBundle.Test], at _: URL) -> Int {
-        var crashedTestsCount = 0
-        for (index, test) in tests.enumerated() {
-            guard test.status == .failure else { continue }
-
-            os_log("Processing test %ld/%ld", log: .default, type: .info, index + 1, tests.count)
-            autoreleasepool {
-                let testSummary = try? cachi.actionTestSummary(identifier: test.summaryIdentifier!)
-
-                let actions = testSummary?.activitySummaries.flatten()
-                if actions?.contains(where: { $0.title?.contains(" crashed in ") == true }) == true {
-                    crashedTestsCount += 1
-                }
-            }
-        }
-
-        return crashedTestsCount
-    }
-
     private func optimisticCrashCount(in actionsInvocationRecord: ActionsInvocationRecord) -> Int {
         // To properly extract crash count we would need to extract the test summary which does however take too long
         let messages = actionsInvocationRecord.issues?.testFailureSummaries?.map(\.message) ?? []

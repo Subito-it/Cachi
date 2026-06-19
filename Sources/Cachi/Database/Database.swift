@@ -12,7 +12,6 @@ final class Database {
     private let writer: SQLiteConnection
     private let writerQueue = DispatchQueue(label: "com.subito.cachi.db.writer")
 
-    private let readers: [SQLiteConnection]
     private var availableReaders: [SQLiteConnection]
     private let readerPoolLock = NSLock()
     private let readerPoolSemaphore: DispatchSemaphore
@@ -39,7 +38,6 @@ final class Database {
             try reader.execute("PRAGMA busy_timeout=5000;")
             pool.append(reader)
         }
-        readers = pool
         availableReaders = pool
         readerPoolSemaphore = DispatchSemaphore(value: readerCount)
     }

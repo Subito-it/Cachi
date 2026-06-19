@@ -69,10 +69,6 @@ final class BlobStore {
         blobsUrl.appendingPathComponent(relativePath(for: hash))
     }
 
-    func exists(hash: String) -> Bool {
-        FileManager.default.fileExists(atPath: url(forHash: hash).path)
-    }
-
     // MARK: - Store
 
     /// Stores `data`, returning its content hash. Deduplicates: if the hash already exists on

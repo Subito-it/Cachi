@@ -50,38 +50,6 @@ extension ResultBundle {
     }
 }
 
-extension ResultBundle {
-    func htmlStatusImageUrl(includeSystemFailures: Bool) -> String {
-        var failedTestCount = testsUniquelyFailed.count
-
-        if includeSystemFailures {
-            failedTestCount += testsFailedBySystem.count
-        }
-
-        if failedTestCount > 0 {
-            return ImageRoute.failedTestImageUrl()
-        } else {
-            return ImageRoute.passedTestImageUrl()
-        }
-    }
-
-    func htmlStatusTitle() -> String {
-        if testsUniquelyFailed.count > 0 {
-            "Failed"
-        } else {
-            "Passed"
-        }
-    }
-
-    func htmlTextColor() -> String {
-        if testsUniquelyFailed.count > 0 {
-            "color-error"
-        } else {
-            "color-text"
-        }
-    }
-}
-
 // Same presentation logic as the `ResultBundle` helpers above, driven by the precomputed rollup
 // columns so the results-list view needs no test rows. Kept in sync with the bundle versions.
 extension ResultStore.ResultSummary {

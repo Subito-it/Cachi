@@ -2,12 +2,10 @@ import Foundation
 
 class CodeCoverageHtmlSplitter {
     enum Error: Swift.Error {
-        case fileHandle
         case unexpectedFormat
     }
 
     private let url: URL
-    private let lineDelimiter = "\n".data(using: .utf8)
 
     init(url: URL) {
         self.url = url

@@ -57,10 +57,6 @@ struct ImageRoute: Routable {
         "\(path)?imageArrowLeft"
     }
 
-    static func arrowRightImageUrl() -> String {
-        "\(path)?imageArrowRight"
-    }
-
     static func arrowDownImageUrl() -> String {
         "\(path)?imageArrowDown"
     }

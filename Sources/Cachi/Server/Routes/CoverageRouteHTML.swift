@@ -161,13 +161,3 @@ private extension CoverageRouteHTML {
         }
     }
 }
-
-private enum CoverageShowFilter: String, CaseIterable {
-    case files, folders
-
-    func params() -> String {
-        "&\(Self.queryName)=\(rawValue)"
-    }
-
-    static let queryName = "coverage_show"
-}

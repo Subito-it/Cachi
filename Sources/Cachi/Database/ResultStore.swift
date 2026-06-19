@@ -369,7 +369,12 @@ final class ResultStore {
     /// the `.xcresult`. Returns nil when no detail has been extracted for the test yet (the caller
     /// then falls back to live extraction from the bundle).
     func reconstructTestSummary(summaryIdentifier: String) -> ActionTestSummary? {
-        guard let testRowId = testRowId(summaryIdentifier: summaryIdentifier) else { return nil }
+        guard let testRow = database.query("SELECT id, name, status, duration FROM test WHERE summary_identifier = ? LIMIT 1;",
+                                           [.text(summaryIdentifier)]).first,
+              let testRowId = testRow.int("id")
+        else {
+            return nil
+        }
 
         let activityRows = database.query("""
         SELECT id, parent_id, uuid, title, type, start, finish, failure_summary_ids
@@ -452,9 +457,9 @@ final class ResultStore {
         }
 
         return ActionTestSummary(identifier: summaryIdentifier,
-                                 name: "",
-                                 testStatus: "",
-                                 duration: nil,
+                                 name: testRow.string("name") ?? "",
+                                 testStatus: testRow.string("status") ?? "",
+                                 duration: testRow.double("duration"),
                                  performanceMetrics: performanceMetrics,
                                  failureSummaries: failureSummaries,
                                  activitySummaries: activitySummaries)

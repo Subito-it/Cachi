@@ -125,11 +125,6 @@ final class Database {
         let current = (try db.query("SELECT version FROM schema_version LIMIT 1;").first?.int("version")) ?? 0
 
         try applyMigration(db, version: 1, ifBelow: current, sql: Self.schemaV1)
-        try applyMigration(db, version: 2, ifBelow: current, sql: Self.schemaV2)
-        try applyMigration(db, version: 3, ifBelow: current, sql: Self.schemaV3)
-        try applyMigration(db, version: 4, ifBelow: current, sql: Self.schemaV4)
-        try applyMigration(db, version: 5, ifBelow: current, sql: Self.schemaV5)
-        try applyMigration(db, version: 6, ifBelow: current, sql: Self.schemaV6)
     }
 
     /// Applies one migration step atomically: the schema DDL/DML **and** the `schema_version` bump
@@ -154,69 +149,6 @@ final class Database {
         }
     }
 
-    /// v6: cached "does this run have per-folder coverage on disk" flag, so the results-list view
-    /// stops doing a `FileManager.fileExists` probe per run on every request. -1 = unknown (not yet
-    /// checked), 0 = no coverage, 1 = coverage present. Backfilled lazily by `ResultStore` (it
-    /// resolves the unknowns once and caches the result) and set when coverage generation finishes.
-    private static let schemaV6 = """
-    ALTER TABLE result_bundle ADD COLUMN has_coverage INTEGER NOT NULL DEFAULT -1;
-    """
-
-    /// v5: per-run derived rollups for the results-list endpoints, so the list view never has to
-    /// reconstruct every `Test` and re-run `ResultBundle.make`'s grouping on each request. The counts
-    /// (uniquely-failed / failed-retrying) come from `make`'s grouping logic, which can't be expressed
-    /// as a plain SQL `GROUP BY`, so they're written at ingest in `upsert` and backfilled for existing
-    /// rows by `ResultStore.backfillSummaryRollups()` (the DDL only adds the columns).
-    private static let schemaV5 = """
-    ALTER TABLE result_bundle ADD COLUMN passed_count            INTEGER NOT NULL DEFAULT 0;
-    ALTER TABLE result_bundle ADD COLUMN uniquely_failed_count   INTEGER NOT NULL DEFAULT 0;
-    ALTER TABLE result_bundle ADD COLUMN failed_by_system_count  INTEGER NOT NULL DEFAULT 0;
-    ALTER TABLE result_bundle ADD COLUMN failed_retrying_count   INTEGER NOT NULL DEFAULT 0;
-    ALTER TABLE result_bundle ADD COLUMN total_count             INTEGER NOT NULL DEFAULT 0;
-    ALTER TABLE result_bundle ADD COLUMN summary_rollup_done      INTEGER NOT NULL DEFAULT 0;
-    ALTER TABLE result_bundle ADD COLUMN first_target_name       TEXT;
-    ALTER TABLE result_bundle ADD COLUMN first_device_model      TEXT;
-    ALTER TABLE result_bundle ADD COLUMN first_device_os         TEXT;
-    """
-
-    /// v4: fields needed to rebuild the CachiKit test summary (activity tree) from SQLite so the
-    /// test-detail page works after the `.xcresult` is pruned: attachment timestamps, failure uuid
-    /// + timestamp, the activity→failure references, and failure-owned attachments (a `failure_id`
-    /// alongside the existing `activity_id` on the attachment row). Older rows extracted before this
-    /// migration lack the data and self-heal via the read-through fallback on next access.
-    private static let schemaV4 = """
-    ALTER TABLE activity ADD COLUMN failure_summary_ids TEXT;
-    ALTER TABLE failure ADD COLUMN uuid TEXT;
-    ALTER TABLE failure ADD COLUMN timestamp REAL;
-    ALTER TABLE attachment ADD COLUMN timestamp REAL;
-    ALTER TABLE attachment ADD COLUMN failure_id INTEGER;
-    """
-
-    /// v3: make `summary_identifier` unique. A summary id identifies a single test execution, so
-    /// duplicates indicate corrupt ingest. SQLite permits multiple NULLs in a UNIQUE index, so the
-    /// system-failure tests that lack a summary id are unaffected.
-    private static let schemaV3 = """
-    DROP INDEX IF EXISTS idx_test_summary;
-    CREATE UNIQUE INDEX idx_test_summary ON test(summary_identifier);
-    """
-
-    /// v2: per-run rollup of the bytes occupied by its blobs (videos, session logs). Kept in the
-    /// `result_bundle` row so the disk-size enforcement can attribute usage to runs and evict whole
-    /// sessions without scanning the filesystem. Backfilled from the existing blob manifest.
-    private static let schemaV2 = """
-    ALTER TABLE result_bundle ADD COLUMN blob_byte_size INTEGER NOT NULL DEFAULT 0;
-
-    UPDATE result_bundle SET blob_byte_size = (
-        SELECT COALESCE(SUM(b.byte_size), 0) FROM blob b WHERE b.hash IN (
-            SELECT a.blob_hash FROM attachment a JOIN test t ON t.id = a.test_id
-            WHERE t.result_identifier = result_bundle.identifier AND a.blob_hash IS NOT NULL
-            UNION
-            SELECT s.blob_hash FROM session_log s JOIN test t ON t.id = s.test_id
-            WHERE t.result_identifier = result_bundle.identifier AND s.blob_hash IS NOT NULL
-        )
-    );
-    """
-
     private static let schemaV1 = """
     CREATE TABLE result_bundle (
         identifier            TEXT PRIMARY KEY,
@@ -234,7 +166,25 @@ final class Database {
         user_end_date         REAL,
         crash_count           INTEGER NOT NULL DEFAULT 0,
         ingested_at           REAL NOT NULL,
-        source_xcresult_paths TEXT NOT NULL
+        source_xcresult_paths TEXT NOT NULL,
+        -- per-run rollup of bytes occupied by its blobs (videos, session logs), so disk-size
+        -- enforcement can attribute usage to runs and evict whole sessions without scanning the FS.
+        blob_byte_size        INTEGER NOT NULL DEFAULT 0,
+        -- derived rollups for the results-list endpoints, so the list view never reconstructs every
+        -- `Test` and re-runs `ResultBundle.make`'s grouping per request. The counts come from
+        -- `make`'s grouping logic (not a plain SQL `GROUP BY`), written at ingest in `upsert`.
+        passed_count            INTEGER NOT NULL DEFAULT 0,
+        uniquely_failed_count   INTEGER NOT NULL DEFAULT 0,
+        failed_by_system_count  INTEGER NOT NULL DEFAULT 0,
+        failed_retrying_count   INTEGER NOT NULL DEFAULT 0,
+        total_count             INTEGER NOT NULL DEFAULT 0,
+        summary_rollup_done     INTEGER NOT NULL DEFAULT 0,
+        first_target_name       TEXT,
+        first_device_model      TEXT,
+        first_device_os         TEXT,
+        -- cached "does this run have per-folder coverage on disk" flag so the results-list view skips
+        -- a `FileManager.fileExists` probe per run per request. -1 = unknown, 0 = no, 1 = yes.
+        has_coverage            INTEGER NOT NULL DEFAULT -1
     );
 
     CREATE TABLE test (
@@ -260,23 +210,26 @@ final class Database {
     );
 
     CREATE TABLE activity (
-        id        INTEGER PRIMARY KEY AUTOINCREMENT,
-        test_id   INTEGER NOT NULL REFERENCES test(id) ON DELETE CASCADE,
-        parent_id INTEGER,
-        uuid      TEXT,
-        title     TEXT,
-        type      TEXT,
-        start     REAL,
-        finish    REAL
+        id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+        test_id             INTEGER NOT NULL REFERENCES test(id) ON DELETE CASCADE,
+        parent_id           INTEGER,
+        uuid                TEXT,
+        title               TEXT,
+        type                TEXT,
+        start               REAL,
+        finish              REAL,
+        failure_summary_ids TEXT
     );
 
     CREATE TABLE failure (
-        id      INTEGER PRIMARY KEY AUTOINCREMENT,
-        test_id INTEGER NOT NULL REFERENCES test(id) ON DELETE CASCADE,
-        message TEXT,
-        file    TEXT,
-        line    INTEGER,
-        detail  TEXT
+        id        INTEGER PRIMARY KEY AUTOINCREMENT,
+        test_id   INTEGER NOT NULL REFERENCES test(id) ON DELETE CASCADE,
+        message   TEXT,
+        file      TEXT,
+        line      INTEGER,
+        detail    TEXT,
+        uuid      TEXT,
+        timestamp REAL
     );
 
     CREATE TABLE performance_metric (
@@ -291,12 +244,14 @@ final class Database {
         id           INTEGER PRIMARY KEY AUTOINCREMENT,
         test_id      INTEGER NOT NULL REFERENCES test(id) ON DELETE CASCADE,
         activity_id  INTEGER,
+        failure_id   INTEGER,
         filename     TEXT,
         uti          TEXT,
         name         TEXT,
         payload_ref  TEXT,
         payload_size INTEGER,
         content_type TEXT,
+        timestamp    REAL,
         blob_hash    TEXT
     );
 

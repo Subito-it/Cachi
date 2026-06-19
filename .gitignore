@@ -89,3 +89,5 @@ hb.sh
 .swiftpm/
 .vscode/
 *.tar.gz
+
+sample_data/

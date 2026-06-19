@@ -33,8 +33,8 @@ final class ResultStore {
                      branch, commit_hash, commit_message, metadata, source_base_path, github_base_url,
                      user_start_date, user_end_date, crash_count, ingested_at, source_xcresult_paths,
                      passed_count, uniquely_failed_count, failed_by_system_count, failed_retrying_count,
-                     total_count, summary_rollup_done, first_target_name, first_device_model, first_device_os)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1,?,?,?);
+                     total_count, first_target_name, first_device_model, first_device_os)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
                 """, [
                     .text(bundle.identifier),
                     SQLiteValue(bundle.testStartDate),
@@ -509,7 +509,7 @@ final class ResultStore {
 
     /// Records whether a run's per-folder coverage JSON exists on disk, so the results list reads a
     /// cached flag instead of probing the filesystem per request. Called when coverage generation
-    /// finishes (and during the lazy backfill of pre-v6 rows).
+    /// finishes (and during the lazy resolve of rows still marked unknown).
     func setHasCoverage(identifier: String, hasCoverage: Bool) {
         try? database.write { db in
             try db.run("UPDATE result_bundle SET has_coverage = ? WHERE identifier = ?;",
@@ -517,8 +517,8 @@ final class ResultStore {
         }
     }
 
-    /// One-time probe for rows still marked unknown (-1, i.e. ingested before v6 or before their
-    /// coverage finished generating). Resolves and caches each so the hot path stays filesystem-free.
+    /// One-time probe for rows still marked unknown (-1, i.e. ingested before their coverage
+    /// finished generating). Resolves and caches each so the hot path stays filesystem-free.
     private func resolveUnknownCoverage(in rows: [SQLiteRow]) {
         for row in rows where (row.int("has_coverage") ?? -1) < 0 {
             guard let identifier = row.string("identifier") else { continue }
@@ -560,42 +560,6 @@ final class ResultStore {
             crashCount: row.int("crash_count") ?? 0,
             hasCoverage: hasCoverage
         )
-    }
-
-    /// Backfills the v5 summary rollup columns for runs ingested before schema v5 (marked by
-    /// `summary_rollup_done = 0`). The counts derive from `ResultBundle.make`'s grouping, which can't
-    /// be expressed in SQL, so each such run is reconstructed once and its rollup written back. Cheap
-    /// and one-shot: after the first run nothing matches the filter. New ingests set the columns
-    /// directly in `upsert` (with `summary_rollup_done = 1`), so they're skipped here.
-    func backfillSummaryRollups() {
-        let pending = database.query("SELECT identifier FROM result_bundle WHERE summary_rollup_done = 0;")
-            .compactMap { $0.string("identifier") }
-        guard !pending.isEmpty else { return }
-
-        os_log("Backfilling summary rollups for %ld run(s)", log: .default, type: .info, pending.count)
-        for identifier in pending {
-            guard let bundle = resultBundle(identifier: identifier) else { continue }
-            let firstTest = bundle.tests.first
-            try? database.write { db in
-                try db.run("""
-                UPDATE result_bundle SET
-                    passed_count = ?, uniquely_failed_count = ?, failed_by_system_count = ?,
-                    failed_retrying_count = ?, total_count = ?, first_target_name = ?,
-                    first_device_model = ?, first_device_os = ?, summary_rollup_done = 1
-                WHERE identifier = ?;
-                """, [
-                    .integer(Int64(bundle.testsPassed.count)),
-                    .integer(Int64(bundle.testsUniquelyFailed.count)),
-                    .integer(Int64(bundle.testsFailedBySystem.count)),
-                    .integer(Int64(bundle.testsFailedRetring.count)),
-                    .integer(Int64(bundle.tests.count)),
-                    SQLiteValue(firstTest?.targetName),
-                    SQLiteValue(firstTest?.deviceModel),
-                    SQLiteValue(firstTest?.deviceOs),
-                    .text(identifier),
-                ])
-            }
-        }
     }
 
     // MARK: - Read

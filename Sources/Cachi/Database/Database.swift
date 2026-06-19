@@ -178,7 +178,6 @@ final class Database {
         failed_by_system_count  INTEGER NOT NULL DEFAULT 0,
         failed_retrying_count   INTEGER NOT NULL DEFAULT 0,
         total_count             INTEGER NOT NULL DEFAULT 0,
-        summary_rollup_done     INTEGER NOT NULL DEFAULT 0,
         first_target_name       TEXT,
         first_device_model      TEXT,
         first_device_os         TEXT,

@@ -72,8 +72,6 @@ class State {
                 self.blobStore = blobStore
                 self.backgroundIngest = BackgroundIngest(store: store, blobStore: blobStore)
                 self.baseUrl = baseUrl
-                // One-shot: fill summary rollups for runs ingested before schema v5.
-                store.backfillSummaryRollups()
                 return store
             } catch {
                 os_log("Failed opening database at '%@': %@", log: .default, type: .error, baseUrl.path, "\(error)")

@@ -173,12 +173,12 @@ final class ResultStore {
         }
     }
 
-    func setSessionLogBlobHash(logId: Int, hash: String, byteSize: Int) {
+    func setSessionLogBlobHash(logId: Int, hash: String) {
         try? database.transaction { db in
             let wasUnset = try !db.query("SELECT 1 FROM session_log WHERE id = ? AND blob_hash IS NULL;",
                                          [.integer(Int64(logId))]).isEmpty
-            try db.run("UPDATE session_log SET blob_hash = ?, byte_size = ? WHERE id = ?;",
-                       [.text(hash), .integer(Int64(byteSize)), .integer(Int64(logId))])
+            try db.run("UPDATE session_log SET blob_hash = ? WHERE id = ?;",
+                       [.text(hash), .integer(Int64(logId))])
             if wasUnset {
                 try db.run("""
                 UPDATE result_bundle SET blob_byte_size = blob_byte_size +

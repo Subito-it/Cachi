@@ -126,7 +126,7 @@ final class BackgroundIngest {
             guard let gzipped = data.cachiGzipped() else { continue }
             do {
                 let hash = try blobStore.store(gzipped, kind: .sessionLog)
-                store.setSessionLogBlobHash(logId: log.logId, hash: hash, byteSize: data.count)
+                store.setSessionLogBlobHash(logId: log.logId, hash: hash)
             } catch {
                 os_log("Background session log store failed for test row %ld: %@", log: .default, type: .error, testRowId, "\(error)")
             }

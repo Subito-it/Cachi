@@ -333,7 +333,7 @@ class State {
             else {
                 continue
             }
-            store.setSessionLogBlobHash(logId: logId, hash: hash, byteSize: text.utf8.count)
+            store.setSessionLogBlobHash(logId: logId, hash: hash)
         }
     }
 

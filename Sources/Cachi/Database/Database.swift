@@ -258,8 +258,7 @@ final class Database {
         id        INTEGER PRIMARY KEY AUTOINCREMENT,
         test_id   INTEGER NOT NULL REFERENCES test(id) ON DELETE CASCADE,
         kind      TEXT NOT NULL,
-        blob_hash TEXT,
-        byte_size INTEGER
+        blob_hash TEXT
     );
 
     CREATE TABLE blob (

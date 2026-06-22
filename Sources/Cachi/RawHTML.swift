@@ -1,10 +1,3 @@
-//
-//  RawHTML.swift
-//  Cachi
-//
-//  Created by tomas on 23/12/20.
-//
-
 import Foundation
 import Vaux
 

@@ -49,6 +49,10 @@ struct AttachmentRoute: Routable {
         for header in headers {
             response.headers.add(name: header.0, value: header.1)
         }
+        // Attachments are typically already-compressed media (jpeg/png/mp4); skip re-gzip.
+        if contentType.hasPrefix("image/") || contentType.hasPrefix("video/") {
+            response.disableServerCompression()
+        }
 
         return response
     }

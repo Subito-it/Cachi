@@ -22,12 +22,6 @@ class StreamReader {
         fileHandle.closeFile()
     }
 
-    func rewind() {
-        fileHandle.seek(toFileOffset: 0)
-        buffer.removeAll(keepingCapacity: true)
-        isAtEOF = false
-    }
-
     func nextLine() -> String? {
         if isAtEOF { return nil }
 

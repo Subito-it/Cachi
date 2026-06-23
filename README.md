@@ -24,14 +24,33 @@ You can optionally pass:
 - `--search_depth` to specify how deep Cachi should traverse the location path. Default is 2, larger values may impact parsing speed. 
 - `--merge` to merge multiple xcresults in the same folder as if they belong to the same test run. This can be used in advanced scenarios like for example test sharding on on multiple machines.
 - `--attachment-viewer extension:/path/to/viewer.js` to register a JavaScript bundle that renders attachments with a matching file extension. Repeat the flag for multiple mappings (extensions are case-insensitive and should be provided without the leading dot).
+- `--max_disk_size megabytes` to cap total blob (video/session-log) disk usage. When exceeded, whole sessions are evicted oldest-first — but only sessions whose `.xcresult` has already been pruned externally (a run whose bundle is still on disk is never evicted, since its blobs are re-derivable). See [Documentation/ARCHITECTURE.md](Documentation/ARCHITECTURE.md).
 
 ```bash
-$ cachi --port number [--search_depth level] [--merge] path
+$ cachi --port number [--search_depth level] [--merge] [--max_disk_size megabytes] path
 ```
 
 ## Endpoint documentation
 
-http://local.host:port/v1/help will return a list of available endpoint with a short overview.
+http://local.host:port/v1/help will return a list of available endpoint with a short overview. A full reference lives in [Documentation/ENDPOINTS.md](Documentation/ENDPOINTS.md).
+
+## Data store
+
+Cachi persists everything it ingests into a `.cachi-data/` directory created inside the path you launch against (a sibling of the dated run folders, so it survives their pruning):
+
+- `.cachi-data/cachi.sqlite` — structured data: run metadata, the test list, failure detail (activity trees, failures, performance metrics), and blob manifests.
+- `.cachi-data/blobs/` — content-addressed binaries kept out of SQLite: transcoded screen recordings and gzipped session logs, deduplicated by SHA-256.
+
+Because history lives in this store, it outlives the `.xcresult` bundles that produced it. To wipe everything, stop the server and delete `.cachi-data/`.
+
+## Architecture & documentation
+
+| Document | What it covers |
+|----------|----------------|
+| [ARCHITECTURE.md](Documentation/ARCHITECTURE.md) | How Cachi ingests, stores (SQLite + blob store), and serves results; concurrency model; data lifecycle (with diagrams). |
+| [ENDPOINTS.md](Documentation/ENDPOINTS.md) | Full HTTP endpoint reference, data sources, and identifier relationships. |
+| [XCRESULTTOOL_DATA_MODEL.md](Documentation/XCRESULTTOOL_DATA_MODEL.md) | Complete map of what `xcresulttool` exposes and how it maps onto Cachi's schema. |
+| [INGEST_BENCHMARK.md](Documentation/INGEST_BENCHMARK.md) | Measured cost of ingesting real runs into the store, and the sizing/retention rationale. |
 
 # Test result customization
 

@@ -35,10 +35,17 @@ class State {
 
     static let defaultStatWindowSize = 20
 
-    private var _resultBundles: [ResultBundle]
-    var resultBundles: [ResultBundle] {
-        syncQueue.sync { _resultBundles }
-    }
+    /// Optional cap (bytes) on total blob disk usage, set once from the launch argument. When set,
+    /// each parse pass evicts whole runs oldest-first until usage is under this limit. nil = no cap.
+    var maxDiskSizeBytes: Int?
+
+    /// The persistent SQLite-backed store. Configured once on first parse (it needs the results
+    /// `baseUrl`). All structured reads/writes go through it — there is no in-memory bundle corpus.
+    private var store: ResultStore?
+    private var database: Database?
+    private var blobStore: BlobStore?
+    private var backgroundIngest: BackgroundIngest?
+    private(set) var baseUrl: URL?
 
     enum Status { case ready, parsing(progress: Double) }
     private var _state: Status
@@ -47,40 +54,64 @@ class State {
     }
 
     private let syncQueue = DispatchQueue(label: String(describing: State.self), attributes: .concurrent)
-    private let operationQueue = OperationQueue()
 
     init() {
-        self._resultBundles = []
         self._state = .ready
     }
 
-    func reset() {
+    /// Lazily opens the database/store rooted at the results path. Safe to call repeatedly.
+    private func configureStoreIfNeeded(baseUrl: URL) -> ResultStore? {
         syncQueue.sync(flags: .barrier) {
-            _resultBundles = []
-            _state = .ready
+            if let store { return store }
+            do {
+                let database = try Database(baseUrl: baseUrl)
+                let store = ResultStore(database: database)
+                let blobStore = BlobStore(baseUrl: baseUrl, database: database)
+                self.database = database
+                self.store = store
+                self.blobStore = blobStore
+                self.backgroundIngest = BackgroundIngest(store: store, blobStore: blobStore)
+                self.baseUrl = baseUrl
+                return store
+            } catch {
+                os_log("Failed opening database at '%@': %@", log: .default, type: .error, baseUrl.path, "\(error)")
+                return nil
+            }
         }
     }
 
-    func allTargets() -> [String] {
-        let tests = resultBundles.flatMap(\.tests)
-        let targets = tests.map(\.targetName)
+    private var resultStore: ResultStore? {
+        syncQueue.sync { store }
+    }
 
-        return Array(Set(targets)).sorted()
+    var sharedBlobStore: BlobStore? {
+        syncQueue.sync { blobStore }
+    }
+
+    /// The (at most `limit`) most recent runs containing a test with the given route identifier,
+    /// newest first. Indexed lookup — does not scan the whole corpus.
+    func resultBundles(containingRouteIdentifier routeIdentifier: String, limit: Int) -> [ResultBundle] {
+        resultStore?.resultBundles(containingRouteIdentifier: routeIdentifier, limit: limit) ?? []
+    }
+
+    /// Lightweight per-run summaries (newest first) for the results-list endpoints. Reads only
+    /// `result_bundle` rollup columns — no test rows, no `ResultBundle.make`.
+    func resultSummaries() -> [ResultStore.ResultSummary] {
+        resultStore?.resultSummaries() ?? []
+    }
+
+    func allTargets() -> [String] {
+        resultStore?.allTargets() ?? []
     }
 
     func allDevices(in target: String) -> [Device] {
-        let targetTests = allTests(in: target)
-        let targetDevices = targetTests.map { Device(model: $0.deviceModel, os: $0.deviceOs) }
-
-        return Array(Set(targetDevices)).sorted(by: { $0.description < $1.description })
-    }
-
-    func allTests(in target: String) -> [ResultBundle.Test] {
-        let tests = resultBundles.flatMap(\.tests)
-        return tests.filter { $0.targetName == target }
+        let devices = resultStore?.devices(inTarget: target) ?? []
+        return Array(Set(devices.map { Device(model: $0.model, os: $0.os) })).sorted(by: { $0.description < $1.description })
     }
 
     func pendingResultBundles(baseUrl: URL, depth: Int, mergeResults: Bool) -> [PendingResultBundle] {
+        let store = configureStoreIfNeeded(baseUrl: baseUrl)
+
         let benchId = benchmarkStart()
         let bundleUrls = findResultBundles(at: baseUrl, depth: depth, mergeResults: mergeResults)
         os_log("Found %ld test bundles searching '%@' with depth %ld in %fms", log: .default, type: .info, bundleUrls.count, baseUrl.absoluteString, depth, benchmarkStop(benchId))
@@ -88,24 +119,24 @@ class State {
         var results = [(result: PendingResultBundle, creationDate: Date)]()
 
         let queue = OperationQueue()
-        let syncQueue = DispatchQueue(label: "com.subito.cachi.pending.result.bundles")
+        let localSyncQueue = DispatchQueue(label: "com.subito.cachi.pending.result.bundles")
 
         for urls in bundleUrls {
-            queue.addOperation { [unowned self] in
+            queue.addOperation {
                 let bundlePath = (urls.count > 1 ? urls.first?.deletingLastPathComponent() : urls.first)?.path ?? ""
 
                 let benchId = benchmarkStart()
                 let creationDate = ((try? FileManager.default.attributesOfItem(atPath: bundlePath))?[.creationDate] as? Date) ?? Date()
 
-                if let cachedResultBundle = cachedResultBundle(urls: urls) {
-                    os_log("Restored partial result bundle '%@' from cache in %fms", log: .default, type: .info, bundlePath, benchmarkStop(benchId))
-                    let result = (result: PendingResultBundle(identifier: cachedResultBundle.identifier, resultUrls: urls), creationDate: creationDate)
-                    syncQueue.sync { results.append(result) }
+                if let identifier = store?.runIdentifier(forSourceUrls: urls) {
+                    os_log("Restored partial result bundle '%@' from db in %fms", log: .default, type: .info, bundlePath, benchmarkStop(benchId))
+                    let result = (result: PendingResultBundle(identifier: identifier, resultUrls: urls), creationDate: creationDate)
+                    localSyncQueue.sync { results.append(result) }
                 } else {
                     let parser = Parser()
                     if let pendingResultBundle = parser.parsePendingResultBundle(urls: urls) {
                         let result = (result: pendingResultBundle, creationDate: creationDate)
-                        syncQueue.sync { results.append(result) }
+                        localSyncQueue.sync { results.append(result) }
                     }
                     os_log("Parsed partial result bundle '%@' in %fms", log: .default, type: .info, bundlePath, benchmarkStop(benchId))
                 }
@@ -118,61 +149,35 @@ class State {
     }
 
     func parse(baseUrl: URL, depth: Int, mergeResults: Bool) {
+        guard let store = configureStoreIfNeeded(baseUrl: baseUrl) else { return }
+
         syncQueue.sync(flags: .barrier) { _state = .parsing(progress: 0) }
 
         var benchId = benchmarkStart()
         var bundleUrls = findResultBundles(at: baseUrl, depth: depth, mergeResults: mergeResults)
         os_log("Found %ld test bundles searching '%@' with depth %ld in %fms", log: .default, type: .info, bundleUrls.count, baseUrl.absoluteString, depth, benchmarkStop(benchId))
 
-        let queue = OperationQueue()
-        let syncQueue = DispatchQueue(label: "com.subito.cachi.pending.result.bundles")
-
-        var resultBundles = [ResultBundle]()
-        var parsedIndexes = [Int]()
-        for (index, urls) in bundleUrls.enumerated() {
-            queue.addOperation { [unowned self] in
-                let bundlePath = (urls.count > 1 ? urls.first?.deletingLastPathComponent() : urls.first)?.absoluteString ?? ""
-
-                guard !self.resultBundles.contains(where: { $0.xcresultUrls == Set(urls) }) else {
-                    os_log("Already parsed, skipping test bundle '%@'", log: .default, type: .info, bundlePath)
-                    return syncQueue.sync { parsedIndexes.append(index) }
-                }
-
-                let benchId = benchmarkStart()
-                if let cachedResultBundle = cachedResultBundle(urls: urls) {
-                    os_log("Restored test bundle '%@' from cache in %fms", log: .default, type: .info, bundlePath, benchmarkStop(benchId))
-                    syncQueue.sync {
-                        resultBundles.append(cachedResultBundle)
-                        parsedIndexes.append(index)
-                    }
-                }
-            }
-        }
-
-        queue.waitUntilAllOperationsAreFinished()
-
-        parsedIndexes.sorted().reversed().forEach { bundleUrls.remove(at: $0) }
-
-        syncQueue.sync(flags: .barrier) {
-            _resultBundles += resultBundles
-            _resultBundles.sort(by: { $0.testStartDate > $1.testStartDate })
-        }
+        // Skip bundles already ingested into the database.
+        bundleUrls = bundleUrls.filter { store.runIdentifier(forSourceUrls: $0) == nil }
 
         let parser = Parser()
         benchId = benchmarkStart()
         for (index, urls) in bundleUrls.enumerated() {
             autoreleasepool {
                 if let resultBundle = parser.parseResultBundles(urls: urls) {
+                    store.upsert(resultBundle)
                     syncQueue.sync(flags: .barrier) {
-                        _resultBundles.append(resultBundle)
-                        _resultBundles.sort(by: { $0.testStartDate > $1.testStartDate })
                         _state = .parsing(progress: Double(index) / Double(bundleUrls.count))
-                        writeCachedResultBundle(resultBundle)
                     }
-                    DispatchQueue.global(qos: .userInitiated).async {
+                    DispatchQueue.global(qos: .userInitiated).async { [weak self] in
                         // This can be done asynchronously as it doesn't contain data that is immediately needed
                         try? parser.splitHtmlCoverageFile(resultBundle: resultBundle)
                         try? parser.generagePerFolderLineCoverage(resultBundle: resultBundle, destinationUrl: resultBundle.codeCoveragePerFolderJsonUrl)
+                        // Cache the coverage-presence flag so the results list never probes the
+                        // filesystem per request (it's resolved once here, after generation).
+                        let hasCoverage = resultBundle.codeCoveragePerFolderJsonUrl
+                            .map { FileManager.default.fileExists(atPath: $0.path) } ?? false
+                        self?.resultStore?.setHasCoverage(identifier: resultBundle.identifier, hasCoverage: hasCoverage)
                     }
                 }
             }
@@ -180,23 +185,43 @@ class State {
         os_log("Parsed %ld test bundles in %fms", log: .default, type: .info, bundleUrls.count, benchmarkStop(benchId))
 
         syncQueue.sync(flags: .barrier) { _state = .ready }
+
+        // Cheap DB hygiene after a parse pass.
+        syncQueue.sync { database }?.performMaintenance()
+
+        // Deferred, low-priority: extract failure detail + materialize video/log blobs. Off the
+        // parse critical path so a failure flood grows a backlog rather than blocking. Once blobs
+        // are fully materialized, enforce the optional disk-size cap (evict whole runs oldest-first).
+        syncQueue.sync { backgroundIngest }?.runAsync { [weak self] in
+            guard let self, let maxBytes = maxDiskSizeBytes else { return }
+            syncQueue.sync { self.blobStore }?.enforceDiskLimit(maxBytes: maxBytes)
+        }
     }
 
     func result(identifier: String) -> ResultBundle? {
-        resultBundles.first { $0.identifier == identifier }
+        resultStore?.resultBundle(identifier: identifier)
     }
 
     func test(summaryIdentifier: String) -> ResultBundle.Test? {
-        resultBundles.flatMap(\.tests).first { $0.summaryIdentifier == summaryIdentifier }
+        resultStore?.test(summaryIdentifier: summaryIdentifier)
+    }
+
+    /// A test plus its owning run, by summary identifier. Indexed lookup (no corpus scan); used by
+    /// the test-detail and session-log HTML pages that need the run for `userInfo`/navigation.
+    func testWithResultBundle(summaryIdentifier: String) -> (test: ResultBundle.Test, resultBundle: ResultBundle)? {
+        resultStore?.testWithResultBundle(summaryIdentifier: summaryIdentifier)
     }
 
     func testActionSummary(test: ResultBundle.Test?) -> ActionTestSummary? {
         guard let test, let summaryIdentifier = test.summaryIdentifier else { return nil }
 
-        let cachi = CachiKit(url: test.xcresultUrl)
-        let testSummary = try? cachi.actionTestSummary(identifier: summaryIdentifier)
+        // Read-through: rebuild from SQLite if detail was extracted; else read live from the bundle.
+        if let stored = resultStore?.reconstructTestSummary(summaryIdentifier: summaryIdentifier) {
+            return stored
+        }
 
-        return testSummary
+        let cachi = CachiKit(url: test.xcresultUrl)
+        return try? cachi.actionTestSummary(identifier: summaryIdentifier)
     }
 
     func testActionActivitySummaries(summaryIdentifier: String) -> [ActionTestActivitySummary]? {
@@ -208,23 +233,96 @@ class State {
     }
 
     func testActionActivitySummaries(test: ResultBundle.Test?) -> [ActionTestActivitySummary]? {
-        guard let test, let summaryIdentifier = test.summaryIdentifier else { return nil }
+        testActionSummary(test: test)?.activitySummaries
+    }
 
+    /// Resolves a serve-ready base video for an attachment to a local file at `destinationUrl`.
+    ///
+    /// Prefers the **original high-quality** recording exported straight from the `.xcresult`, so the
+    /// step-by-step playback stays sharp. Only when the bundle is no longer on disk (e.g. pruned)
+    /// does it fall back to the stored transcoded blob, which is intentionally smaller and lower
+    /// quality. The blob itself is materialized off the request path by `BackgroundIngest` after each
+    /// parse, so the fallback is available once the xcresult is gone. Returns false if neither source
+    /// can produce a video.
+    func materializeVideo(test: ResultBundle.Test, attachmentIdentifier: String, destinationUrl: URL) -> Bool {
+        let fileManager = FileManager.default
+        if fileManager.fileExists(atPath: destinationUrl.path) { return true }
+        try? fileManager.createDirectory(at: destinationUrl.deletingLastPathComponent(), withIntermediateDirectories: true)
+
+        // 1. Preferred: export the original high-quality video directly from the xcresult.
         let cachi = CachiKit(url: test.xcresultUrl)
-        let testSummary = try? cachi.actionTestSummary(identifier: summaryIdentifier)
+        do {
+            try cachi.export(identifier: attachmentIdentifier, destinationPath: destinationUrl.path)
+            if fileManager.fileExists(atPath: destinationUrl.path) {
+                return true
+            }
+        } catch {
+            try? fileManager.removeItem(at: destinationUrl)
+        }
 
-        return testSummary?.activitySummaries
+        // 2. Fallback: the stored transcoded blob (lower quality, but survives xcresult pruning).
+        if let summaryIdentifier = test.summaryIdentifier,
+           let blobStore = sharedBlobStore,
+           let hash = resultStore?.videoBlobHash(summaryIdentifier: summaryIdentifier) {
+            let blobUrl = blobStore.url(forHash: hash)
+            if (try? fileManager.copyItem(at: blobUrl, to: destinationUrl)) != nil {
+                return true
+            }
+        }
+
+        return false
     }
 
     func testSessionLogs(diagnosticsIdentifier: String) -> ResultBundle.Test.SessionLogs? {
-        guard let test = resultBundles.flatMap(\.tests).first(where: { $0.diagnosticsIdentifier == diagnosticsIdentifier }) else {
+        guard let store = resultStore, let test = store.test(diagnosticsIdentifier: diagnosticsIdentifier) else {
             return nil
         }
 
-        let cachi = CachiKit(url: test.xcresultUrl)
-        let sessionLogs = try? cachi.actionInvocationSessionLogs(identifier: diagnosticsIdentifier, sessionLogs: .all)
+        // Read-through: serve from the blob store if the channels were already materialized.
+        if let blobStore = sharedBlobStore {
+            let app = storedSessionLog(diagnosticsIdentifier: diagnosticsIdentifier, kind: "app", store: store, blobStore: blobStore)
+            let runner = storedSessionLog(diagnosticsIdentifier: diagnosticsIdentifier, kind: "runner", store: store, blobStore: blobStore)
+            let session = storedSessionLog(diagnosticsIdentifier: diagnosticsIdentifier, kind: "session", store: store, blobStore: blobStore)
+            if app != nil || runner != nil || session != nil {
+                return .init(appStandardOutput: app, runerAppStandardOutput: runner, sessionLogs: session)
+            }
+        }
 
-        return .init(appStandardOutput: sessionLogs?[.appStdOutErr], runerAppStandardOutput: sessionLogs?[.runnerAppStdOutErr], sessionLogs: sessionLogs?[.session])
+        // Miss: extract live from the xcresult now (and store for next time if possible).
+        let cachi = CachiKit(url: test.xcresultUrl)
+        guard let sessionLogs = try? cachi.actionInvocationSessionLogs(identifier: diagnosticsIdentifier, sessionLogs: .all) else {
+            return nil
+        }
+
+        if let blobStore = sharedBlobStore, let rowId = store.testRowId(summaryIdentifier: test.summaryIdentifier ?? "") {
+            persistSessionLogs(sessionLogs, testRowId: rowId, store: store, blobStore: blobStore)
+        }
+
+        return .init(appStandardOutput: sessionLogs[.appStdOutErr], runerAppStandardOutput: sessionLogs[.runnerAppStdOutErr], sessionLogs: sessionLogs[.session])
+    }
+
+    private func storedSessionLog(diagnosticsIdentifier: String, kind: String, store: ResultStore, blobStore: BlobStore) -> String? {
+        guard let hash = store.sessionLogBlobHash(diagnosticsIdentifier: diagnosticsIdentifier, kind: kind),
+              let gzipped = try? Data(contentsOf: blobStore.url(forHash: hash)),
+              let data = gzipped.cachiGunzipped()
+        else {
+            return nil
+        }
+        return String(decoding: data, as: UTF8.self)
+    }
+
+    private func persistSessionLogs(_ logs: [CachiKit.SessionLogs: String], testRowId: Int, store: ResultStore, blobStore: BlobStore) {
+        let mapping: [(CachiKit.SessionLogs, String)] = [(.appStdOutErr, "app"), (.runnerAppStdOutErr, "runner"), (.session, "session"), (.scheduling, "scheduling")]
+        let pending = Dictionary(uniqueKeysWithValues: store.sessionLogsNeedingBlob(testRowId: testRowId).map { ($0.kind, $0.logId) })
+        for (key, kind) in mapping {
+            guard let logId = pending[kind], let text = logs[key], !text.isEmpty,
+                  let gzipped = Data(text.utf8).cachiGzipped(),
+                  let hash = try? blobStore.store(gzipped, kind: .sessionLog)
+            else {
+                continue
+            }
+            store.setSessionLogBlobHash(logId: logId, hash: hash)
+        }
     }
 
     func resultsTestStats(target: String, device: Device, type: ResultBundle.TestStatsType, windowSize: Int?) -> [ResultBundle.TestStats] {
@@ -250,8 +348,7 @@ class State {
         }
 
         let windowSize = windowSize ?? Self.defaultStatWindowSize
-        let targetTests = allTests(in: target).sorted(by: { $0.testStartDate > $1.testStartDate }).filter { $0.groupName != "System Failures" }
-        let deviceTests = targetTests.filter { $0.deviceModel == device.model && $0.deviceOs == device.os }
+        let deviceTests = resultStore?.statsTests(target: target, deviceModel: device.model, deviceOs: device.os) ?? []
 
         let stats = NSMutableDictionary()
 
@@ -326,37 +423,35 @@ class State {
         }
     }
 
-    func testStats(md5Identifier: String) -> ResultBundle.Test.Stats {
-        var successfulTests = ArraySlice<ResultBundle.Test>()
-        var failedTests = ArraySlice<ResultBundle.Test>()
-
-        let sortedResultBundles = resultBundles.sorted { $0.testStartDate > $1.testStartDate }
-
-        for resultBundle in sortedResultBundles {
-            let matchingTests = resultBundle.tests.filter { $0.routeIdentifier == md5Identifier }
-
-            successfulTests += matchingTests.filter { $0.status == .success }
-            failedTests += matchingTests.filter { $0.status == .failure }
-
-            if successfulTests.count + failedTests.count > 10 {
-                break
-            }
+    func testStats(summaryIdentifier: String) -> ResultBundle.Test.Stats? {
+        guard let test = test(summaryIdentifier: summaryIdentifier) else {
+            return nil
         }
 
-        successfulTests = successfulTests.prefix(3)
-        failedTests = failedTests.prefix(3)
+        return testStats(md5Identifier: test.routeIdentifier)
+    }
 
-        let successfulCount = Double(successfulTests.count)
-        let failureCount = Double(failedTests.count)
+    func testStats(md5Identifier: String) -> ResultBundle.Test.Stats {
+        // Newest-first, capped: the route index serves the order + limit directly.
+        let matchingTests = resultStore?.tests(routeIdentifier: md5Identifier, limit: 51) ?? []
+
+        let successfulTests = matchingTests.filter { $0.status == .success }
+        let failedTests = matchingTests.filter { $0.status == .failure }
+
+        let averageSuccessfulTests = successfulTests.prefix(3)
+        let averageFailedTests = failedTests.prefix(3)
+
+        let successfulCount = Double(averageSuccessfulTests.count)
+        let failureCount = Double(averageFailedTests.count)
 
         var successTotal: Double?
         if successfulCount > 0 {
-            successTotal = successfulTests.reduce(0) { $0 + $1.duration }
+            successTotal = averageSuccessfulTests.reduce(0) { $0 + $1.duration }
         }
 
         var failureTotal: Double?
         if failureCount > 0 {
-            failureTotal = failedTests.reduce(0) { $0 + $1.duration }
+            failureTotal = averageFailedTests.reduce(0) { $0 + $1.duration }
         }
 
         var executionAverage = 1.0
@@ -374,14 +469,14 @@ class State {
             failureAverage = failureTotal! / failureCount
         }
 
-        let allTests = successfulTests + failedTests
+        let allTests = (successfulTests + failedTests).sorted { $0.testStartDate > $1.testStartDate }
 
         let groupNames = Set(allTests.map(\.groupName))
         let testNames = Set(allTests.map(\.name))
         let deviceModels = Set(allTests.map(\.deviceModel))
         let deviceOses = Set(allTests.map(\.deviceOs))
 
-        guard groupNames.count == 1, testNames.count == 1, deviceModels.count == 1, deviceModels.count == 1 else {
+        guard groupNames.count == 1, testNames.count == 1, deviceModels.count == 1, deviceOses.count == 1 else {
             return ResultBundle.Test.Stats(group_name: "",
                                            test_name: "",
                                            device_model: "",
@@ -390,7 +485,8 @@ class State {
                                            success_average_s: -1,
                                            failure_average_s: -1,
                                            success_count: 0,
-                                           failure_count: 0)
+                                           failure_count: 0,
+                                           tests: [])
         }
 
         return ResultBundle.Test.Stats(group_name: groupNames.first!,
@@ -400,89 +496,9 @@ class State {
                                        average_s: executionAverage,
                                        success_average_s: successAverage,
                                        failure_average_s: failureAverage,
-                                       success_count: Int(successfulCount),
-                                       failure_count: Int(failureCount))
-    }
-
-    func dumpAttachments(in test: ResultBundle.Test, cachedActions: [ActionTestActivitySummary]?) {
-        guard let resultBundle = resultBundles.first(where: { $0.tests.contains(where: { $0.identifier == test.identifier }) }),
-              let test = resultBundle.tests.first(where: { $0.identifier == test.identifier })
-        else {
-            return
-        }
-
-        let cachi = CachiKit(url: test.xcresultUrl)
-
-        let actions = cachedActions ?? State.shared.testActionActivitySummaries(test: test) ?? []
-
-        let filemanager = FileManager.default
-
-        let destinationUrl = Cachi.temporaryFolderUrl.appendingPathComponent(test.identifier)
-        try? filemanager.createDirectory(at: destinationUrl, withIntermediateDirectories: true, attributes: nil)
-
-        for attachment in actions.flatten().flatMap(\.attachments) {
-            guard let filename = attachment.filename,
-                  let attachmentIdentifier = attachment.payloadRef?.id
-            else {
-                continue
-            }
-
-            let attachmentDestinationPath = destinationUrl.appendingPathComponent(filename).path
-            guard filemanager.fileExists(atPath: attachmentDestinationPath) == false else { continue }
-
-            try? cachi.export(identifier: attachmentIdentifier, destinationPath: attachmentDestinationPath)
-        }
-    }
-
-    private func writeCachedResultBundle(_ bundle: ResultBundle) {
-        guard let data = try? JSONEncoder().encode(bundle) else { return }
-
-        let baseUrl: URL
-
-        if bundle.xcresultUrls.count == 0 {
-            return
-        } else if bundle.xcresultUrls.count == 1 {
-            baseUrl = Array(bundle.xcresultUrls)[0]
-        } else {
-            baseUrl = Array(bundle.xcresultUrls)[0].deletingLastPathComponent()
-        }
-
-        let cacheUrl = makeCacheUrl(baseUrl: baseUrl).appendingPathComponent("cached_result.json")
-        try? data.write(to: cacheUrl)
-    }
-
-    private func cachedResultBundle(urls: [URL]) -> ResultBundle? {
-        let baseUrl: URL
-
-        if urls.count == 0 {
-            return nil
-        } else if urls.count == 1 {
-            baseUrl = urls[0]
-        } else {
-            baseUrl = urls[0].deletingLastPathComponent()
-        }
-
-        let cacheUrl = makeCacheUrl(baseUrl: baseUrl).appendingPathComponent("cached_result.json")
-        guard let data = try? Foundation.Data(contentsOf: cacheUrl) else { return nil }
-
-        if let cache = try? ZippyJSONDecoder().decode(ResultBundle.self, from: data) {
-            for url in cache.xcresultUrls {
-                if !urls.contains(url) {
-                    return nil
-                }
-            }
-
-            return cache
-        }
-
-        return nil
-    }
-
-    private func makeCacheUrl(baseUrl: URL) -> URL {
-        let url = baseUrl.appendingPathComponent(Cachi.cacheFolderName)
-
-        try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: false, attributes: nil)
-        return url
+                                       success_count: successfulTests.count,
+                                       failure_count: failedTests.count,
+                                       tests: allTests)
     }
 
     private func findResultBundles(at url: URL, depth: Int, mergeResults: Bool) -> [[URL]] {
@@ -504,7 +520,9 @@ class State {
             }
 
             if isDirectory {
-                if name.hasSuffix(".xcresult") {
+                if name == Cachi.dataFolderName {
+                    enumerator.skipDescendants()
+                } else if name.hasSuffix(".xcresult") {
                     testBundleUrls.append(item as URL)
                     enumerator.skipDescendants()
                 } else if enumerator.level >= depth {

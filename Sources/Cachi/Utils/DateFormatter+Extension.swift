@@ -12,10 +12,4 @@ extension DateFormatter {
         formatter.dateFormat = "d MMM"
         return formatter
     }()
-
-    static let hourFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm:ss"
-        return formatter
-    }()
 }

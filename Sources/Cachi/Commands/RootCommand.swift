@@ -8,6 +8,7 @@ class RootCommand: Command {
     let parseDepthArgument = Argument<Int>(name: "level", kind: .named(short: "d", long: "search_depth"), optional: true, help: "Location path traversing depth (Default: 2)")
     let port = Argument<Int>(name: "number", kind: .named(short: "p", long: "port"), optional: false, help: "Web interface port")
     let mergeResultsFlag = Flag(short: "m", long: "merge", help: "Merge xcresults that are in the same folder")
+    let maxDiskSizeArgument = Argument<Int>(name: "megabytes", kind: .named(short: nil, long: "max_disk_size"), optional: true, help: "Cap total blob disk usage (MB); oldest sessions are evicted when exceeded")
     let attachmentViewerArgument = Argument<[String]>(name: "extension:javascript_file", kind: .named(short: nil, long: "attachment_viewer"), optional: true, help: "Custom viewer JavaScript for attachment file extensions (repeatable)")
 
     func run() -> Bool {
@@ -37,6 +38,12 @@ class RootCommand: Command {
         guard FileManager.default.fileExists(atPath: baseUrl.path) else {
             print("Path '\(baseUrl.standardized)' does not exist!\n")
             return false
+        }
+
+        Cachi.createDataStore(baseUrl: baseUrl)
+
+        if let maxDiskSizeMB = maxDiskSizeArgument.value, maxDiskSizeMB > 0 {
+            State.shared.maxDiskSizeBytes = maxDiskSizeMB * 1_000_000
         }
 
         DispatchQueue.global(qos: .userInteractive).async {

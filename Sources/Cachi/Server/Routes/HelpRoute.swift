@@ -10,10 +10,6 @@ struct HelpRoute: Routable {
 
     let routes: [Routable]
 
-    init(routes: [Routable]) {
-        self.routes = routes
-    }
-
     func respond(to _: Request) throws -> Response {
         os_log("Reset request received", log: .default, type: .info)
 

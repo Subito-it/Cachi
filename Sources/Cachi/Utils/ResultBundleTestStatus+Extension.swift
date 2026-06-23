@@ -50,34 +50,34 @@ extension ResultBundle {
     }
 }
 
-extension ResultBundle {
+/// Same presentation logic as the `ResultBundle` helpers above, driven by the precomputed rollup
+/// columns so the results-list view needs no test rows. Kept in sync with the bundle versions.
+extension ResultStore.ResultSummary {
+    var htmlTitle: String {
+        if let branchName, let commitHash {
+            "\(branchName) - \(commitHash)"
+        } else {
+            identifier
+        }
+    }
+
+    var htmlSubtitle: String {
+        commitMessage ?? ""
+    }
+
     func htmlStatusImageUrl(includeSystemFailures: Bool) -> String {
-        var failedTestCount = testsUniquelyFailed.count
-
+        var failedTestCount = uniquelyFailedCount
         if includeSystemFailures {
-            failedTestCount += testsFailedBySystem.count
+            failedTestCount += failedBySystemCount
         }
-
-        if failedTestCount > 0 {
-            return ImageRoute.failedTestImageUrl()
-        } else {
-            return ImageRoute.passedTestImageUrl()
-        }
+        return failedTestCount > 0 ? ImageRoute.failedTestImageUrl() : ImageRoute.passedTestImageUrl()
     }
 
-    func htmlStatusTitle() -> String {
-        if testsUniquelyFailed.count > 0 {
-            "Failed"
-        } else {
-            "Passed"
-        }
+    var htmlStatusTitle: String {
+        uniquelyFailedCount > 0 ? "Failed" : "Passed"
     }
 
-    func htmlTextColor() -> String {
-        if testsUniquelyFailed.count > 0 {
-            "color-error"
-        } else {
-            "color-text"
-        }
+    var htmlTextColor: String {
+        uniquelyFailedCount > 0 ? "color-error" : "color-text"
     }
 }

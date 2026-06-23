@@ -79,6 +79,16 @@ Cachi.xcodeproj
 deploy.sh
 hb.sh
 
+# Cachi data store (SQLite DB + blob store) written inside the results path
+.cachi-data/
+# Stray sqlite files
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+
 .swiftpm/
 .vscode/
 *.tar.gz
+
+sample_data/
+cachi_fat

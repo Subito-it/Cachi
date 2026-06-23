@@ -93,42 +93,15 @@ class Parser {
             return nil
         }
 
-        var totalExecutionTime = 0.0
-        var minStartDate = Date.distantFuture
-        var maxEndDate = Date.distantPast
-        for test in tests {
-            minStartDate = min(minStartDate, test.testStartDate)
-            maxEndDate = max(maxEndDate, test.testStartDate.addingTimeInterval(test.duration))
-            totalExecutionTime += test.duration
-        }
+        let totalExecutionTime = tests.reduce(0.0) { $0 + $1.duration }
 
-        let testsExcludingFailedBySystem = tests.filter { $0.groupName != "System Failures" }
-
-        let testsPassed = tests.filter { $0.status == .success }
-        let testsFailed = testsExcludingFailedBySystem.filter { $0.status == .failure }
-        let testsFailedBySystem = tests.filter { $0.status == .failure && $0.groupName == "System Failures" }
-        let testsGrouped = Array(Dictionary(grouping: testsExcludingFailedBySystem, by: { "\($0.groupName)-\($0.name)-\($0.deviceModel)-\($0.deviceOs)" }).values)
-        let testsRepeated = testsGrouped.filter { $0.count > 1 }
-        let testsPassedRetring = testsRepeated.compactMap { $0.first(where: { $0.status == .success }) }
-        let testsFailedRetring = testsGrouped.filter { $0.contains(where: { $0.status == .success }) }.flatMap { $0 }.filter { $0.status == .failure }
-        let testsUniquelyFailed = testsGrouped.filter { $0.allSatisfy { $0.status == .failure } }.compactMap(\.first)
-
-        return ResultBundle(identifier: bundleIdentifier,
-                            xcresultUrls: Set(urls),
-                            destinations: runDestinations.joined(separator: ", "),
-                            testStartDate: minStartDate,
-                            testEndDate: maxEndDate,
-                            totalExecutionTime: totalExecutionTime,
-                            tests: tests,
-                            testsPassed: testsPassed,
-                            testsFailed: testsFailed,
-                            testsFailedBySystem: testsFailedBySystem,
-                            testsPassedRetring: testsPassedRetring,
-                            testsFailedRetring: testsFailedRetring,
-                            testsUniquelyFailed: testsUniquelyFailed,
-                            testsRepeated: testsRepeated,
-                            testsCrashCount: testsCrashCount,
-                            userInfo: userInfo)
+        return ResultBundle.make(identifier: bundleIdentifier,
+                                 xcresultUrls: Set(urls),
+                                 destinations: runDestinations.joined(separator: ", "),
+                                 totalExecutionTime: totalExecutionTime,
+                                 tests: tests,
+                                 testsCrashCount: testsCrashCount,
+                                 userInfo: userInfo)
     }
 
     func splitHtmlCoverageFile(resultBundle: ResultBundle) throws {
@@ -210,25 +183,6 @@ class Parser {
         }
 
         return metaData.uniqueIdentifier
-    }
-
-    private func crashCount(_ cachi: CachiKit, in tests: [ResultBundle.Test], at _: URL) -> Int {
-        var crashedTestsCount = 0
-        for (index, test) in tests.enumerated() {
-            guard test.status == .failure else { continue }
-
-            os_log("Processing test %ld/%ld", log: .default, type: .info, index + 1, tests.count)
-            autoreleasepool {
-                let testSummary = try? cachi.actionTestSummary(identifier: test.summaryIdentifier!)
-
-                let actions = testSummary?.activitySummaries.flatten()
-                if actions?.contains(where: { $0.title?.contains(" crashed in ") == true }) == true {
-                    crashedTestsCount += 1
-                }
-            }
-        }
-
-        return crashedTestsCount
     }
 
     private func optimisticCrashCount(in actionsInvocationRecord: ActionsInvocationRecord) -> Int {

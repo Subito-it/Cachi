@@ -37,10 +37,12 @@ struct VideoCaptureRoute: Routable {
         try? filemanager.createDirectory(at: videoCaptureUrl.deletingLastPathComponent(), withIntermediateDirectories: true, attributes: nil)
 
         if !filemanager.fileExists(atPath: videoCaptureUrl.path) {
+            // Prefer the high-quality original from the xcresult; fall back to the stored blob.
             let videoUrl = Cachi.temporaryFolderUrl.appendingPathComponent(resultIdentifier).appendingPathComponent("\(attachmentIdentifier.md5Value).mp4")
             if !filemanager.fileExists(atPath: videoUrl.path) {
-                let cachi = CachiKit(url: test.xcresultUrl)
-                try? cachi.export(identifier: attachmentIdentifier, destinationPath: videoUrl.path)
+                guard State.shared.materializeVideo(test: test, attachmentIdentifier: attachmentIdentifier, destinationUrl: videoUrl) else {
+                    return Response(status: .notFound, body: Response.Body(stringLiteral: "Failed retrieving video capture..."))
+                }
             }
 
             let activitySummary = State.shared.testActionSummary(test: test)
@@ -69,6 +71,7 @@ struct VideoCaptureRoute: Routable {
         for header in headers {
             response.headers.add(name: header.0, value: header.1)
         }
+        response.disableServerCompression() // mp4 is already compressed
 
         return response
     }

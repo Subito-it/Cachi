@@ -193,8 +193,8 @@ class State {
         // parse critical path so a failure flood grows a backlog rather than blocking. Once blobs
         // are fully materialized, enforce the optional disk-size cap (evict whole runs oldest-first).
         syncQueue.sync { backgroundIngest }?.runAsync { [weak self] in
-            guard let self, let maxBytes = self.maxDiskSizeBytes else { return }
-            self.syncQueue.sync { self.blobStore }?.enforceDiskLimit(maxBytes: maxBytes)
+            guard let self, let maxBytes = maxDiskSizeBytes else { return }
+            syncQueue.sync { self.blobStore }?.enforceDiskLimit(maxBytes: maxBytes)
         }
     }
 

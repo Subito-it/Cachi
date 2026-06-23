@@ -31,7 +31,7 @@ final class BackgroundIngest {
     init(store: ResultStore, blobStore: BlobStore) {
         self.store = store
         self.blobStore = blobStore
-        extractor = DetailExtractor(store: store)
+        self.extractor = DetailExtractor(store: store)
         workQueue.maxConcurrentOperationCount = maxConcurrent
     }
 

@@ -202,7 +202,7 @@ struct ScriptRoute: Routable {
             };
         """
 
-        let minifiedCoverage = coverage
+        return coverage
             .replacingOccurrences(of: #""files":"#, with: #""f":"#)
             .replacingOccurrences(of: #""filename":"#, with: #""n":"#)
             .replacingOccurrences(of: #""functions":"#, with: #""fn":"#)
@@ -215,8 +215,6 @@ struct ScriptRoute: Routable {
             .replacingOccurrences(of: #""lines":"#, with: #""l":"#)
             .replacingOccurrences(of: #""summary":"#, with: #""s":"#)
             .replacingOccurrences(of: #""data":"#, with: #""d":"#)
-
-        return minifiedCoverage
     }
 
     private func scriptFoldersCoverage(resultBundle: ResultBundle) -> String {
@@ -294,11 +292,9 @@ struct ScriptRoute: Routable {
             };
         """
 
-        let minifiedCoverage = coverage
+        return coverage
             .replacingOccurrences(of: #""path":"#, with: #""f":"#)
             .replacingOccurrences(of: #""percent":"#, with: #""p":"#)
-
-        return minifiedCoverage
     }
 
     private func scriptResulsStat() -> String {

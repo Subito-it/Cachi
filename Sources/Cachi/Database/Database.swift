@@ -20,9 +20,9 @@ final class Database {
 
     init(baseUrl: URL) throws {
         Cachi.createDataStore(baseUrl: baseUrl)
-        databaseUrl = Cachi.databaseUrl(baseUrl: baseUrl)
+        self.databaseUrl = Cachi.databaseUrl(baseUrl: baseUrl)
 
-        writer = try SQLiteConnection(path: databaseUrl.path, readonly: false)
+        self.writer = try SQLiteConnection(path: databaseUrl.path, readonly: false)
         try writer.execute("PRAGMA journal_mode=WAL;")
         try writer.execute("PRAGMA synchronous=NORMAL;")
         try writer.execute("PRAGMA foreign_keys=ON;")
@@ -38,11 +38,12 @@ final class Database {
             try reader.execute("PRAGMA busy_timeout=5000;")
             pool.append(reader)
         }
-        availableReaders = pool
-        readerPoolSemaphore = DispatchSemaphore(value: readerCount)
+        self.availableReaders = pool
+        self.readerPoolSemaphore = DispatchSemaphore(value: readerCount)
     }
 
     // MARK: - Write access
+
     //
     // NOT reentrant: `write`/`transaction` funnel through the serial `writerQueue` via `sync`, so a
     // `body` that calls back into `write`/`transaction` (directly or through a helper like
@@ -120,7 +121,7 @@ final class Database {
 
     private static func migrate(_ db: SQLiteConnection) throws {
         try db.execute("CREATE TABLE IF NOT EXISTS schema_version (version INTEGER NOT NULL);")
-        let current = (try db.query("SELECT version FROM schema_version LIMIT 1;").first?.int("version")) ?? 0
+        let current = try (db.query("SELECT version FROM schema_version LIMIT 1;").first?.int("version")) ?? 0
 
         try applyMigration(db, version: 1, ifBelow: current, sql: Self.schemaV1)
     }

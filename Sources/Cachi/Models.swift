@@ -204,7 +204,7 @@ extension ResultBundle.Test {
     }
 }
 
-// This needs to be a class to optimize per folder coverage extraction
+/// This needs to be a class to optimize per folder coverage extraction
 class Coverage: Codable {
     class Item: Codable {
         class File: Codable, Hashable {

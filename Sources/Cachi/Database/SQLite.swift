@@ -12,12 +12,25 @@ enum SQLiteValue {
     case text(String)
     case blob(Data)
 
-    init(_ value: Bool) { self = .integer(value ? 1 : 0) }
-    init(_ value: Date) { self = .real(value.timeIntervalSince1970) }
+    init(_ value: Bool) {
+        self = .integer(value ? 1 : 0)
+    }
 
-    init(_ value: String?) { self = value.map { .text($0) } ?? .null }
-    init(_ value: Int?) { self = value.map { .integer(Int64($0)) } ?? .null }
-    init(_ value: Date?) { self = value.map { .real($0.timeIntervalSince1970) } ?? .null }
+    init(_ value: Date) {
+        self = .real(value.timeIntervalSince1970)
+    }
+
+    init(_ value: String?) {
+        self = value.map { .text($0) } ?? .null
+    }
+
+    init(_ value: Int?) {
+        self = value.map { .integer(Int64($0)) } ?? .null
+    }
+
+    init(_ value: Date?) {
+        self = value.map { .real($0.timeIntervalSince1970) } ?? .null
+    }
 }
 
 /// A single result row, addressable by column index.
@@ -47,9 +60,9 @@ struct SQLiteRow {
 
     func double(_ name: String) -> Double? {
         switch value(name) {
-        case let .real(value): return value
-        case let .integer(value): return Double(value)
-        default: return nil
+        case let .real(value): value
+        case let .integer(value): Double(value)
+        default: nil
         }
     }
 

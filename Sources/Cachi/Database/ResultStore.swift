@@ -59,7 +59,7 @@ final class ResultStore {
                     .integer(Int64(bundle.tests.count)),
                     SQLiteValue(firstTest?.targetName),
                     SQLiteValue(firstTest?.deviceModel),
-                    SQLiteValue(firstTest?.deviceOs),
+                    SQLiteValue(firstTest?.deviceOs)
                 ])
 
                 for test in bundle.tests {
@@ -88,7 +88,7 @@ final class ResultStore {
                         SQLiteValue(test.testStartDate),
                         .real(test.duration),
                         .text(test.status.rawValue),
-                        SQLiteValue(test.groupName == "System Failures"),
+                        SQLiteValue(test.groupName == "System Failures")
                     ])
                 }
             }
@@ -242,7 +242,7 @@ final class ResultStore {
                         SQLiteValue(activity.type),
                         SQLiteValue(activity.start),
                         SQLiteValue(activity.finish),
-                        SQLiteValue(failureIdsJson),
+                        SQLiteValue(failureIdsJson)
                     ])
                     if let uuid = activity.uuid {
                         activityDbIdByUuid[uuid] = db.lastInsertRowId
@@ -260,7 +260,7 @@ final class ResultStore {
                         SQLiteValue(failure.line),
                         SQLiteValue(failure.detail),
                         .text(failure.uuid),
-                        SQLiteValue(failure.timestamp),
+                        SQLiteValue(failure.timestamp)
                     ])
                     failureDbIdByUuid[failure.uuid] = db.lastInsertRowId
                 }
@@ -273,7 +273,7 @@ final class ResultStore {
                         .integer(Int64(testRowId)),
                         .text(metric.displayName),
                         .text(metric.unit),
-                        .text(measurementsJson),
+                        .text(measurementsJson)
                     ])
                 }
 
@@ -301,7 +301,7 @@ final class ResultStore {
                         SQLiteValue(attachment.payloadRef),
                         SQLiteValue(attachment.payloadSize),
                         SQLiteValue(attachment.contentType),
-                        SQLiteValue(attachment.timestamp),
+                        SQLiteValue(attachment.timestamp)
                     ])
                 }
 
@@ -344,8 +344,8 @@ final class ResultStore {
 
     struct AttachmentRow {
         enum Owner {
-            case activity(String)  // activity uuid
-            case failure(String)   // failure uuid
+            case activity(String) // activity uuid
+            case failure(String) // failure uuid
         }
 
         let owner: Owner
@@ -367,7 +367,7 @@ final class ResultStore {
     func reconstructTestSummary(summaryIdentifier: String) -> ActionTestSummary? {
         guard let testRow = database.query("SELECT id, name, status, duration FROM test WHERE summary_identifier = ? LIMIT 1;",
                                            [.text(summaryIdentifier)]).first,
-              let testRowId = testRow.int("id")
+            let testRowId = testRow.int("id")
         else {
             return nil
         }

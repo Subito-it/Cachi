@@ -50,8 +50,8 @@ extension ResultBundle {
     }
 }
 
-// Same presentation logic as the `ResultBundle` helpers above, driven by the precomputed rollup
-// columns so the results-list view needs no test rows. Kept in sync with the bundle versions.
+/// Same presentation logic as the `ResultBundle` helpers above, driven by the precomputed rollup
+/// columns so the results-list view needs no test rows. Kept in sync with the bundle versions.
 extension ResultStore.ResultSummary {
     var htmlTitle: String {
         if let branchName, let commitHash {

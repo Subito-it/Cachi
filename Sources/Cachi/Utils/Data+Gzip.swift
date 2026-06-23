@@ -16,7 +16,7 @@ extension Data {
         defer { deflateEnd(&stream) }
 
         var output = Data()
-        let chunkSize = 64 * 1024
+        let chunkSize = 64 * 1_024
         var chunk = [UInt8](repeating: 0, count: chunkSize)
 
         return withUnsafeBytes { (rawBuffer: UnsafeRawBufferPointer) -> Data? in
@@ -55,7 +55,7 @@ extension Data {
         defer { inflateEnd(&stream) }
 
         var output = Data()
-        let chunkSize = 64 * 1024
+        let chunkSize = 64 * 1_024
         var chunk = [UInt8](repeating: 0, count: chunkSize)
 
         return withUnsafeBytes { (rawBuffer: UnsafeRawBufferPointer) -> Data? in

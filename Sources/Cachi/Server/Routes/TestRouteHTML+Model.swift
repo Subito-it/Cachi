@@ -110,7 +110,9 @@ extension TestRouteHTML.TableRowModel {
         let captureMedia: CaptureMedia
         let timestamp: Double?
 
-        var isExternalLink: Bool { contentType == "text/html" }
+        var isExternalLink: Bool {
+            contentType == "text/html"
+        }
 
         private static let filenameDateFormatter: DateFormatter = {
             let formatter = DateFormatter()

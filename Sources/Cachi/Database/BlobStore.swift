@@ -21,7 +21,7 @@ final class BlobStore {
     private let writeLock = NSLock()
 
     init(baseUrl: URL, database: Database) {
-        blobsUrl = Cachi.blobsUrl(baseUrl: baseUrl)
+        self.blobsUrl = Cachi.blobsUrl(baseUrl: baseUrl)
         self.database = database
         try? FileManager.default.createDirectory(at: blobsUrl, withIntermediateDirectories: true)
     }

@@ -9,11 +9,15 @@ Automatic screen recording (Xcode 15) and screenshot based xcresults are support
 
 # Installation
 
-```
-brew install Subito-it/made/cachi
+Cachi is no longer distributed via a Homebrew tap. Build it locally from source:
+
+```bash
+git clone https://github.com/Subito-it/Cachi.git
+cd Cachi
+swift build -c release
 ```
 
-Or you can build manually using swift build.
+The compiled binary will be available at `.build/release/cachi`.
 
 
 # Usage

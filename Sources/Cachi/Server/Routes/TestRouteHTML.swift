@@ -146,7 +146,9 @@ struct TestRouteHTML: Routable {
                     link(url: TestSessionLogsRouteHTML.stdoutUrlString(testSummaryIdentifier: test.summaryIdentifier, backUrl: sessionBackUrl)) { "Standard output" }.class("button")
                     link(url: TestSessionLogsRouteHTML.sessionUrlString(testSummaryIdentifier: test.summaryIdentifier, backUrl: sessionBackUrl)) { "Session logs" }.class("button")
 
-                    link(url: XcResultDownloadRoute.urlString(testSummaryIdentifier: test.summaryIdentifier)) { "Download .xcresult" }.class("button").style([.init(key: "margin-left", value: "20px")])
+                    if FileManager.default.fileExists(atPath: test.xcresultUrl.path) {
+                        link(url: XcResultDownloadRoute.urlString(testSummaryIdentifier: test.summaryIdentifier)) { "Download .xcresult" }.class("button").style([.init(key: "margin-left", value: "20px")])
+                    }
                 }
             }.class("row indent2 background")
         }

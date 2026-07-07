@@ -111,7 +111,7 @@ class Parser {
         let benchId = benchmarkStart()
         defer { os_log("Splitted coverage files for '%@' in %fms", log: .default, type: .info, coverageUrl.absoluteString, benchmarkStop(benchId)) }
 
-        try FileManager.default.createDirectory(at: coverageSplittedUrl, withIntermediateDirectories: false, attributes: nil)
+        try FileManager.default.createDirectory(at: coverageSplittedUrl, withIntermediateDirectories: true, attributes: nil)
 
         let splitter = CodeCoverageHtmlSplitter(url: coverageUrl)
         try splitter.split(destinationUrl: coverageSplittedUrl, basePath: "")

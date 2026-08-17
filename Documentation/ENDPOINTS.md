@@ -21,6 +21,7 @@ Legend for the "Data source" column:
 | `/v1/result` | `?<identifier>` (raw query) | Full `ResultBundle` for one run | SQLite |
 | `/v1/results_identifiers` | — | Run identifiers, available even before parse completes | SQLite + quick partial parse |
 | `/v1/test` | `?<summaryIdentifier>` (raw query) | Per-test **activity summaries** (steps, attachment metadata) | read-through |
+| `/v1/session_logs` | `?id=<test_summary_identifier>` | App / runner / session stdout logs for one test | read-through |
 | `/v1/teststats` | `?<md5>` where md5 = `MD5(target-suite-name-model-os)` | Per-test execution history/averages | computed |
 | `/v2/teststats` | `?id=<test_summary_identifier>` | Same as v1 but keyed by summary id (resolves the route id internally) | computed |
 | `/v1/results_stat` | `?target=&device_model=&device_os=&type=[flaky\|slowest\|fastest\|slowest_flaky]&window_size=` | Ranked stats across runs | computed |

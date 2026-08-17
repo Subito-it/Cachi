@@ -34,6 +34,7 @@ struct Server {
             ScriptRoute(),
             TestRoute(),
             TestRouteHTML(attachmentViewers: self.attachmentViewers),
+            TestSessionLogsRoute(),
             TestSessionLogsRouteHTML(),
             TestStatRoute(),
             TestStatRouteV2(),

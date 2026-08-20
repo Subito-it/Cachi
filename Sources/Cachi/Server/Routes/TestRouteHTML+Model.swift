@@ -53,9 +53,15 @@ extension TestRouteHTML {
 
             data.append(TableRowModel(uuid: failure.uuid, title: failure.message ?? "Failure", timestamp: initialTimestamp, attachment: nil, hasChildren: !failure.attachments.isEmpty, isError: true, indentation: indentation))
             if var fileName = failure.fileName, let lineNumber = failure.lineNumber {
+                if let sourceBasePath = userInfo?.sourceBasePath {
+                    fileName = fileName.replacingOccurrences(of: sourceBasePath, with: "")
+                    if fileName.hasPrefix("/") {
+                        fileName.removeFirst()
+                    }
+                }
+
                 var attachment: Attachment?
                 if let githubBaseUrl = userInfo?.githubBaseUrl, let commitHash = userInfo?.commitHash {
-                    fileName = fileName.replacingOccurrences(of: userInfo?.sourceBasePath ?? "", with: "")
                     attachment = Attachment(
                         identifier: "",
                         title: "\(fileName):\(lineNumber)",

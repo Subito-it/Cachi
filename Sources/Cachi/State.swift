@@ -326,7 +326,7 @@ class State {
     }
 
     func resultsTestStats(target: String, device: Device, type: ResultBundle.TestStatsType, windowSize: Int?) -> [ResultBundle.TestStats] {
-        class RawTestStats: NSObject {
+        class RawTestStats {
             var groupName: String
             var testName: String
             var firstSummaryIdentifier: String
@@ -350,15 +350,16 @@ class State {
         let windowSize = windowSize ?? Self.defaultStatWindowSize
         let deviceTests = resultStore?.statsTests(target: target, deviceModel: device.model, deviceOs: device.os) ?? []
 
-        let stats = NSMutableDictionary()
+        var stats = [String: RawTestStats]()
 
         for test in deviceTests {
             guard let testSummaryIdentifier = test.summaryIdentifier else { continue }
 
-            if stats[test.targetIdentifier] == nil {
-                stats[test.targetIdentifier] = RawTestStats(groupName: test.groupName, testName: test.name, firstSummaryIdentifier: testSummaryIdentifier)
+            let key = test.targetIdentifier
+            if stats[key] == nil {
+                stats[key] = RawTestStats(groupName: test.groupName, testName: test.name, firstSummaryIdentifier: testSummaryIdentifier)
             }
-            let testStat = stats[test.targetIdentifier] as! RawTestStats
+            let testStat = stats[key]!
 
             if testStat.executionSequence.count >= windowSize {
                 continue
@@ -380,7 +381,7 @@ class State {
         }
 
         var result = [ResultBundle.TestStats]()
-        for stat in stats.allValues as! [RawTestStats] {
+        for stat in stats.values {
             let elementWeight = 1.0 / Double(stat.executionSequence.count)
             var totalWeight = 0.0
             var failureRatio = 0.0

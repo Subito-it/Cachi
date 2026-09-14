@@ -629,13 +629,28 @@ final class ResultStore {
             }
     }
 
+    struct StatsTest {
+        var summaryIdentifier: String?
+        var targetName: String
+        var groupName: String
+        var name: String
+        var deviceModel: String
+        var deviceOs: String
+        var duration: Double
+        var status: ResultBundle.Test.Status
+
+        var targetIdentifier: String {
+            targetName + groupName + name + deviceOs + deviceModel
+        }
+    }
+
     /// Tests for the stats window: a given target/device, excluding system failures, newest first.
-    func statsTests(target: String, deviceModel: String, deviceOs: String) -> [ResultBundle.Test] {
+    func statsTests(target: String, deviceModel: String, deviceOs: String) -> [StatsTest] {
         database.query("""
-        SELECT * FROM test
+        SELECT summary_identifier, target_name, group_name, name, device_model, device_os, duration, status FROM test
         WHERE target_name = ? AND device_model = ? AND device_os = ? AND group_name <> 'System Failures'
         ORDER BY start_date DESC;
-        """, [.text(target), .text(deviceModel), .text(deviceOs)]).map(test(from:))
+        """, [.text(target), .text(deviceModel), .text(deviceOs)]).map(statsTest(from:))
     }
 
     // MARK: - Row mapping
@@ -674,6 +689,19 @@ final class ResultStore {
         if let start = row.date("test_start_date") { rebuilt.testStartDate = start }
         if let end = row.date("test_end_date") { rebuilt.testEndDate = end }
         return rebuilt
+    }
+
+    private func statsTest(from row: SQLiteRow) -> StatsTest {
+        StatsTest(
+            summaryIdentifier: row.string("summary_identifier"),
+            targetName: row.string("target_name") ?? "",
+            groupName: row.string("group_name") ?? "",
+            name: row.string("name") ?? "",
+            deviceModel: row.string("device_model") ?? "",
+            deviceOs: row.string("device_os") ?? "",
+            duration: row.double("duration") ?? 0,
+            status: ResultBundle.Test.Status(rawValue: row.string("status") ?? "failure") ?? .failure
+        )
     }
 
     private func test(from row: SQLiteRow) -> ResultBundle.Test {

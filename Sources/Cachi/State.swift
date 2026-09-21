@@ -88,10 +88,9 @@ class State {
         syncQueue.sync { blobStore }
     }
 
-    /// The (at most `limit`) most recent runs containing a test with the given route identifier,
-    /// newest first. Indexed lookup — does not scan the whole corpus.
-    func resultBundles(containingRouteIdentifier routeIdentifier: String, limit: Int) -> [ResultBundle] {
-        resultStore?.resultBundles(containingRouteIdentifier: routeIdentifier, limit: limit) ?? []
+    /// Matching attempts from the most recent runs containing one logical test, newest first.
+    func testHistory(routeIdentifier: String, limit: Int) -> [ResultStore.TestHistoryRun] {
+        resultStore?.testHistory(routeIdentifier: routeIdentifier, limit: limit) ?? []
     }
 
     /// Lightweight per-run summaries (newest first) for the results-list endpoints. Reads only

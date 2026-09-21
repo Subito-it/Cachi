@@ -35,23 +35,15 @@ struct TestStatRouteHTML: Routable {
             return Response(status: .notFound, body: Response.Body(stringLiteral: "Not found..."))
         }
 
-        // Indexed cross-run lookup: the most recent runs containing this logical test (same
-        // route identifier = same target/group/name/device), newest first.
-        let matchingBundles = State.shared.resultBundles(containingRouteIdentifier: test.routeIdentifier, limit: 51)
-
-        var matchingResults = [(resultBundle: ResultBundle, tests: [ResultBundle.Test])]()
-        for resultBundle in matchingBundles {
-            let tests = resultBundle.tests.filter { $0.routeIdentifier == test.routeIdentifier }
-            if tests.count > 0 {
-                matchingResults.append((resultBundle: resultBundle, tests: tests))
-            }
-        }
+        // Indexed cross-run lookup returning only this logical test's attempts plus the minimal run
+        // metadata rendered below. Retried attempts from the same run stay grouped together.
+        let matchingResults = State.shared.testHistory(routeIdentifier: test.routeIdentifier, limit: 51)
 
         guard matchingResults.count > 0 else {
             return Response(status: .notFound, body: Response.Body(stringLiteral: "Something went really wrong..."))
         }
 
-        let allTests = matchingResults.map(\.tests).flatMap { $0 }
+        let allTests = matchingResults.flatMap(\.tests)
         let allTestsAverageDuration = allTests.reduce(0) { $0 + $1.duration } / Double(max(1, allTests.count))
 
         let successfulTests = allTests.filter { $0.status == .success }
@@ -152,7 +144,7 @@ struct TestStatRouteHTML: Routable {
         }
     }
 
-    private func resultsTableHTML(results: [(resultBundle: ResultBundle, tests: [ResultBundle.Test])], source: String?, backUrl: String) -> HTML {
+    private func resultsTableHTML(results: [ResultStore.TestHistoryRun], source: String?, backUrl: String) -> HTML {
         let allTests = results.flatMap(\.tests)
         let testFailureMessages = allTests.failureMessages()
 
@@ -165,18 +157,18 @@ struct TestStatRouteHTML: Routable {
                 tableHeadData { "Duration" }.alignment(.left).scope(.column).class("row dark-bordered-container")
             }.id("table-header")
 
-            forEach(results) { matching in
-                forEach(matching.tests) { test in
+            forEach(results) { run in
+                forEach(run.tests) { test in
                     HTMLBuilder.buildBlock(
                         tableRow {
                             tableData {
                                 link(url: TestRouteHTML.urlString(testSummaryIdentifier: test.summaryIdentifier, source: source, backUrl: backUrl)) {
                                     div {
-                                        image(url: matching.resultBundle.htmlStatusImageUrl(for: test))
-                                            .attr("title", matching.resultBundle.htmlStatusTitle(for: test))
+                                        image(url: statusImageUrl(for: test, in: run))
+                                            .attr("title", statusTitle(for: test, in: run))
                                             .iconStyleAttributes(width: 14)
                                             .class("icon")
-                                        matching.resultBundle.htmlTitle()
+                                        runTitle(run)
                                     }.class("row indent2 background")
                                 }
 
@@ -196,5 +188,30 @@ struct TestStatRouteHTML: Routable {
                 }
             }
         }.style([StyleAttribute(key: "table-layout", value: "fixed")])
+    }
+
+    private func runTitle(_ run: ResultStore.TestHistoryRun) -> String {
+        if let branchName = run.branchName, let commitHash = run.commitHash {
+            return "\(branchName) - \(commitHash)"
+        }
+        return run.identifier
+    }
+
+    private func statusImageUrl(for test: ResultBundle.Test, in run: ResultStore.TestHistoryRun) -> String {
+        if test.status == .success {
+            return ImageRoute.passedTestImageUrl()
+        }
+        return isUniqueFailure(test, in: run) ? ImageRoute.failedTestImageUrl() : ImageRoute.retriedTestImageUrl()
+    }
+
+    private func statusTitle(for test: ResultBundle.Test, in run: ResultStore.TestHistoryRun) -> String {
+        if test.status == .success {
+            return "Passed"
+        }
+        return isUniqueFailure(test, in: run) ? "Failed" : "Failed, but passed on retry"
+    }
+
+    private func isUniqueFailure(_ test: ResultBundle.Test, in run: ResultStore.TestHistoryRun) -> Bool {
+        test.groupName == "System Failures" || !run.tests.contains { $0.status == .success && $0.matches(test) }
     }
 }

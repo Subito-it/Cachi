@@ -573,19 +573,50 @@ final class ResultStore {
         return bundle(from: runRow, tests: testRows.map(test(from:)))
     }
 
-    /// Fully reconstructs the (at most `limit`) most recent runs that contain a test matching
-    /// `routeIdentifier`, newest first. Each returned bundle has its complete test list so the
-    /// derived collections (e.g. `testsUniquelyFailed`) the HTML stats page renders are correct.
-    func resultBundles(containingRouteIdentifier routeIdentifier: String, limit: Int) -> [ResultBundle] {
-        let runIdRows = database.query("""
-        SELECT DISTINCT t.result_identifier AS rid, r.test_start_date AS sd
-        FROM test t JOIN result_bundle r ON r.identifier = t.result_identifier
-        WHERE t.route_identifier = ?
-        ORDER BY r.test_start_date DESC
-        LIMIT ?;
-        """, [.text(routeIdentifier), .integer(Int64(limit))])
+    struct TestHistoryRun {
+        let identifier: String
+        let branchName: String?
+        let commitHash: String?
+        var tests: [ResultBundle.Test]
+    }
 
-        return runIdRows.compactMap { $0.string("rid") }.compactMap { resultBundle(identifier: $0) }
+    /// The matching attempts from the most recent runs containing one logical test. This query is
+    /// deliberately specialized for the HTML history page: it joins the small amount of run
+    /// presentation metadata to only the requested test rows instead of reconstructing every test
+    /// and every derived collection in each run.
+    func testHistory(routeIdentifier: String, limit: Int) -> [TestHistoryRun] {
+        let rows = database.query("""
+        WITH recent_runs AS (
+            SELECT DISTINCT t.result_identifier AS identifier, r.test_start_date
+            FROM test t JOIN result_bundle r ON r.identifier = t.result_identifier
+            WHERE t.route_identifier = ?
+            ORDER BY r.test_start_date DESC
+            LIMIT ?
+        )
+        SELECT t.*, r.identifier AS run_identifier, r.branch AS run_branch,
+               r.commit_hash AS run_commit_hash, r.test_start_date AS run_start_date
+        FROM recent_runs rr
+        JOIN result_bundle r ON r.identifier = rr.identifier
+        JOIN test t ON t.result_identifier = rr.identifier AND t.route_identifier = ?
+        ORDER BY r.test_start_date DESC, t.id ASC;
+        """, [.text(routeIdentifier), .integer(Int64(limit)), .text(routeIdentifier)])
+
+        var result = [TestHistoryRun]()
+        var indexByIdentifier = [String: Int]()
+        for row in rows {
+            guard let identifier = row.string("run_identifier") else { continue }
+            let test = test(from: row)
+            if let index = indexByIdentifier[identifier] {
+                result[index].tests.append(test)
+            } else {
+                indexByIdentifier[identifier] = result.count
+                result.append(TestHistoryRun(identifier: identifier,
+                                             branchName: row.string("run_branch"),
+                                             commitHash: row.string("run_commit_hash"),
+                                             tests: [test]))
+            }
+        }
+        return result
     }
 
     func test(summaryIdentifier: String) -> ResultBundle.Test? {

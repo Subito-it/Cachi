@@ -124,6 +124,7 @@ final class Database {
         let current = try (db.query("SELECT version FROM schema_version LIMIT 1;").first?.int("version")) ?? 0
 
         try applyMigration(db, version: 1, ifBelow: current, sql: Self.schemaV1)
+        try applyMigration(db, version: 2, ifBelow: current, sql: Self.schemaV2)
     }
 
     /// Applies one migration step atomically: the schema DDL/DML **and** the `schema_version` bump
@@ -279,5 +280,10 @@ final class Database {
     CREATE INDEX idx_activity_test ON activity(test_id);
     CREATE INDEX idx_attachment_test ON attachment(test_id);
     CREATE INDEX idx_session_log_test ON session_log(test_id);
+    """
+
+    private static let schemaV2 = """
+    CREATE INDEX idx_failure_test ON failure(test_id);
+    CREATE INDEX idx_performance_metric_test ON performance_metric(test_id);
     """
 }

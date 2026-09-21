@@ -23,7 +23,9 @@ class StreamReader {
     }
 
     func nextLine() -> String? {
-        if isAtEOF { return nil }
+        if isAtEOF {
+            return nil
+        }
 
         repeat {
             if let range = buffer.range(of: delimPattern, options: [], in: buffer.startIndex ..< buffer.endIndex) {

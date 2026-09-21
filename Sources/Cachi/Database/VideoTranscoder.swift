@@ -38,6 +38,8 @@ enum VideoTranscoder {
         }
         semaphore.wait()
 
-        if let exportError { throw exportError }
+        if let exportError {
+            throw exportError
+        }
     }
 }

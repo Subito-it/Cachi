@@ -717,8 +717,12 @@ final class ResultStore {
                                         testsCrashCount: row.int("crash_count") ?? 0,
                                         userInfo: userInfo)
         // Preserve the stored run window (don't let an empty test list zero it out).
-        if let start = row.date("test_start_date") { rebuilt.testStartDate = start }
-        if let end = row.date("test_end_date") { rebuilt.testEndDate = end }
+        if let start = row.date("test_start_date") {
+            rebuilt.testStartDate = start
+        }
+        if let end = row.date("test_end_date") {
+            rebuilt.testEndDate = end
+        }
         return rebuilt
     }
 

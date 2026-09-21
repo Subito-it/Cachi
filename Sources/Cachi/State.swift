@@ -62,7 +62,9 @@ class State {
     /// Lazily opens the database/store rooted at the results path. Safe to call repeatedly.
     private func configureStoreIfNeeded(baseUrl: URL) -> ResultStore? {
         syncQueue.sync(flags: .barrier) {
-            if let store { return store }
+            if let store {
+                return store
+            }
             do {
                 let database = try Database(baseUrl: baseUrl)
                 let store = ResultStore(database: database)
@@ -245,7 +247,9 @@ class State {
     /// can produce a video.
     func materializeVideo(test: ResultBundle.Test, attachmentIdentifier: String, destinationUrl: URL) -> Bool {
         let fileManager = FileManager.default
-        if fileManager.fileExists(atPath: destinationUrl.path) { return true }
+        if fileManager.fileExists(atPath: destinationUrl.path) {
+            return true
+        }
         try? fileManager.createDirectory(at: destinationUrl.deletingLastPathComponent(), withIntermediateDirectories: true)
 
         // 1. Preferred: export the original high-quality video directly from the xcresult.

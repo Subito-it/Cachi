@@ -49,12 +49,16 @@ struct SQLiteRow {
     }
 
     func string(_ name: String) -> String? {
-        if case let .text(value) = value(name) { return value }
+        if case let .text(value) = value(name) {
+            return value
+        }
         return nil
     }
 
     func int(_ name: String) -> Int? {
-        if case let .integer(value) = value(name) { return Int(value) }
+        if case let .integer(value) = value(name) {
+            return Int(value)
+        }
         return nil
     }
 
@@ -143,7 +147,9 @@ final class SQLiteConnection {
         var rows = [SQLiteRow]()
         while true {
             let rc = sqlite3_step(statement)
-            if rc == SQLITE_DONE { break }
+            if rc == SQLITE_DONE {
+                break
+            }
             guard rc == SQLITE_ROW else { throw SQLiteError.step(errorMessage) }
 
             var columns = [SQLiteValue]()

@@ -694,13 +694,28 @@ final class ResultStore {
         }
     }
 
-    /// Tests for the stats window: a given target/device, excluding system failures, newest first.
-    func statsTests(target: String, deviceModel: String, deviceOs: String) -> [StatsTest] {
-        database.query("""
-        SELECT summary_identifier, target_name, group_name, name, device_model, device_os, duration, status FROM test
-        WHERE target_name = ? AND device_model = ? AND device_os = ? AND group_name <> 'System Failures'
+    /// The newest `windowSize` executions of each logical test for a target/device. Rows are visited
+    /// incrementally so the discarded portion of retained history never becomes a second Swift array.
+    func statsTests(target: String, deviceModel: String, deviceOs: String, windowSize: Int) -> [StatsTest] {
+        guard windowSize > 0 else { return [] }
+
+        var countsByRoute = [String: Int]()
+        var tests = [StatsTest]()
+        database.forEachRow("""
+        SELECT route_identifier, summary_identifier, target_name, group_name, name, device_model,
+               device_os, duration, status
+        FROM test
+        WHERE target_name = ? AND device_model = ? AND device_os = ?
+          AND group_name <> 'System Failures'
         ORDER BY start_date DESC;
-        """, [.text(target), .text(deviceModel), .text(deviceOs)]).map(statsTest(from:))
+        """, [.text(target), .text(deviceModel), .text(deviceOs)]) { row in
+            guard let routeIdentifier = row.string("route_identifier") else { return }
+            let count = countsByRoute[routeIdentifier, default: 0]
+            guard count < windowSize else { return }
+            countsByRoute[routeIdentifier] = count + 1
+            tests.append(statsTest(from: row))
+        }
+        return tests
     }
 
     // MARK: - Row mapping

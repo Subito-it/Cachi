@@ -373,7 +373,7 @@ class State {
         }
 
         let windowSize = windowSize ?? Self.defaultStatWindowSize
-        let deviceTests = resultStore?.statsTests(target: target, deviceModel: device.model, deviceOs: device.os) ?? []
+        let deviceTests = resultStore?.statsTests(target: target, deviceModel: device.model, deviceOs: device.os, windowSize: windowSize) ?? []
 
         var stats = [String: RawTestStats]()
 

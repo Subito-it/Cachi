@@ -93,6 +93,18 @@ final class Database {
         }
     }
 
+    /// Streams rows through `body` while holding one pooled reader for the query's lifetime.
+    func forEachRow(_ sql: String, _ bindings: [SQLiteValue] = [], _ body: (SQLiteRow) -> Void) {
+        let reader = borrowReader()
+        defer { returnReader(reader) }
+        do {
+            try reader.forEachRow(sql, bindings, body)
+        } catch {
+            os_log("DB query failed (stopping row iteration): %@ — SQL: %@", log: .default, type: .fault, "\(error)", sql)
+            assertionFailure("DB query failed: \(error) — SQL: \(sql)")
+        }
+    }
+
     private func borrowReader() -> SQLiteConnection {
         readerPoolSemaphore.wait()
         readerPoolLock.lock()

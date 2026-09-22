@@ -135,6 +135,14 @@ final class SQLiteConnection {
 
     /// Runs a query and returns all result rows.
     func query(_ sql: String, _ bindings: [SQLiteValue] = []) throws -> [SQLiteRow] {
+        var rows = [SQLiteRow]()
+        try forEachRow(sql, bindings) { rows.append($0) }
+        return rows
+    }
+
+    /// Visits rows as SQLite produces them, avoiding a second full-history array when callers only
+    /// retain a bounded subset of a large result set.
+    func forEachRow(_ sql: String, _ bindings: [SQLiteValue] = [], _ body: (SQLiteRow) -> Void) throws {
         let statement = try prepare(sql, bindings)
         defer { sqlite3_finalize(statement) }
 
@@ -144,7 +152,6 @@ final class SQLiteConnection {
             indexByName[String(cString: sqlite3_column_name(statement, Int32(index)))] = index
         }
 
-        var rows = [SQLiteRow]()
         while true {
             let rc = sqlite3_step(statement)
             if rc == SQLITE_DONE {
@@ -157,9 +164,8 @@ final class SQLiteConnection {
             for index in 0 ..< columnCount {
                 columns.append(columnValue(statement, Int32(index)))
             }
-            rows.append(SQLiteRow(columns: columns, indexByName: indexByName))
+            body(SQLiteRow(columns: columns, indexByName: indexByName))
         }
-        return rows
     }
 
     var lastInsertRowId: Int64 {

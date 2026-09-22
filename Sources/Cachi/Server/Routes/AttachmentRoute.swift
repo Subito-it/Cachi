@@ -34,9 +34,7 @@ struct AttachmentRoute: Routable {
 
         let destinationPath = destinationUrl.path
 
-        var headers = [
-            ("Content-Type", contentType)
-        ]
+        var headers = [(String, String)]()
 
         if let filename = queryItems.first(where: { $0.name == "filename" })?.value?.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed),
            let fileAttributes = try? FileManager.default.attributesOfItem(atPath: destinationPath),
@@ -45,7 +43,8 @@ struct AttachmentRoute: Routable {
             headers.append(("Content-Disposition", value: "attachment; filename=\(filename)"))
         }
 
-        let response = Response(body: Response.Body(data: try! Data(contentsOf: URL(fileURLWithPath: destinationPath))))
+        let response = req.fileio.streamFile(at: destinationPath)
+        response.headers.replaceOrAdd(name: .contentType, value: contentType)
         for header in headers {
             response.headers.add(name: header.0, value: header.1)
         }

@@ -62,7 +62,9 @@ class State {
     /// Lazily opens the database/store rooted at the results path. Safe to call repeatedly.
     private func configureStoreIfNeeded(baseUrl: URL) -> ResultStore? {
         syncQueue.sync(flags: .barrier) {
-            if let store { return store }
+            if let store {
+                return store
+            }
             do {
                 let database = try Database(baseUrl: baseUrl)
                 let store = ResultStore(database: database)
@@ -88,10 +90,9 @@ class State {
         syncQueue.sync { blobStore }
     }
 
-    /// The (at most `limit`) most recent runs containing a test with the given route identifier,
-    /// newest first. Indexed lookup — does not scan the whole corpus.
-    func resultBundles(containingRouteIdentifier routeIdentifier: String, limit: Int) -> [ResultBundle] {
-        resultStore?.resultBundles(containingRouteIdentifier: routeIdentifier, limit: limit) ?? []
+    /// Matching attempts from the most recent runs containing one logical test, newest first.
+    func testHistory(routeIdentifier: String, limit: Int) -> [ResultStore.TestHistoryRun] {
+        resultStore?.testHistory(routeIdentifier: routeIdentifier, limit: limit) ?? []
     }
 
     /// Lightweight per-run summaries (newest first) for the results-list endpoints. Reads only
@@ -112,34 +113,56 @@ class State {
     func pendingResultBundles(baseUrl: URL, depth: Int, mergeResults: Bool) -> [PendingResultBundle] {
         let store = configureStoreIfNeeded(baseUrl: baseUrl)
 
+        // Once a parse pass is complete, SQLite is the authoritative inventory. Avoid walking
+        // every xcresult package again on each identifiers request; the next /v1/parse refreshes
+        // this inventory if new bundles have appeared.
+        let storedRuns = store?.runsBySourceKey() ?? [:]
+        if case .ready = state, !storedRuns.isEmpty {
+            return storedRuns.map { sourceKey, run in
+                let urls = sourceKey.split(separator: "\n").map { URL(fileURLWithPath: String($0)) }
+                return (result: PendingResultBundle(identifier: run.identifier, resultUrls: urls), creationDate: run.sortDate)
+            }
+            .sorted(by: { $0.creationDate > $1.creationDate })
+            .map(\.result)
+        }
+
         let benchId = benchmarkStart()
         let bundleUrls = findResultBundles(at: baseUrl, depth: depth, mergeResults: mergeResults)
         os_log("Found %ld test bundles searching '%@' with depth %ld in %fms", log: .default, type: .info, bundleUrls.count, baseUrl.absoluteString, depth, benchmarkStop(benchId))
 
         var results = [(result: PendingResultBundle, creationDate: Date)]()
 
+        // Most bundles have already been ingested. Resolve all of those with one SQLite query and
+        // no operation scheduling; only genuinely unknown bundles need parallel xcresult parsing.
+        var bundlesToParse = [(urls: [URL], creationDate: Date)]()
+        for urls in bundleUrls {
+            if let storedRun = storedRuns[ResultStore.sourceKey(for: urls)] {
+                results.append((PendingResultBundle(identifier: storedRun.identifier, resultUrls: urls), storedRun.sortDate))
+            } else {
+                let bundlePath = (urls.count > 1 ? urls.first?.deletingLastPathComponent() : urls.first)?.path ?? ""
+                let creationDate = ((try? FileManager.default.attributesOfItem(atPath: bundlePath))?[.creationDate] as? Date) ?? Date()
+                bundlesToParse.append((urls, creationDate))
+            }
+        }
+
+        guard !bundlesToParse.isEmpty else {
+            return results.sorted(by: { $0.creationDate > $1.creationDate }).map(\.result)
+        }
+
         let queue = OperationQueue()
         let localSyncQueue = DispatchQueue(label: "com.subito.cachi.pending.result.bundles")
 
-        for urls in bundleUrls {
+        for bundle in bundlesToParse {
             queue.addOperation {
-                let bundlePath = (urls.count > 1 ? urls.first?.deletingLastPathComponent() : urls.first)?.path ?? ""
+                let bundlePath = (bundle.urls.count > 1 ? bundle.urls.first?.deletingLastPathComponent() : bundle.urls.first)?.path ?? ""
 
                 let benchId = benchmarkStart()
-                let creationDate = ((try? FileManager.default.attributesOfItem(atPath: bundlePath))?[.creationDate] as? Date) ?? Date()
-
-                if let identifier = store?.runIdentifier(forSourceUrls: urls) {
-                    os_log("Restored partial result bundle '%@' from db in %fms", log: .default, type: .info, bundlePath, benchmarkStop(benchId))
-                    let result = (result: PendingResultBundle(identifier: identifier, resultUrls: urls), creationDate: creationDate)
+                let parser = Parser()
+                if let pendingResultBundle = parser.parsePendingResultBundle(urls: bundle.urls) {
+                    let result = (result: pendingResultBundle, creationDate: bundle.creationDate)
                     localSyncQueue.sync { results.append(result) }
-                } else {
-                    let parser = Parser()
-                    if let pendingResultBundle = parser.parsePendingResultBundle(urls: urls) {
-                        let result = (result: pendingResultBundle, creationDate: creationDate)
-                        localSyncQueue.sync { results.append(result) }
-                    }
-                    os_log("Parsed partial result bundle '%@' in %fms", log: .default, type: .info, bundlePath, benchmarkStop(benchId))
                 }
+                os_log("Parsed partial result bundle '%@' in %fms", log: .default, type: .info, bundlePath, benchmarkStop(benchId))
             }
         }
 
@@ -246,7 +269,9 @@ class State {
     /// can produce a video.
     func materializeVideo(test: ResultBundle.Test, attachmentIdentifier: String, destinationUrl: URL) -> Bool {
         let fileManager = FileManager.default
-        if fileManager.fileExists(atPath: destinationUrl.path) { return true }
+        if fileManager.fileExists(atPath: destinationUrl.path) {
+            return true
+        }
         try? fileManager.createDirectory(at: destinationUrl.deletingLastPathComponent(), withIntermediateDirectories: true)
 
         // 1. Preferred: export the original high-quality video directly from the xcresult.
@@ -348,7 +373,7 @@ class State {
         }
 
         let windowSize = windowSize ?? Self.defaultStatWindowSize
-        let deviceTests = resultStore?.statsTests(target: target, deviceModel: device.model, deviceOs: device.os) ?? []
+        let deviceTests = resultStore?.statsTests(target: target, deviceModel: device.model, deviceOs: device.os, windowSize: windowSize) ?? []
 
         var stats = [String: RawTestStats]()
 

@@ -198,9 +198,11 @@ struct ResultRouteHTML: Routable {
             tests += result.testsFailedBySystem
         }
 
-        let groupNames = Set(tests.map(\.groupName)).sorted()
-
+        let testsByGroup = Dictionary(grouping: tests, by: \.groupName)
+        let groupNames = testsByGroup.keys.sorted()
         let testFailureMessages = state.showFailureMessage ? tests.failureMessages() : [:]
+        let resultBackUrl = Self.urlString(result: result, state: state, backUrl: backUrl)
+        let uniquelyFailedRouteIdentifiers = Set(result.testsUniquelyFailed.map(\.routeIdentifier))
 
         return table {
             columnGroup(styles: [TableColumnStyle(span: 1, styles: [StyleAttribute(key: "wrap-word", value: "break-word")]),
@@ -213,7 +215,7 @@ struct ResultRouteHTML: Routable {
             }.id("table-header")
 
             forEach(groupNames) { group in
-                let tests = tests.filter { $0.groupName == group }.sorted(by: { "\($0.name)-\($0.testStartDate.timeIntervalSince1970)" < "\($1.name)-\($1.testStartDate.timeIntervalSince1970)" })
+                let tests = testsByGroup[group, default: []].sorted(by: Self.testOrderedBefore)
                 let testsCount = tests.count
                 let testsFailedCount = tests.filter { $0.status == .failure }.count
                 let testsPassedCount = testsCount - testsFailedCount
@@ -224,7 +226,7 @@ struct ResultRouteHTML: Routable {
                 let testDuration = hoursMinutesSeconds(in: tests.reduce(0) { $0 + $1.duration })
                 let testDurationString = "in \(testDuration)"
 
-                return HTMLBuilder.buildBlock(
+                HTMLBuilder.buildBlock(
                     tableRow {
                         tableData {
                             div { group }.class("bold").inlineBlock()
@@ -237,19 +239,20 @@ struct ResultRouteHTML: Routable {
                     }.class("dark-bordered-container"),
                     forEach(tests) { test in
                         tableRow {
-                            let backUrl = Self.urlString(result: result, state: state, backUrl: backUrl)
-                            let testRouteUrlString = TestRouteHTML.urlString(testSummaryIdentifier: test.summaryIdentifier, source: nil, backUrl: backUrl)
+                            let testRouteUrlString = TestRouteHTML.urlString(testSummaryIdentifier: test.summaryIdentifier, source: nil, backUrl: resultBackUrl)
+                            let isUniqueFailure = uniquelyFailedRouteIdentifiers.contains(test.routeIdentifier) || test.groupName == "System Failures"
+                            let presentation = Self.presentation(for: test, isUniqueFailure: isUniqueFailure)
                             tableData {
                                 link(url: testRouteUrlString) {
-                                    image(url: result.htmlStatusImageUrl(for: test))
-                                        .attr("title", result.htmlStatusTitle(for: test))
+                                    image(url: presentation.imageUrl)
+                                        .attr("title", presentation.title)
                                         .iconStyleAttributes(width: 14)
                                         .class("icon")
                                     test.name
                                     if test.status == .failure, state.showFailureMessage, let failureMessage = testFailureMessages[test.identifier] {
                                         div { failureMessage }.class("row indent3 background color-error")
                                     }
-                                }.class(result.htmlTextColor(for: test))
+                                }.class(presentation.textColor)
                             }.class("row indent3")
                             tableData {
                                 link(url: testRouteUrlString) {
@@ -275,11 +278,26 @@ struct ResultRouteHTML: Routable {
 
         return components.url!.absoluteString + state.description
     }
+
+    private static func testOrderedBefore(_ lhs: ResultBundle.Test, _ rhs: ResultBundle.Test) -> Bool {
+        lhs.name == rhs.name ? lhs.testStartDate < rhs.testStartDate : lhs.name < rhs.name
+    }
+
+    private static func presentation(for test: ResultBundle.Test, isUniqueFailure: Bool) -> (imageUrl: String, title: String, textColor: String) {
+        if test.status == .success {
+            (ImageRoute.passedTestImageUrl(), "Passed", "color-text")
+        } else if isUniqueFailure {
+            (ImageRoute.failedTestImageUrl(), "Failed", "color-error")
+        } else {
+            (ImageRoute.retriedTestImageUrl(), "Failed, but passed on retry", "color-retry")
+        }
+    }
 }
 
 private extension ResultBundle {
     func testsFailedExcludingRetries() -> [ResultBundle.Test] {
-        testsFailed.filter { test in testsUniquelyFailed.contains(where: { test.matches($0) }) }
+        let uniquelyFailedRouteIdentifiers = Set(testsUniquelyFailed.map(\.routeIdentifier))
+        return testsFailed.filter { uniquelyFailedRouteIdentifiers.contains($0.routeIdentifier) }
     }
 }
 

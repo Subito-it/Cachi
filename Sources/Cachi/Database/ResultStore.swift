@@ -100,9 +100,28 @@ final class ResultStore {
     /// Looks up an already-ingested run by its source xcresult paths (the merge group). Used to
     /// skip re-parsing bundles already in the database. `urls` need not be pre-sorted.
     func runIdentifier(forSourceUrls urls: [URL]) -> String? {
-        let key = urls.map(\.path).sorted().joined(separator: "\n")
+        let key = Self.sourceKey(for: urls)
         return database.query("SELECT identifier FROM result_bundle WHERE source_xcresult_paths = ? LIMIT 1;", [.text(key)])
             .first?.string("identifier")
+    }
+
+    /// All persisted source groups keyed exactly as ingestion stores them. The identifiers route
+    /// uses this once per request instead of issuing one query for every bundle found on disk.
+    func runsBySourceKey() -> [String: (identifier: String, sortDate: Date)] {
+        var runs = [String: (identifier: String, sortDate: Date)]()
+        for row in database.query("SELECT identifier, source_xcresult_paths, test_start_date FROM result_bundle;") {
+            guard let identifier = row.string("identifier"),
+                  let sourceKey = row.string("source_xcresult_paths")
+            else {
+                continue
+            }
+            runs[sourceKey] = (identifier, row.date("test_start_date") ?? Date(timeIntervalSince1970: 0))
+        }
+        return runs
+    }
+
+    static func sourceKey(for urls: [URL]) -> String {
+        urls.map(\.path).sorted().joined(separator: "\n")
     }
 
     // MARK: - Detail extraction tracking
@@ -573,19 +592,50 @@ final class ResultStore {
         return bundle(from: runRow, tests: testRows.map(test(from:)))
     }
 
-    /// Fully reconstructs the (at most `limit`) most recent runs that contain a test matching
-    /// `routeIdentifier`, newest first. Each returned bundle has its complete test list so the
-    /// derived collections (e.g. `testsUniquelyFailed`) the HTML stats page renders are correct.
-    func resultBundles(containingRouteIdentifier routeIdentifier: String, limit: Int) -> [ResultBundle] {
-        let runIdRows = database.query("""
-        SELECT DISTINCT t.result_identifier AS rid, r.test_start_date AS sd
-        FROM test t JOIN result_bundle r ON r.identifier = t.result_identifier
-        WHERE t.route_identifier = ?
-        ORDER BY r.test_start_date DESC
-        LIMIT ?;
-        """, [.text(routeIdentifier), .integer(Int64(limit))])
+    struct TestHistoryRun {
+        let identifier: String
+        let branchName: String?
+        let commitHash: String?
+        var tests: [ResultBundle.Test]
+    }
 
-        return runIdRows.compactMap { $0.string("rid") }.compactMap { resultBundle(identifier: $0) }
+    /// The matching attempts from the most recent runs containing one logical test. This query is
+    /// deliberately specialized for the HTML history page: it joins the small amount of run
+    /// presentation metadata to only the requested test rows instead of reconstructing every test
+    /// and every derived collection in each run.
+    func testHistory(routeIdentifier: String, limit: Int) -> [TestHistoryRun] {
+        let rows = database.query("""
+        WITH recent_runs AS (
+            SELECT DISTINCT t.result_identifier AS identifier, r.test_start_date
+            FROM test t JOIN result_bundle r ON r.identifier = t.result_identifier
+            WHERE t.route_identifier = ?
+            ORDER BY r.test_start_date DESC
+            LIMIT ?
+        )
+        SELECT t.*, r.identifier AS run_identifier, r.branch AS run_branch,
+               r.commit_hash AS run_commit_hash, r.test_start_date AS run_start_date
+        FROM recent_runs rr
+        JOIN result_bundle r ON r.identifier = rr.identifier
+        JOIN test t ON t.result_identifier = rr.identifier AND t.route_identifier = ?
+        ORDER BY r.test_start_date DESC, t.id ASC;
+        """, [.text(routeIdentifier), .integer(Int64(limit)), .text(routeIdentifier)])
+
+        var result = [TestHistoryRun]()
+        var indexByIdentifier = [String: Int]()
+        for row in rows {
+            guard let identifier = row.string("run_identifier") else { continue }
+            let test = test(from: row)
+            if let index = indexByIdentifier[identifier] {
+                result[index].tests.append(test)
+            } else {
+                indexByIdentifier[identifier] = result.count
+                result.append(TestHistoryRun(identifier: identifier,
+                                             branchName: row.string("run_branch"),
+                                             commitHash: row.string("run_commit_hash"),
+                                             tests: [test]))
+            }
+        }
+        return result
     }
 
     func test(summaryIdentifier: String) -> ResultBundle.Test? {
@@ -644,13 +694,28 @@ final class ResultStore {
         }
     }
 
-    /// Tests for the stats window: a given target/device, excluding system failures, newest first.
-    func statsTests(target: String, deviceModel: String, deviceOs: String) -> [StatsTest] {
-        database.query("""
-        SELECT summary_identifier, target_name, group_name, name, device_model, device_os, duration, status FROM test
-        WHERE target_name = ? AND device_model = ? AND device_os = ? AND group_name <> 'System Failures'
+    /// The newest `windowSize` executions of each logical test for a target/device. Rows are visited
+    /// incrementally so the discarded portion of retained history never becomes a second Swift array.
+    func statsTests(target: String, deviceModel: String, deviceOs: String, windowSize: Int) -> [StatsTest] {
+        guard windowSize > 0 else { return [] }
+
+        var countsByRoute = [String: Int]()
+        var tests = [StatsTest]()
+        database.forEachRow("""
+        SELECT route_identifier, summary_identifier, target_name, group_name, name, device_model,
+               device_os, duration, status
+        FROM test
+        WHERE target_name = ? AND device_model = ? AND device_os = ?
+          AND group_name <> 'System Failures'
         ORDER BY start_date DESC;
-        """, [.text(target), .text(deviceModel), .text(deviceOs)]).map(statsTest(from:))
+        """, [.text(target), .text(deviceModel), .text(deviceOs)]) { row in
+            guard let routeIdentifier = row.string("route_identifier") else { return }
+            let count = countsByRoute[routeIdentifier, default: 0]
+            guard count < windowSize else { return }
+            countsByRoute[routeIdentifier] = count + 1
+            tests.append(statsTest(from: row))
+        }
+        return tests
     }
 
     // MARK: - Row mapping
@@ -686,8 +751,12 @@ final class ResultStore {
                                         testsCrashCount: row.int("crash_count") ?? 0,
                                         userInfo: userInfo)
         // Preserve the stored run window (don't let an empty test list zero it out).
-        if let start = row.date("test_start_date") { rebuilt.testStartDate = start }
-        if let end = row.date("test_end_date") { rebuilt.testEndDate = end }
+        if let start = row.date("test_start_date") {
+            rebuilt.testStartDate = start
+        }
+        if let end = row.date("test_end_date") {
+            rebuilt.testEndDate = end
+        }
         return rebuilt
     }
 

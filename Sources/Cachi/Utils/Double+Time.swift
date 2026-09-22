@@ -4,9 +4,15 @@ func hoursMinutesSeconds(in elapsed: Double) -> String {
     let seconds = Int(elapsed - Double(hours) * 60 * 60 - Double(minutes) * 60)
 
     var components = [String]()
-    if hours > 0 { components.append("\(hours)h") }
-    if minutes > 0 { components.append("\(minutes)m") }
-    if seconds > 0 { components.append("\(seconds)s") }
+    if hours > 0 {
+        components.append("\(hours)h")
+    }
+    if minutes > 0 {
+        components.append("\(minutes)m")
+    }
+    if seconds > 0 {
+        components.append("\(seconds)s")
+    }
 
     if components.isEmpty {
         return "-"

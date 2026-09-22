@@ -48,8 +48,12 @@ final class BlobStore {
         var buffer = [UInt8](repeating: 0, count: bufferSize)
         while stream.hasBytesAvailable {
             let read = stream.read(&buffer, maxLength: bufferSize)
-            if read < 0 { return nil }
-            if read == 0 { break }
+            if read < 0 {
+                return nil
+            }
+            if read == 0 {
+                break
+            }
             CC_SHA256_Update(&context, buffer, CC_LONG(read))
         }
 
@@ -177,7 +181,9 @@ final class BlobStore {
             guard let identifier = run.string("identifier") else { continue }
             // Leave runs whose bundle is still on disk untouched — their blobs self-heal and their
             // row must survive so the next parse skips them.
-            if xcresultStillOnDisk(sourcePaths: run.string("source_xcresult_paths")) { continue }
+            if xcresultStillOnDisk(sourcePaths: run.string("source_xcresult_paths")) {
+                continue
+            }
             let size = run.int("blob_byte_size") ?? 0
             try? database.write { db in
                 try db.run("DELETE FROM result_bundle WHERE identifier = ?;", [.text(identifier)])

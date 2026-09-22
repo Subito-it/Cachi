@@ -133,7 +133,9 @@ public extension URL {
                 NSLog("%@", "Warning. Zipping succeeded but could not remove temporary directory afterwards")
             }
         }
-        if let error = errorToThrow { throw error }
+        if let error = errorToThrow {
+            throw error
+        }
         return destURL
     }
 }

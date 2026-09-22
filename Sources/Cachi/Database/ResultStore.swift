@@ -100,9 +100,28 @@ final class ResultStore {
     /// Looks up an already-ingested run by its source xcresult paths (the merge group). Used to
     /// skip re-parsing bundles already in the database. `urls` need not be pre-sorted.
     func runIdentifier(forSourceUrls urls: [URL]) -> String? {
-        let key = urls.map(\.path).sorted().joined(separator: "\n")
+        let key = Self.sourceKey(for: urls)
         return database.query("SELECT identifier FROM result_bundle WHERE source_xcresult_paths = ? LIMIT 1;", [.text(key)])
             .first?.string("identifier")
+    }
+
+    /// All persisted source groups keyed exactly as ingestion stores them. The identifiers route
+    /// uses this once per request instead of issuing one query for every bundle found on disk.
+    func runsBySourceKey() -> [String: (identifier: String, sortDate: Date)] {
+        var runs = [String: (identifier: String, sortDate: Date)]()
+        for row in database.query("SELECT identifier, source_xcresult_paths, test_start_date FROM result_bundle;") {
+            guard let identifier = row.string("identifier"),
+                  let sourceKey = row.string("source_xcresult_paths")
+            else {
+                continue
+            }
+            runs[sourceKey] = (identifier, row.date("test_start_date") ?? Date(timeIntervalSince1970: 0))
+        }
+        return runs
+    }
+
+    static func sourceKey(for urls: [URL]) -> String {
+        urls.map(\.path).sorted().joined(separator: "\n")
     }
 
     // MARK: - Detail extraction tracking
